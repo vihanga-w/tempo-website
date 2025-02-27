@@ -1,6 +1,5 @@
 'use client';
 
-import { Signup } from "@/components/signup";
 import { E404 } from "@/components/404";
 import { EventEmitter } from "events";
 import { Uplink } from "./uplink";
