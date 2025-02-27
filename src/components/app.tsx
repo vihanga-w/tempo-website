@@ -24,6 +24,7 @@ import { VisualKeyVerification } from "./key-verification";
 import { CaseMeta, Conversation } from "./conversation";
 import { ConversationResponse as ConvoType, ConversationHandler, MessageSuperObj, Conversation as ConvoDataType } from "@/lib/convo";
 import { CaseListItem } from "./case-list-item";
+import { Loader } from "./loader";
 
 export function UIApp({
     prouter,
@@ -38,8 +39,8 @@ export function UIApp({
     // const [pinEntryError, setPinEntryError] = useState<boolean>(false);
     // const [encryption, setEncryption] = useState<MessageAuthority>();
     // const [isPinProcessing, setIsPinProcessing] = useState<boolean>(false);
-    const [currentPage, setCurrentPage] = useState<string>("cases");
-    const [currentPageTitle, setCurrentPageTitle] = useState<string>("Cases");
+    const [currentPage, setCurrentPage] = useState<string>("discover");
+    const [currentPageTitle, setCurrentPageTitle] = useState<string>("Discover");
     const [prevPage, setPrevPage] = useState<string>("");
     const [pageSwitcherActive, setPageSwitcherActive] = useState<boolean>(false);
     // const [gravatarQuickEditor, setGravatarQuickEditor] = useState<GravatarQuickEditorCore | undefined>();
@@ -62,6 +63,8 @@ export function UIApp({
     // const [gravatarHash, setGravatarHash] = useState<string>("");
     // const [pfpCacheBuster, setPfpCacheBuster] = useState<string>(new Date().getTime().toString());
     // const [conversationActivityStatus, setConversationActivityStatus] = useState<string>("Loading activity status");
+    const [isLoading, setIsLoading] = useState<boolean>(true);
+    const [isFading, setIsFading] = useState<boolean>(false);
 
     const { isOpen: isModalOpen, onOpen: onModalOpen, onClose: onModalClose } = useDisclosure();
 
@@ -86,11 +89,6 @@ export function UIApp({
         indexed: boolean;
     }[] = [
         {
-            name: "Your Feed",
-            id: "feed",
-            indexed: true,
-        },
-        {
             name: "Discover",
             id: "discover",
             indexed: true,
@@ -98,12 +96,12 @@ export function UIApp({
         {
             name: "Activity",
             id: "activity",
-            indexed: false,
+            indexed: true,
         },
         {
             name: "Friends",
             id: "friends",
-            indexed: false,
+            indexed: true,
         },
         {
             name: "Settings",
@@ -173,6 +171,26 @@ export function UIApp({
             {modalContent}
         </Modal>
 
+        <Box
+            position="fixed"
+            top="0"
+            left="0"
+            width="100%"
+            height="100%"
+            background="white"
+            zIndex="9999"
+            display={isLoading || isFading ? "flex" : "none"}
+            alignItems="center"
+            justifyContent="center"
+            opacity={isLoading ? 1 : 0}
+            transition="opacity 0.15s ease-out"
+            onTransitionEnd={() => {
+                if (!isLoading) setIsFading(false);
+            }}
+        >
+            <Loader />
+        </Box>
+
         {/* The main user interface */}
         <Box padding="20px">
             <Image
@@ -227,6 +245,12 @@ export function UIApp({
                             transform={pageSwitcherActive ? "rotate(180deg)" : prevPage !== "" ? "rotate(90deg)" : "rotate(0deg)"}
                             transition=".3s"
                             zIndex="10"
+                            onLoad={() => {
+                                setTimeout(() => {
+                                    setIsFading(true);
+                                    setIsLoading(false);
+                                }, 1500);
+                            }}
                         />
                         <Text
                             fontFamily="Inter"
