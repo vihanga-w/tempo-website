@@ -11,23 +11,23 @@ import User from "./usrlib";
 const LSNavigationKey = "mchat-navigation";
 
 export default class PageRouter extends EventEmitter {
-    private uplink: Uplink;
+    // private uplink: Uplink;
     private user: User;
     public connectionState: string;
 
-    constructor(uplink: Uplink, user: User) {
+    constructor(user: User) {
         super();
 
-        this.uplink = uplink;
+        // this.uplink = uplink;
         this.user = user;
         this.connectionState = "offline";
 
-        uplink.on("classify-connection-state-change", d => {
-            console.log("classify-connection-state-change ==>", d);
-            this.connectionState = d;
-            window.localStorage.setItem("m.iuid", d);
-            this.emit("ccsc", d);
-        });
+        // uplink.on("classify-connection-state-change", d => {
+        //     console.log("classify-connection-state-change ==>", d);
+        //     this.connectionState = d;
+        //     window.localStorage.setItem("m.iuid", d);
+        //     this.emit("ccsc", d);
+        // });
 
         if (!window.localStorage.getItem(LSNavigationKey)) {
             window.localStorage.setItem(LSNavigationKey, "signup");
@@ -49,14 +49,14 @@ export default class PageRouter extends EventEmitter {
         const page = (pageId ?? window.localStorage.getItem(LSNavigationKey));
 
         switch (page) {
-            case "signup": {
-                return this.emit("page-navigate", (<Signup uplink={this.uplink} prouter={this} flowCompleteCb={() => {
-                    this.user.init();
-                }} />));
-            }
-            case "app": {
-                return this.emit("page-navigate", (<UIApp uplink={this.uplink} prouter={this} user={this.user} />))
-            }
+            // case "signup": {
+            //     return this.emit("page-navigate", (<Signup uplink={this.uplink} prouter={this} flowCompleteCb={() => {
+            //         this.user.init();
+            //     }} />));
+            // }
+            // case "app": {
+            //     return this.emit("page-navigate", (<UIApp uplink={this.uplink} prouter={this} user={this.user} />))
+            // }
             default: {
                 return this.emit("page-navigate", (<E404 />));
             }

@@ -34,10 +34,30 @@ export default function Home() {
   // Element references
   const debuggerConsole = useRef<HTMLTextAreaElement>(null);
 
-  const colorVariantName = useColorModeValue("light", "dark");
-  const bgColour = useColorModeValue('bg.light', 'bg.dark');
+  const bgColour = "bg.dark";
 
   useEffect(() => {
+    if (!window) return;
+
+    document.body.style.background = "var(--chakra-colors-bg-dark)";
+
+    if (window.localStorage.getItem("tempo-initial-visit")) setHasPreviouslyBeenOpened(true);
+    else window.localStorage.setItem("tempo-initial-visit", "false");
+
+    window.addEventListener("beforeinstallprompt", (e) => {
+      setDeferredPWAInstaller(e);
+    });
+
+    const userAgent = window.navigator.userAgent.toLowerCase();
+
+    if (/android/.test(userAgent)) {
+      // User is on an android
+      setMobileOS("android");
+    } else if (/iphone|ipad|ipod/.test(userAgent)) {
+      // Use is on iOS
+      setMobileOS("ios");
+    }
+
     // For debugging purposes only!
     if (!debugInjected) {
       const ogcnslg = console.log;
@@ -68,13 +88,11 @@ export default function Home() {
       setDebugInjected(true);
     }
 
-    if (!uplink) return;
-
     // Instantiate a user handler for this session
     const user = new User();
 
     // Initialise the page router
-    const prouter = new PageRouter(uplink, user);
+    const prouter = new PageRouter(user);
 
     prouter.on("ready", () => {
       // Don't do anything yet, we have not attempted to authenticate the user!
@@ -106,33 +124,6 @@ export default function Home() {
     else if (window.localStorage.getItem("tempo-override-pwa-detection")) setIsInMobileBrowser(false);
   }, []);
 
-  // Execute this code in the client once the page has finished loading
-  useEffect(() => {
-    if (!window) return;
-
-    document.body.style.background = "var(--chakra-colors-bg-dark)";
-
-    if (window.localStorage.getItem("tempo-initial-visit")) setHasPreviouslyBeenOpened(true);
-    else window.localStorage.setItem("tempo-initial-visit", "false");
-
-    window.addEventListener("beforeinstallprompt", (e) => {
-      setDeferredPWAInstaller(e);
-    });
-
-    const userAgent = window.navigator.userAgent.toLowerCase();
-
-    if (/android/.test(userAgent)) {
-      // User is on an android
-      setMobileOS("android");
-    } else if (/iphone|ipad|ipod/.test(userAgent)) {
-      // Use is on iOS
-      setMobileOS("ios");
-    }
-
-    console.log("Setting up connection to server")
-    setUplink(new Uplink());
-  }, []);
-
   function triggerInstallPWA() {
     deferredPWAInstaller.prompt();
   }
@@ -152,37 +143,37 @@ export default function Home() {
               {/* <Text fontSize="56px">👋</Text> */}
               <Image
                 src={`/icons/ui/logo-clear.svg`}
-                alt="MChat logo"
+                alt="Tempo logo"
                 width="88px"
                 marginBottom="16px"
                 userSelect="none"
               />
               <Box>
-                <Text fontFamily="Inter" fontSize="20px">{!hasPreviouslyBeenOpened ? "Welcome to " : "Welcome back to "}<b>Tempo.</b></Text>
+                <Text fontFamily="Inter" fontSize="20px">{!hasPreviouslyBeenOpened ? "Welcome to " : "Welcome back to "}<b>Tempo</b>!</Text>
                 <Box overflow="auto">
                   <Stack gap="20px">
-                    <Text>MChat is a secure messaging application designed for medical professionals.</Text>
-                    <Text>{hasPreviouslyBeenOpened ? "It seems like you have visited this page before. If you have already setup MChat, please open the app from your home screen, if not, follow the instructions below." : "Before you can start using MChat, we have to do some setup first!"}</Text>
+                    <Text>Tempo is a social media for your music, think of it like Instagram for music.</Text>
+                    <Text>{hasPreviouslyBeenOpened ? "It seems like you have visited this page before. If you have already setup Tempo, please open the app from your home screen, if not, follow the instructions below." : "Before you can start using Tempo, we have to do some setup first!"}</Text>
                     {mobileOS == "generic" ? (<>
                       <Text>We were not able to detect what type of phone you have so the instructions below may not be 100% accurate!</Text>
                       <OrderedList paddingLeft="5px">
                         <ListItem>Open the page settings menu</ListItem>
                         <ListItem>Select option to add to home screen</ListItem>
-                        <ListItem>Open MChat from your home screen</ListItem>
+                        <ListItem>Open Tempo from your home screen</ListItem>
                       </OrderedList>
                     </>) : (<></>)}
                     {mobileOS == "ios" ? (<>
                       <Text>It seems like you are on an iOS device, the instructions below are for iOS devices browsing using Safari.</Text>
                       <OrderedList paddingLeft="5px">
                         <ListItem><HStack><Text>Click on the share</Text><Image margin="-5px" marginBottom="2px" width="20px" src="/icons/ui/ios-share.svg" /><Text>icon</Text></HStack></ListItem>
-                        <ListItem>Scroll down and tap on "Add to Home Screen"</ListItem>
-                        <ListItem>Click "Add" in the upper right corner</ListItem>
-                        <ListItem>Open MChat from your home screen</ListItem>
+                        <ListItem>Scroll down and tap on "<b>Add to Home Screen</b>"</ListItem>
+                        <ListItem>Click "<b>Add</b>" in the upper right corner</ListItem>
+                        <ListItem>Open <b>Tempo</b> from your home screen</ListItem>
                       </OrderedList>
                     </>) : (<></>)}
                     {mobileOS == "android" ? (<>
-                      <Text>It seems like you are on an android device. Installing MChat on android is very easy, just tap the button below and open MChat from your home screen.</Text>
-                      <Button onClick={triggerInstallPWA}>Install MChat</Button>
+                      <Text>It seems like you are on an android device. Installing Tempo on android is very easy, just tap the button below and open Tempo from your home screen.</Text>
+                      <Button onClick={triggerInstallPWA}>Install Tempo</Button>
                     </>) : (<></>)}
                   </Stack>
                 </Box>
