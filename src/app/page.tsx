@@ -110,7 +110,9 @@ export default function Home() {
     user.on("user-init", () => {
       console.log("User object has been updated! User object:", user);
 
-      prouter.setPage(user.isLoggedIn ? "app" : "signup");
+      // TODO: Re-enable this when user handler is working
+      // prouter.setPage(user.isLoggedIn ? "app" : "signup");
+      prouter.setPage("app");
     });
 
     // Wait for the user handler to finish initialising

@@ -48,15 +48,17 @@ export default class PageRouter extends EventEmitter {
     private navigate(pageId?: string) {
         const page = (pageId ?? window.localStorage.getItem(LSNavigationKey));
 
+        console.log(page)
+
         switch (page) {
             // case "signup": {
             //     return this.emit("page-navigate", (<Signup uplink={this.uplink} prouter={this} flowCompleteCb={() => {
             //         this.user.init();
             //     }} />));
             // }
-            // case "app": {
-            //     return this.emit("page-navigate", (<UIApp uplink={this.uplink} prouter={this} user={this.user} />))
-            // }
+            case "app": {
+                return this.emit("page-navigate", (<UIApp prouter={this} user={this.user} />))
+            }
             default: {
                 return this.emit("page-navigate", (<E404 />));
             }
