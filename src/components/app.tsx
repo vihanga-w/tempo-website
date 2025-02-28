@@ -242,7 +242,7 @@ export function UIApp({
                         onClick={handlePageMenuClick}
                     >
                         <Image
-                            src="/chevron.svg"
+                            src="/icons/ui/chevron.svg"
                             transform={pageSwitcherActive ? "rotate(180deg)" : prevPage !== "" ? "rotate(90deg)" : "rotate(0deg)"}
                             transition=".3s"
                             zIndex="10"
@@ -250,7 +250,6 @@ export function UIApp({
                                 setTimeout(() => {
                                     setIsFading(true);
                                     setIsLoading(false);
-                                    triggerModal("adjlnadsjl", <Text>asd</Text>)
                                 }, 1500);
                             }}
                         />
@@ -258,7 +257,7 @@ export function UIApp({
                             fontFamily="Inter"
                             fontWeight="black"
                             fontSize="36px"
-                            color="text.dark"
+                            color="text.color"
                             zIndex="10"
                             transition=".2s"
                             whiteSpace="nowrap"
@@ -284,7 +283,7 @@ export function UIApp({
                                 fontFamily="Inter"
                                 fontWeight={currentPage == v.id ? "bold" : "medium"}
                                 fontSize="36px"
-                                color="text.dark"
+                                color="text.color"
                                 zIndex="10"
                                 transition="margin .25s ease-out, opacity .2s"
                                 whiteSpace="nowrap"
@@ -324,9 +323,19 @@ export function UIApp({
                 overflow="hidden"
             >
                 {/* Activity page */}
-                {currentPage == "activity" && (<>
-                    <PlaybackState />
-                </>)}
+                {currentPage == "activity" && (
+                    <Stack gap="12px">
+                        <Text fontFamily="arial, helvetica" fontWeight="bold" fontSize="24px">Now Playing</Text>
+                        {[1,1,1,1,1].map((_, i) => {
+                            return (<>
+                                {i !== 0 && (
+                                    <Box width="100%" height="1px" background="rgba(255, 255, 255, 0.1)" />
+                                )}
+                                <PlaybackState key={"ps-" + i} isExplicit={true} />
+                            </>);
+                        })}
+                    </Stack>
+                )}
 
                 {/* Friends page */}
                 {currentPage == "friends" && (<>
