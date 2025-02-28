@@ -324,7 +324,7 @@ export function UIApp({
             >
                 {/* Activity page */}
                 {currentPage == "activity" && (
-                    <Stack gap="12px">
+                    <Stack gap="18px">
                         <Text fontFamily="arial, helvetica" fontWeight="bold" fontSize="24px">Now Playing</Text>
                         {[1,1,1,1,1].map((_, i) => {
                             return (<>
