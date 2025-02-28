@@ -329,7 +329,7 @@ export function UIApp({
                         {[1,1,1,1,1].map((_, i) => {
                             return (<>
                                 {i !== 0 && (
-                                    <Box width="100%" height="1px" background="rgba(255, 255, 255, 0.1)" />
+                                    <Box width="100%" height="1px" background="rgba(255, 255, 255, 0.2)" />
                                 )}
                                 <PlaybackState key={"ps-" + i} isExplicit={true} />
                             </>);
