@@ -20,8 +20,9 @@ export function PlaybackState({
                 <Image width="64px" borderRadius="6px" src="https://i.scdn.co/image/ab67616d00001e02d3ee4bf67c2ac2154006ad72" />
                 <Stack height="100%" width="100%" gap="0" fontFamily="arial, helvetica" lineHeight="18px">
                     <HStack pos="relative" gap="5px" justifyContent="space-between">
-                        <HStack gap="5px">
-                            <Text>Call Me Maybe</Text>
+                        <HStack width="100%" gap="5px">
+                            {/* TODO: Make this text scroll with a fixed width */}
+                            <Text maxWidth="60%" textOverflow="ellipsis" whiteSpace="nowrap" overflow="hidden">Call Me Maybe</Text>
                             {isExplicit && (
                                 <MdExplicit />
                             )}
@@ -36,7 +37,7 @@ export function PlaybackState({
                             </Box>
                         </HStack>
                     </HStack>
-                    <Text>Carly Rae Jepsen</Text>
+                    <Text maxWidth="65%" textOverflow="ellipsis" whiteSpace="nowrap" overflow="hidden">Carly Rae Jepsen</Text>
                     <HStack justifyContent="space-between" marginTop="10px">
                         <Text>0:45</Text>
                         <Text>3:30</Text>
