@@ -25,6 +25,7 @@ import { CaseMeta, Conversation } from "./conversation";
 import { ConversationResponse as ConvoType, ConversationHandler, MessageSuperObj, Conversation as ConvoDataType } from "@/lib/convo";
 import { CaseListItem } from "./case-list-item";
 import { Loader } from "./loader";
+import { PlaybackState } from "./playback-state";
 
 export function UIApp({
     prouter,
@@ -249,6 +250,7 @@ export function UIApp({
                                 setTimeout(() => {
                                     setIsFading(true);
                                     setIsLoading(false);
+                                    triggerModal("adjlnadsjl", <Text>asd</Text>)
                                 }, 1500);
                             }}
                         />
@@ -321,6 +323,11 @@ export function UIApp({
                 zIndex="5"
                 overflow="hidden"
             >
+                {/* Activity page */}
+                {currentPage == "activity" && (<>
+                    <PlaybackState />
+                </>)}
+
                 {/* Friends page */}
                 {currentPage == "friends" && (<>
                     {user.circle.length == 0 ? (<>

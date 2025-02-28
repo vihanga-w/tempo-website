@@ -32,7 +32,7 @@ export default function RootLayout({
         <meta name="description" content="The social music platform" />
         <meta name="format-detection" content="telephone=no" />
         <meta name="mobile-web-app-capable" content="yes" />
-        <meta name="theme-color" content="#000000" />
+        <meta name="theme-color" content="#0D0D0E" />
 
         {/* PWA App Icons */}
         <link rel="apple-touch-icon" href="/icons/ios/256.png" />

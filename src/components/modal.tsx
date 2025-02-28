@@ -31,7 +31,7 @@ export function Modal({
             <ModalOverlay
                 background="rgba(0, 0, 0, 0.5)"
             />
-            <ModalContent background="#2E2942">
+            <ModalContent background="#181818">
                 <ModalHeader>{title}</ModalHeader>
                 <ModalCloseButton />
                 <ModalBody>

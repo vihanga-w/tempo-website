@@ -5,32 +5,27 @@ export const theme = extendTheme({
     useSystemColorMode: false,
     colors: {
       bg: {
-        dark: '#000000',
-        light: '#000000',
+        dark: '#0D0D0E',
       },
       text: {
         dark: "#ffffff",
-        light: "#ffffff",
+        color: "#E9E7FB"
       },
       primary: {
-        dark: "#5786FF",
-        light: "#0030A8",
+        dark: "#3B44FF",
       },
       secondary: {
         dark: "#5A5766",
-        light: "#9C99A8",
       },
       accent: {
         dark: "#A480FF",
-        light: "#240080",
       },
       popover: {
         dark: "#29253B",
-        light: "#DCD9E5",
       }
     },
     body: {
       height: "100%",
-      background: "#000000",
+      background: "#0D0D0E",
     }
 });
