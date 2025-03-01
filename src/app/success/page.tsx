@@ -11,6 +11,10 @@ export default function AuthSuccess() {
         if (!document.cookie.includes("tempo.a="))
             window.location.pathname = "/error";
 
+        const authToken = document.cookie.split("tempo.a=")[1].split(";")[0];
+
+        window.localStorage.setItem("tempo.a", authToken);
+
         setTimeout(() => {
             window.location.pathname = "/";
         }, 250);
