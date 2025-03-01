@@ -88,6 +88,18 @@ export function UIApp({
             });
         });
 
+        streamer.on("remove", userId => {
+            setLivePlaybackStates(v => {
+                const existingIndex = v.findIndex(a => a.userId === userId);
+
+                if (existingIndex !== -1) {
+                    v.splice(existingIndex, 1);
+                }
+
+                return [...v];
+            });
+        })
+
         streamer.init();
     }, [user.isLoggedIn]);
 
