@@ -6,7 +6,7 @@ import React from "react";
 import { UIApp } from "@/components/app";
 import User from "./usrlib";
 
-const LSNavigationKey = "mchat-navigation";
+const LSNavigationKey = "tempo-navigation";
 
 export default class PageRouter extends EventEmitter {
     // private uplink: Uplink;

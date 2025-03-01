@@ -103,13 +103,21 @@ export default function Home() {
 
     prouter.initRouter();
 
-    user.on("user-init", () => {
+    user.on("user-init", async () => {
       console.log("User object has been updated! User object:", user);
 
-      // TODO: Re-enable this when user handler is working
+      // TODO: Re-enable this when singup flow has been made
       // prouter.setPage(user.isLoggedIn ? "app" : "signup");
-      // prouter.setPage("app");
-      alert(user.isLoggedIn)
+
+      if (!user.isLoggedIn) {
+        const req = await fetch("https://api.tempo-music.co/auth/ui", {
+          redirect: 'manual',
+        });
+
+        const redirUrl = req.headers.get("location")
+
+        alert(redirUrl);
+      }
     });
 
     // Wait for the user handler to finish initialising
