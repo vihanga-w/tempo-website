@@ -18,10 +18,15 @@ export function SkeletonImage({
 }) {
     const [isLoaded, setIsLoaded] = useState<boolean>(false);
     const prevSrcRef = useRef<string | undefined>(src);
+    const loadedImagesRef = useRef<Set<string>>(new Set());
 
     useEffect(() => {
         if (src !== prevSrcRef.current) {
-            setIsLoaded(false);
+            if (loadedImagesRef.current.has(src ?? "")) {
+                setIsLoaded(true);
+            } else {
+                setIsLoaded(false);
+            }
             prevSrcRef.current = src;
         }
     }, [src]);
@@ -36,6 +41,7 @@ export function SkeletonImage({
 
             setTimeout(() => {
                 setIsLoaded(true);
+                loadedImagesRef.current.add(src);
             }, 100);
         }} width={isLoaded ? width : 0} height={isLoaded ? height : 0} borderRadius={borderRadius} />
     </>)
