@@ -115,12 +115,12 @@ export function UIApp({
         newStreamer.on("remove", userId => {
             setLivePlaybackStates(v => {
                 const existingIndex = v.findIndex(a => a.data.userId === userId);
-
+        
                 if (existingIndex !== -1) {
-                    v.splice(existingIndex, 1);
+                    return v.filter((_, index) => index !== existingIndex);
                 }
-
-                return [...v];
+        
+                return v;
             });
         });
 
