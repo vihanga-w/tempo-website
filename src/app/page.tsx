@@ -111,6 +111,8 @@ export default function Home() {
 
       if (!user.isLoggedIn) {
         window.location.href = "https://api.tempo-music.co/auth/ui";
+      } else {
+        prouter.setPage("app");
       }
     });
 
