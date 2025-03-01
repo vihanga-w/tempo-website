@@ -5,7 +5,7 @@ export function Loader() {
         <style>
             {`.loader {
             width: 100vw;
-            height: 14px;
+            height: 16px;
             border: none;
             background: repeating-linear-gradient(-45deg,#fff 0 15px,#0000 0 26px) left/200% 100%;
             animation: l3 2.5s infinite linear;
@@ -16,7 +16,7 @@ export function Loader() {
         </style>
         <Box background="#0D0D0E">
             <Center width="100vw" height="100vh">
-                <Image width="80px" src="/icons/ui/logo-clear.svg" />
+                <Image width="100px" src="/icons/ui/logo-clear.svg" />
             </Center>
             <Box pos="absolute" bottom="0" left="0" className="loader" />
         </Box>
