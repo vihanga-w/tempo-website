@@ -92,9 +92,8 @@ export function UIApp({
                     });
                 }
 
-                if (v[existingIndex] && v[existingIndex].updateCb) {
-                    console.log("update:", data.data)
-                    v[existingIndex].updateCb(data.data);
+                if (v[existingIndex] && v[existingIndex].updateCb !== undefined) {
+                    v[existingIndex].updateCb!(data.data);
                 }
                 
                 return [...v];
