@@ -68,7 +68,7 @@ export class DataStreamer extends EventEmitter {
         this.streams = {};
     }
 
-    async init() {
+    async init(prevUserIds?: string[]) {
         this.cleanup();
 
         try {
@@ -77,6 +77,13 @@ export class DataStreamer extends EventEmitter {
 
             if (this.interval)
                 try { clearInterval(this.interval); } catch { }
+
+            // Remove states if they no longer exist
+            // Such as if app is reopened after a while and states are now stale
+            for (const userId of prevUserIds ?? []) {
+                if (!sessions.includes(userId))
+                    this.emit("remove", userId);
+            }
 
             this.interval = setInterval(async () => {
                 const newSessions = await this.fetchPublicStreams();
