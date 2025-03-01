@@ -138,7 +138,7 @@ export function UIApp({
             if (streamer) {
                 streamer.cleanup();
                 await new Promise<void>((resolve) => setTimeout(resolve, 250));
-                await streamer.init();
+                await streamer.init(livePlaybackStates.map(v => v.data.userId));
             }
         };
 
