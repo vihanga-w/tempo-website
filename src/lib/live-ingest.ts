@@ -197,7 +197,9 @@ export class DataStreamer extends EventEmitter {
     }
 
     private async fetchPublicStreams() {
-        const req = await fetch("https://api.tempo-music.co/spotify/public/sessions");
+        const req = await fetch("https://api.tempo-music.co/spotify/public/sessions", {
+            credentials: "include",
+        });
         const res = await req.json() as PublicSessionResponse;
 
         return res;
