@@ -80,7 +80,7 @@ export class DataStreamer extends EventEmitter {
             }, 10e3);
 
             sessions.forEach((userId) => {
-                const sock = new WebSocket("wss://tempo.filmclick.eu.org/stream/" + userId);
+                const sock = new WebSocket("wss://api.tempo-music.co/stream/" + userId);
 
                 const removeSession = () => {
                     const s = this.streams[userId];
@@ -197,7 +197,7 @@ export class DataStreamer extends EventEmitter {
     }
 
     private async fetchPublicStreams() {
-        const req = await fetch("https://tempo.filmclick.eu.org/spotify/public/sessions");
+        const req = await fetch("https://api.tempo-music.co/spotify/public/sessions");
         const res = await req.json() as PublicSessionResponse;
 
         return res;

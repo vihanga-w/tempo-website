@@ -2,7 +2,7 @@
 
 import { existsSync } from "fs";
 
-const apiBase = "https://tempo.filmclick.eu.org";
+const apiBase = "https://api.tempo-music.co";
 
 const nextConfig = {
     // Rewrite the relative API paths to go to the hosted backend server
