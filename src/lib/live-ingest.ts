@@ -13,6 +13,7 @@ interface PlaybackState {
     progressNormal: number;
     isPlaying: boolean;
     timeRemaining: number;
+    duration: number;
     imageUrl: string;
     pfpUrl: string;
     username: string;
@@ -77,7 +78,7 @@ export class DataStreamer extends EventEmitter {
 
                     this.init();
                 }
-            }, 10e3);
+            }, 5e3);
 
             sessions.forEach((userId) => {
                 const sock = new WebSocket("wss://api.tempo-music.co/stream/" + userId);
@@ -142,7 +143,7 @@ export class DataStreamer extends EventEmitter {
                             if (parsed.state?.isPlaying) {
                                 const now = Date.now();
                                 const timeElapsed = (now - parsed.state.updatedAt) / 1000; // in seconds
-                                const duration = (parsed.state.timeRemaining / (1 - parsed.state.progressNormal));
+                                const duration = parsed.state.duration;
                                 const currentTime = Math.min(duration * parsed.state.progressNormal, duration);
                                 parsed.interpolatedProgress = (currentTime + (timeElapsed * 1e3)) / duration;
 

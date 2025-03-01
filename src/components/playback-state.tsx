@@ -56,8 +56,8 @@ export function PlaybackState({
                 }).join(", ")}</Text>
                 {data.state && (
                     <HStack justifyContent="space-between" marginTop="10px">
-                        <Text>{formatTime((data.state.timeRemaining / (1 - data.state.progressNormal)) * progress)}</Text>
-                        <Text>{formatTime((data.state.timeRemaining / (1 - data.state.progressNormal)))}</Text>
+                        <Text>{progress < 1 ? formatTime(data.state.duration * progress) : formatTime(data.state.duration)}</Text>
+                        <Text>{progress < 1 ? formatTime(data.state.duration) : formatTime(data.state.duration)}</Text>
                     </HStack>
                 )}
             </Stack>
