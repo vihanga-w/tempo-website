@@ -66,7 +66,7 @@ export class DataStreamer extends EventEmitter {
             setInterval(async () => {
                 const newSessions = await this.fetchPublicStreams();
 
-                if (sessions.sort().join("") !== newSessions.sort().join("")) {
+                if (sessions.join("") !== newSessions.join("")) {
                     for (const k of Object.keys(this.streams)) {
                         const stream = this.streams[k];
 
@@ -203,7 +203,7 @@ export class DataStreamer extends EventEmitter {
         });
         const res = await req.json() as PublicSessionResponse;
 
-        return res;
+        return res.sort();
     }
 
     public getLastState(userId: string) {
