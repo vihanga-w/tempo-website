@@ -99,12 +99,12 @@ export function UIApp({
         
                             return v.map((item, index) => 
                                 index === existingIndex ? { ...item, data } : item
-                            );
+                            ).sort((a, b) => (a.data.data.state?.username ?? "").localeCompare(b.data.data.state?.username ?? ""));
                         }
                     } else if (data.data.action.type !== "STOPPED") {
                         doUpdateCb();
         
-                        return [...v, { data, updateCb: undefined }];
+                        return [...v, { data, updateCb: undefined }].sort((a, b) => (a.data.data.state?.username ?? "").localeCompare(b.data.data.state?.username ?? ""));
                     }
         
                     return v;
