@@ -176,7 +176,7 @@ export class DataStreamer extends EventEmitter {
 
                                         this.emit("update", payload);
                                     });
-                                }, 1e3);
+                                }, 250);
 
                                 sock.onclose = () => {
                                     if (interval)
