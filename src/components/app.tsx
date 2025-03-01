@@ -134,9 +134,11 @@ export function UIApp({
     }, [user.isLoggedIn]);
 
     useEffect(() => {
-        const handleFocus = () => {
+        const handleFocus = async () => {
             if (streamer) {
-                setTimeout(async () => { await streamer.init(); }, 250);
+                streamer.cleanup();
+                await new Promise<void>((resolve) => setTimeout(resolve, 250));
+                await streamer.init();
             }
         };
 
