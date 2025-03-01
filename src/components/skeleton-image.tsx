@@ -7,19 +7,26 @@ export function SkeletonImage({
     src,
     width,
     height,
+    opacity,
+    borderRadius,
 }: {
-    src: string;
-    width: string | number;
-    height: string | number;
+    src?: string;
+    width?: string | number;
+    height?: string | number;
+    opacity?: string | number;
+    borderRadius?: string | number;
 }) {
     const [isLoaded, setIsLoaded] = useState<boolean>(false);
 
     return (<>
         {!isLoaded && (
-            <Skeleton width={width} height={height} />
+            <Skeleton width={width} height={height} borderRadius={borderRadius} />
         )}
-        <Image src={src} onLoad={() => {
+        <Image src={src} opacity={!isLoaded ? 0 : opacity ?? 1} onLoad={() => {
+            if (!src)
+                return;
+
             setIsLoaded(true);
-        }} width={isLoaded ? width : 0} height={isLoaded ? height : 0} />
+        }} width={isLoaded ? width : 0} height={isLoaded ? height : 0} borderRadius={borderRadius} />
     </>)
 }
