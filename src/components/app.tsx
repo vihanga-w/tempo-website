@@ -127,10 +127,9 @@ export function UIApp({
     }, [user.isLoggedIn]);
 
     useEffect(() => {
-        const handleFocus = () => {
-            if (streamer) {
-                streamer.init();
-            }
+        const handleFocus = async () => {
+            if (streamer)
+                await streamer.init();
         };
 
         window.addEventListener("focus", handleFocus);
