@@ -9,6 +9,9 @@ import { Loader } from "./loader";
 import { PlaybackState } from "./playback-state";
 import { DataStreamer, UpdateEvent } from "@/lib/live-ingest";
 import { MdAddReaction } from "react-icons/md";
+import { Mutex } from "async-mutex";
+
+const updateMutex = new Mutex();
 
 export function UIApp({
     prouter,
@@ -77,33 +80,35 @@ export function UIApp({
         setStreamer(newStreamer);
 
         newStreamer.on("update", (data: UpdateEvent) => {
-            setLivePlaybackStates(v => {
-                const existingIndex = v.findIndex(a => a.data.userId === data.userId);
-
-                const doUpdateCb = () => {
-                    // Check user id incase simultaneous events cause data to switch places
-                    if (v[existingIndex] && v[existingIndex].updateCb !== undefined && v[existingIndex].data.userId == data.userId) {
-                        v[existingIndex].updateCb!(data.data);
-                    }
-                }
-                
-                if (existingIndex !== -1) {
-                    if (data.data.action.type === "STOPPED") {
-                        return v.filter((_, index) => index !== existingIndex);
-                    } else {
+            updateMutex.runExclusive(() => {
+                setLivePlaybackStates(v => {
+                    const existingIndex = v.findIndex(a => a.data.userId === data.userId);
+        
+                    const doUpdateCb = () => {
+                        // Check user id in case simultaneous events cause data to switch places
+                        if (v[existingIndex] && v[existingIndex].updateCb !== undefined && v[existingIndex].data.userId === data.userId) {
+                            v[existingIndex].updateCb!(data.data);
+                        }
+                    };
+        
+                    if (existingIndex !== -1) {
+                        if (data.data.action.type === "STOPPED") {
+                            return v.filter((_, index) => index !== existingIndex);
+                        } else {
+                            doUpdateCb();
+        
+                            return v.map((item, index) => 
+                                index === existingIndex ? { ...item, data } : item
+                            );
+                        }
+                    } else if (data.data.action.type !== "STOPPED") {
                         doUpdateCb();
-
-                        return v.map((item, index) => 
-                            index === existingIndex ? { ...item, data } : item
-                        );
+        
+                        return [...v, { data, updateCb: undefined }];
                     }
-                } else if (data.data.action.type !== "STOPPED") {
-                    doUpdateCb();
-
-                    return [...v, { data, updateCb: undefined }];
-                }
-
-                return v;
+        
+                    return v;
+                });
             });
         });
 

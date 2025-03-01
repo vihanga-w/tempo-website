@@ -44,6 +44,9 @@ importers:
       '@vercel/analytics':
         specifier: ^1.2.2
         version: 1.2.2(next@14.1.0(@babel/core@7.24.0)(react-dom@18.2.0(react@18.2.0))(react@18.2.0))(react@18.2.0)
+      async-mutex:
+        specifier: ^0.5.0
+        version: 0.5.0
       chakra-react-select:
         specifier: ^4.7.6
         version: 4.7.6(e5zew5jzs3asolt5ngwjllhd3q)
@@ -53,6 +56,9 @@ importers:
       libphonenumber-js:
         specifier: ^1.10.58
         version: 1.10.58
+      mutexify:
+        specifier: ^1.4.0
+        version: 1.4.0
       next:
         specifier: 14.1.0
         version: 14.1.0(@babel/core@7.24.0)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
@@ -87,6 +93,9 @@ importers:
         specifier: ^0.1.0
         version: 0.1.0
     devDependencies:
+      '@types/mutexify':
+        specifier: ^1.2.4
+        version: 1.2.4
       '@types/node':
         specifier: ^20.17.10
         version: 20.17.10
@@ -1410,6 +1419,9 @@ packages:
   '@types/minimatch@5.1.2':
     resolution: {integrity: sha512-K0VQKziLUWkVKiRVrx4a40iPaxTUefQmjtkQofBkYRcoaaL/8rhwDWww9qWbrgicNOgnpIsMxyNIUM4+n6dUIA==}
 
+  '@types/mutexify@1.2.4':
+    resolution: {integrity: sha512-mKNLg7IdppIDCNXiC1hNkNhdEdYnd5ErNnoNgEOERwU3DwD/S1/TBseob0Uq/QXWADBz7OWaWUoHa6IEUtrOEQ==}
+
   '@types/node-rsa@1.1.4':
     resolution: {integrity: sha512-dB0ECel6JpMnq5ULvpUTunx3yNm8e/dIkv8Zu9p2c8me70xIRUUG3q+qXRwcSf9rN3oqamv4116iHy90dJGRpA==}
 
@@ -1594,6 +1606,9 @@ packages:
 
   asn1@0.2.6:
     resolution: {integrity: sha512-ix/FxPn0MDjeyJ7i/yoHGFt/EX6LyNbxSEhPPXODPL+KB0VPk86UYfL0lMdy+KCnv+fmvIzySwaK5COwqVbWTQ==}
+
+  async-mutex@0.5.0:
+    resolution: {integrity: sha512-1A94B18jkJ3DYq284ohPxoXbfTA5HsQ7/Mf4DEhcyLx3Bz27Rh59iScbB6EPiP+B+joue6YCxcMXSbFC1tZKwA==}
 
   async@3.2.5:
     resolution: {integrity: sha512-baNZyqaaLhyLVKm/DlvdW051MSgO6b8eVfIezl9E5PqWxFgzLm/wQntEW4zOytVburDEr0JlALEpdOFwvErLsg==}
@@ -2332,6 +2347,9 @@ packages:
   ms@2.1.2:
     resolution: {integrity: sha512-sGkPx+VjMtmA6MX27oA4FBFELFCZZ4S4XqeGOXCv68tT+jb3vk/RyaKWP0PTKyWtmLSM0b+adUTEvbs1PEaH2w==}
 
+  mutexify@1.4.0:
+    resolution: {integrity: sha512-pbYSsOrSB/AKN5h/WzzLRMFgZhClWccf2XIB4RSMC8JbquiB0e0/SH5AIfdQMdyHmYtv4seU7yV/TvAwPLJ1Yg==}
+
   nanoid@3.3.7:
     resolution: {integrity: sha512-eSRppjcPIatRIMC1U6UngP8XFcz8MQWGQdt1MTBQ7NaAmvXDfvNxbvWV3x2y6CdEUciCSsDHDQZbhYaB8QEo2g==}
     engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
@@ -2478,6 +2496,9 @@ packages:
 
   queue-microtask@1.2.3:
     resolution: {integrity: sha512-NuaNSa6flKT5JaSYQzJok04JzTL1CA6aGhv5rfLW3PgqA+M2ChpZQnAC8h8i4ZFkBS8X5RqkDBHA7r4hej3K9A==}
+
+  queue-tick@1.0.1:
+    resolution: {integrity: sha512-kJt5qhMxoszgU/62PLP1CJytzd2NKetjSRnyuj31fDd3Rlcz3fzlFdFLD1SItunPwyqEOkca6GbV612BWfaBag==}
 
   randombytes@2.1.0:
     resolution: {integrity: sha512-vYl3iOX+4CKUWuxGi9Ukhie6fsqXqS9FE2Zaic4tNFD2N2QQaXOMFbuKK4QmDHC0JO6B1Zp41J0LpT0oR68amQ==}
@@ -4742,6 +4763,8 @@ snapshots:
 
   '@types/minimatch@5.1.2': {}
 
+  '@types/mutexify@1.2.4': {}
+
   '@types/node-rsa@1.1.4':
     dependencies:
       '@types/node': 20.17.10
@@ -4958,6 +4981,10 @@ snapshots:
   asn1@0.2.6:
     dependencies:
       safer-buffer: 2.1.2
+
+  async-mutex@0.5.0:
+    dependencies:
+      tslib: 2.6.2
 
   async@3.2.5: {}
 
@@ -5765,6 +5792,10 @@ snapshots:
 
   ms@2.1.2: {}
 
+  mutexify@1.4.0:
+    dependencies:
+      queue-tick: 1.0.1
+
   nanoid@3.3.7: {}
 
   neo-async@2.6.2: {}
@@ -5907,6 +5938,8 @@ snapshots:
   punycode@2.3.1: {}
 
   queue-microtask@1.2.3: {}
+
+  queue-tick@1.0.1: {}
 
   randombytes@2.1.0:
     dependencies:
