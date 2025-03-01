@@ -113,14 +113,16 @@ export function UIApp({
         });
 
         newStreamer.on("remove", userId => {
-            setLivePlaybackStates(v => {
-                const existingIndex = v.findIndex(a => a.data.userId === userId);
-        
-                if (existingIndex !== -1) {
-                    return v.filter((_, index) => index !== existingIndex);
-                }
-        
-                return v;
+            updateMutex.runExclusive(() => {
+                setLivePlaybackStates(v => {
+                    const existingIndex = v.findIndex(a => a.data.userId === userId);
+            
+                    if (existingIndex !== -1) {
+                        return v.filter((_, index) => index !== existingIndex);
+                    }
+            
+                    return v;
+                });
             });
         });
 
