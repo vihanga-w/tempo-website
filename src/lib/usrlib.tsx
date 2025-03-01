@@ -89,7 +89,9 @@ export default class User extends EventEmitter {
 
     async getDetails(): Promise<undefined | ClientUserAccount> {
         try {
-            const req = await fetch("https://api.tempo-music.co/me");
+            const req = await fetch("https://api.tempo-music.co/me", {
+                credentials: "include"
+            });
             const res = await req.json() as {
                 error: boolean;
                 data?: ClientUserAccount;
