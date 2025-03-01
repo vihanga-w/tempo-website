@@ -9,14 +9,6 @@ const nextConfig = {
     async rewrites() {
         return [
             {
-                source: '/api/public/sessions',
-                destination: `${apiBase}/spotify/public/sessions`,
-            },
-            {
-                source: '/api/sub/:userId',
-                destination: `${apiBase}/stream/:userId`
-            },
-            {
                 source: `/public/noprecache/icheck`,
                 destination: "http://www.msftncsi.com/ncsi.txt",
             }
