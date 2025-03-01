@@ -1,5 +1,5 @@
 import { Image } from "@chakra-ui/react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Skeleton from 'react-loading-skeleton';
 import 'react-loading-skeleton/dist/skeleton.css';
 
@@ -17,14 +17,14 @@ export function SkeletonImage({
     borderRadius?: string | number;
 }) {
     const [isLoaded, setIsLoaded] = useState<boolean>(false);
-    const [prevSrc, setPrevSrc] = useState<string | undefined>(src);
+    const prevSrcRef = useRef<string | undefined>(src);
 
     useEffect(() => {
-        if (src !== prevSrc) {
+        if (src !== prevSrcRef.current) {
             setIsLoaded(false);
-            setPrevSrc(src);
+            prevSrcRef.current = src;
         }
-    }, [src, prevSrc]);
+    }, [src]);
 
     return (<>
         {!isLoaded && (
