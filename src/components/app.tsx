@@ -73,6 +73,7 @@ export function UIApp({
             return;
 
         const newStreamer = new DataStreamer();
+        
         setStreamer(newStreamer);
 
         newStreamer.on("update", (data: UpdateEvent) => {
@@ -92,7 +93,8 @@ export function UIApp({
                     });
                 }
 
-                if (v[existingIndex] && v[existingIndex].updateCb !== undefined) {
+                // Check user id incase simultaneous events cause data to switch places
+                if (v[existingIndex] && v[existingIndex].updateCb !== undefined && v[existingIndex].data.userId == data.userId) {
                     v[existingIndex].updateCb!(data.data);
                 }
                 
