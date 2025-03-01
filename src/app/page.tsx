@@ -110,13 +110,7 @@ export default function Home() {
       // prouter.setPage(user.isLoggedIn ? "app" : "signup");
 
       if (!user.isLoggedIn) {
-        const req = await fetch("https://api.tempo-music.co/auth/ui", {
-          redirect: 'manual',
-        });
-
-        const redirUrl = req.headers.get("location")
-
-        alert(redirUrl);
+        window.location.href = "https://api.tempo-music.co/auth/ui";
       }
     });
 
