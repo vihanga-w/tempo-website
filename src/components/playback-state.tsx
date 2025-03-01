@@ -85,7 +85,7 @@ export function PlaybackState({
                 height="100%"
                 background="white"
                 borderRadius="8px"
-                transition="0.25s"
+                transition="0.5s"
             />
         </Box>
     </>);
