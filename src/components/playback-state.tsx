@@ -22,6 +22,10 @@ export function PlaybackState({
 }) {
     const [progress, setProgress] = useState(data.interpolatedProgress ?? data.state?.progressNormal ?? 0);
 
+    useEffect(() => {
+        setProgress(data.interpolatedProgress ?? data.state?.progressNormal ?? 0);
+    }, [data.interpolatedProgress, data.state?.progressNormal]);
+
     return (<>
         <HStack alignItems="self-start" width="100%">
             <Image width="64px" borderRadius="6px" src={data.state?.imageUrl} />
@@ -53,7 +57,6 @@ export function PlaybackState({
                 {data.state && (
                     <HStack justifyContent="space-between" marginTop="10px">
                         <Text>{formatTime((data.state.timeRemaining / (1 - data.state.progressNormal)) * progress)}</Text>
-                        {/* <Text>{progress}</Text> */}
                         <Text>{formatTime((data.state.timeRemaining / (1 - data.state.progressNormal)))}</Text>
                     </HStack>
                 )}

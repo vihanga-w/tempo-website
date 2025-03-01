@@ -147,17 +147,19 @@ export class DataStreamer extends EventEmitter {
                                 parsed.interpolatedProgress = (currentTime + (timeElapsed * 1e3)) / duration;
 
                                 interval = setInterval(() => {
-                                    const now = Date.now();
-                                    const timeElapsed = (now - parsed.state!.updatedAt) / 1000; // in seconds
-                                    const interpolatedValue = Math.min((currentTime + (timeElapsed * 1e3)) / duration, 1);
-                                    parsed.interpolatedProgress = interpolatedValue;
+                                    requestAnimationFrame(() => {
+                                        const now = Date.now();
+                                        const timeElapsed = (now - parsed.state!.updatedAt) / 1000; // in seconds
+                                        const interpolatedValue = Math.min((currentTime + (timeElapsed * 1e3)) / duration, 1);
+                                        parsed.interpolatedProgress = interpolatedValue;
 
-                                    const payload: UpdateEvent = {
-                                        userId,
-                                        data: parsed,
-                                    };
+                                        const payload: UpdateEvent = {
+                                            userId,
+                                            data: parsed,
+                                        };
 
-                                    this.emit("update", payload);
+                                        this.emit("update", payload);
+                                    });
                                 }, 500);
 
                                 sock.onclose = () => {
@@ -167,10 +169,6 @@ export class DataStreamer extends EventEmitter {
                                     console.warn("Socket closed for stream:", userId);
                                     removeSession();
                                 };
-
-                                // sock.onmessage = () => {
-                                //     clearInterval(interval);
-                                // };
                             }
 
                             const payload: UpdateEvent = {
