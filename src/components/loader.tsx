@@ -16,7 +16,7 @@ export function Loader() {
         </style>
         <Box background="#0D0D0E">
             <Center width="100vw" height="100vh">
-                <Image width="70px" src="/icons/ui/logo-clear.svg" />
+                <Image width="80px" src="/icons/ui/logo-clear.svg" />
             </Center>
             <Box pos="absolute" bottom="0" left="0" className="loader" />
         </Box>
