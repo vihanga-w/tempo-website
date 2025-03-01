@@ -48,6 +48,7 @@ export interface UpdateEvent {
 
 export class DataStreamer extends EventEmitter {
     private streams: { [key: string]: Stream };
+    private interval?: NodeJS.Timeout;
 
     constructor() {
         super();
@@ -55,15 +56,28 @@ export class DataStreamer extends EventEmitter {
         this.streams = {};
     }
 
-    async init() {
+    cleanup() {
         // Reset all states
+        for (const s of Object.keys(this.streams)) {
+            const stream = this.streams[s];
+
+            try { stream.close(); } catch { }
+        }
+
         this.streams = {};
+    }
+
+    async init() {
+        this.cleanup();
 
         try {
             // Setup connection to server
             let sessions = await this.fetchPublicStreams();
 
-            setInterval(async () => {
+            if (this.interval)
+                try { clearInterval(this.interval); } catch { }
+
+            this.interval = setInterval(async () => {
                 const newSessions = await this.fetchPublicStreams();
 
                 if (sessions.join("") !== newSessions.join("")) {

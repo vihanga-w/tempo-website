@@ -50,6 +50,7 @@ export function UIApp({
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [isFading, setIsFading] = useState<boolean>(false);
     const [livePlaybackStates, setLivePlaybackStates] = useState<UpdateEvent[]>([]);
+    const [streamer, setStreamer] = useState<DataStreamer | null>(null);
 
     const { isOpen: isModalOpen, onOpen: onModalOpen, onClose: onModalClose } = useDisclosure();
 
@@ -68,9 +69,10 @@ export function UIApp({
         if (!user.isLoggedIn)
             return;
 
-        const streamer = new DataStreamer();
+        const newStreamer = new DataStreamer();
+        setStreamer(newStreamer);
 
-        streamer.on("update", (data: UpdateEvent) => {
+        newStreamer.on("update", (data: UpdateEvent) => {
             setLivePlaybackStates(v => {
                 const existingIndex = v.findIndex(a => a.userId === data.userId);
 
@@ -88,7 +90,7 @@ export function UIApp({
             });
         });
 
-        streamer.on("remove", userId => {
+        newStreamer.on("remove", userId => {
             setLivePlaybackStates(v => {
                 const existingIndex = v.findIndex(a => a.userId === userId);
 
@@ -98,10 +100,28 @@ export function UIApp({
 
                 return [...v];
             });
-        })
+        });
 
-        streamer.init();
+        newStreamer.init();
+
+        return () => {
+            newStreamer.cleanup();
+        };
     }, [user.isLoggedIn]);
+
+    useEffect(() => {
+        const handleFocus = () => {
+            if (streamer) {
+                streamer.init();
+            }
+        };
+
+        window.addEventListener("focus", handleFocus);
+        
+        return () => {
+            window.removeEventListener("focus", handleFocus);
+        };
+    }, [streamer]);
 
     const pages: {
         name: string;
