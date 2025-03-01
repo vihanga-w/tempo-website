@@ -84,10 +84,9 @@ export function UIApp({
     }, [currentPage]);
 
     useEffect(() => {
-        
-    }, [user.isLoggedIn]);
+        if (!user.isLoggedIn)
+            return;
 
-    useEffect(() => {
         const streamer = new DataStreamer();
 
         streamer.on("update", (data: UpdateEvent) => {
@@ -109,7 +108,7 @@ export function UIApp({
         });
 
         streamer.init();
-    }, []);
+    }, [user.isLoggedIn]);
 
     const pages: {
         name: string;

@@ -112,7 +112,8 @@ export default function Home() {
 
       // TODO: Re-enable this when user handler is working
       // prouter.setPage(user.isLoggedIn ? "app" : "signup");
-      prouter.setPage("app");
+      // prouter.setPage("app");
+      alert(user.isLoggedIn)
     });
 
     // Wait for the user handler to finish initialising
