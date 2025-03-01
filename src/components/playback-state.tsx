@@ -16,30 +16,41 @@ function getSpotifyDeeplink(trackId: string) {
 }
 
 export function PlaybackState({
-    data,
+    registerUpdateCb,
 }: {
-    data: UpdateEvent["data"],
+    registerUpdateCb: ((cb: (data: UpdateEvent["data"]) => void) => void),
 }) {
-    const [progress, setProgress] = useState(data.interpolatedProgress ?? data.state?.progressNormal ?? 0);
+    const [data, setData] = useState<UpdateEvent["data"]>();
+    const [progress, setProgress] = useState(data?.interpolatedProgress ?? data?.state?.progressNormal ?? 0);
 
     useEffect(() => {
+        if (!data)
+            return;
+        
         setProgress(data.interpolatedProgress ?? data.state?.progressNormal ?? 0);
-    }, [data.interpolatedProgress, data.state?.progressNormal]);
+    }, [data]);
+
+    useEffect(() => {
+        registerUpdateCb(data => {
+            setData(data);
+            setProgress(data.interpolatedProgress ?? data.state?.progressNormal ?? 0);
+        });
+    }, []);
 
     return (<>
         <HStack alignItems="self-start" width="100%">
-            <Image width="64px" height="64px" background="rgba(255, 255, 255, 0.2)" borderRadius="6px" src={data.state?.imageUrl} />
+            <Image width="64px" height="64px" background="rgba(255, 255, 255, 0.2)" borderRadius="6px" src={data?.state?.imageUrl} />
             <Stack height="100%" width="100%" gap="0" fontFamily="arial, helvetica" lineHeight="18px">
                 <HStack pos="relative" gap="5px" justifyContent="space-between">
                     <HStack width="100%" gap="5px">
                         {/* TODO: Make this text scroll with a fixed width */}
-                        <Text maxWidth="175px" textOverflow="ellipsis" whiteSpace="nowrap" overflow="hidden">{data.state?.name}</Text>
-                        {data.state?.explicit && (
+                        <Text maxWidth="175px" textOverflow="ellipsis" whiteSpace="nowrap" overflow="hidden">{data?.state?.name}</Text>
+                        {data?.state?.explicit && (
                             <MdExplicit />
                         )}
                     </HStack>
                     <HStack pos="absolute" top="0" right="0" gap="5px" onClick={() => {
-                        if (data.state?.songId)
+                        if (data?.state?.songId)
                             window.open(getSpotifyDeeplink(data.state?.songId));
                     }}>
                         <Box>
@@ -51,13 +62,13 @@ export function PlaybackState({
                         </Box>
                     </HStack>
                 </HStack>
-                <Text maxWidth="180px" textOverflow="ellipsis" whiteSpace="nowrap" overflow="hidden">{data.state?.artists.map(v => {
+                <Text maxWidth="180px" textOverflow="ellipsis" whiteSpace="nowrap" overflow="hidden">{data?.state?.artists.map(v => {
                     return v.name
                 }).join(", ")}</Text>
-                {data.state && (
+                {data?.state && (
                     <HStack justifyContent="space-between" marginTop="10px">
-                        <Text>{progress < 1 ? formatTime(data.state.duration * progress) : formatTime(data.state.duration)}</Text>
-                        <Text>{progress < 1 ? formatTime(data.state.duration) : formatTime(data.state.duration)}</Text>
+                        <Text>{progress < 1 && data ? formatTime(data.state.duration * progress) : formatTime(data?.state.duration ?? 0)}</Text>
+                        <Text>{progress < 1 && data ? formatTime(data.state.duration) : formatTime(data?.state.duration ?? 0)}</Text>
                     </HStack>
                 )}
             </Stack>

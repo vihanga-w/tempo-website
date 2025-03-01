@@ -1,4 +1,5 @@
 import EventEmitter from "events";
+import { API_URL, API_URL_SOCK } from "./const";
 
 type PublicSessionResponse = string[];
 interface Stream {
@@ -95,7 +96,7 @@ export class DataStreamer extends EventEmitter {
             }, 5e3);
 
             sessions.forEach((userId) => {
-                const sock = new WebSocket("wss://api.tempo-music.co/stream/" + userId);
+                const sock = new WebSocket(API_URL_SOCK + "/stream/" + userId);
 
                 const removeSession = () => {
                     const s = this.streams[userId];
@@ -212,7 +213,7 @@ export class DataStreamer extends EventEmitter {
     }
 
     private async fetchPublicStreams() {
-        const req = await fetch("https://api.tempo-music.co/spotify/public/sessions", {
+        const req = await fetch(API_URL + "/spotify/public/sessions", {
             credentials: "include",
         });
         const res = await req.json() as PublicSessionResponse;

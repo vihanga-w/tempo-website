@@ -1,4 +1,5 @@
 import EventEmitter from "events";
+import { API_URL } from "./const";
 
 // export type PublicUserAccount = {
 //     id: string;
@@ -89,7 +90,7 @@ export default class User extends EventEmitter {
 
     async getDetails(): Promise<undefined | ClientUserAccount> {
         try {
-            const req = await fetch("https://api.tempo-music.co/me", {
+            const req = await fetch(API_URL + "/me", {
                 credentials: "include"
             });
             const res = await req.json() as {

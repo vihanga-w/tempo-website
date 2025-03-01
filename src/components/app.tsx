@@ -1,7 +1,7 @@
 import PageRouter from "@/lib/page-router";
 import User from "@/lib/usrlib";
 import { Text, Image, useColorModeValue, Center, Spinner, Box, HStack, VStack, Button, useDisclosure, Stack, Avatar } from "@chakra-ui/react";
-import {  useEffect, useState } from "react";
+import {  useEffect, useRef, useState } from "react";
 import React from "react";
 import { SmallAddButton } from "./small-add-btn";
 import { Modal } from "./modal";
@@ -49,7 +49,10 @@ export function UIApp({
     // const [conversationActivityStatus, setConversationActivityStatus] = useState<string>("Loading activity status");
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [isFading, setIsFading] = useState<boolean>(false);
-    const [livePlaybackStates, setLivePlaybackStates] = useState<UpdateEvent[]>([]);
+    const [livePlaybackStates, setLivePlaybackStates] = useState<{
+        updateCb: ((data: UpdateEvent["data"]) => void) | undefined;
+        data: UpdateEvent;
+    }[]>([]);
     const [streamer, setStreamer] = useState<DataStreamer | null>(null);
 
     const { isOpen: isModalOpen, onOpen: onModalOpen, onClose: onModalClose } = useDisclosure();
@@ -74,16 +77,24 @@ export function UIApp({
 
         newStreamer.on("update", (data: UpdateEvent) => {
             setLivePlaybackStates(v => {
-                const existingIndex = v.findIndex(a => a.userId === data.userId);
+                const existingIndex = v.findIndex(a => a.data.userId === data.userId);
 
                 if (existingIndex !== -1) {
                     if (data.data.action.type === "STOPPED") {
                         v.splice(existingIndex, 1);
                     } else {
-                        v[existingIndex] = data;
+                        v[existingIndex].data = data;
                     }
                 } else if (data.data.action.type !== "STOPPED") {
-                    v.push(data);
+                    v.push({
+                        data,
+                        updateCb: undefined
+                    });
+                }
+
+                if (v[existingIndex] && v[existingIndex].updateCb) {
+                    console.log("update:", data.data)
+                    v[existingIndex].updateCb(data.data);
                 }
                 
                 return [...v];
@@ -92,7 +103,7 @@ export function UIApp({
 
         newStreamer.on("remove", userId => {
             setLivePlaybackStates(v => {
-                const existingIndex = v.findIndex(a => a.userId === userId);
+                const existingIndex = v.findIndex(a => a.data.userId === userId);
 
                 if (existingIndex !== -1) {
                     v.splice(existingIndex, 1);
@@ -117,7 +128,7 @@ export function UIApp({
         };
 
         window.addEventListener("focus", handleFocus);
-        
+
         return () => {
             window.removeEventListener("focus", handleFocus);
         };
@@ -366,7 +377,8 @@ export function UIApp({
                     <Stack gap="18px">
                         <Text fontFamily="arial, helvetica" fontWeight="bold" fontSize="24px">Now Playing</Text>
                         {livePlaybackStates.map((v, i) => {
-                            const key = v.userId + v.data.state?.songId + v.data.interpolatedProgress;
+                            // const key = v.userId + v.data.state?.songId + v.data.interpolatedProgress;
+                            const data = v.data.data;
                             
                             return (<>
                                 {i !== 0 && (
@@ -375,14 +387,20 @@ export function UIApp({
                                 <Stack gap="8px">
                                     <HStack justifyContent="space-between">
                                         <HStack>
-                                            {v.data.state?.pfpUrl !== "" && (
-                                                <Image width="24px" borderRadius="6px" src={v.data.state?.pfpUrl} />
+                                            {data.state?.pfpUrl !== "" && (
+                                                <Image width="24px" borderRadius="6px" src={data.state?.pfpUrl} />
                                             )}
-                                            <Text fontSize="18px" fontWeight="bold">{v.data.state?.username}</Text>
+                                            <Text fontSize="18px" fontWeight="bold">{data.state?.username}</Text>
                                         </HStack>
                                         <MdAddReaction opacity="0.45" size="22px" />
                                     </HStack>
-                                    <PlaybackState key={key} data={v.data} />
+                                    <PlaybackState registerUpdateCb={cb => {
+                                        setLivePlaybackStates(prev => {
+                                            prev[i].updateCb = cb;
+
+                                            return [...prev];
+                                        })
+                                    }} />
                                 </Stack>
                             </>);
                         })}

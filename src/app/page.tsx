@@ -17,6 +17,7 @@ import {
 } from '@chakra-ui/react';
 import React, { useEffect, useRef, useState } from "react";
 import User from "@/lib/usrlib";
+import { API_URL } from "@/lib/const";
 
 export default function Home() {
   // Application states
@@ -110,7 +111,7 @@ export default function Home() {
       // prouter.setPage(user.isLoggedIn ? "app" : "signup");
 
       if (!user.isLoggedIn) {
-        window.location.href = "https://api.tempo-music.co/auth/ui";
+        window.location.href = API_URL + "/auth/ui";
       } else {
         prouter.setPage("app");
       }
