@@ -1,6 +1,6 @@
 import PageRouter from "@/lib/page-router";
 import { Uplink } from "@/lib/uplink";
-import User, { PublicUserAccount } from "@/lib/usrlib";
+import User from "@/lib/usrlib";
 import { MessageAuthority } from "@/lib/encryption";
 import { Text, Image, useColorModeValue, Center, Spinner, Box, HStack, VStack, Button, useDisclosure, Stack, Avatar } from "@chakra-ui/react";
 import { Input } from "./mchat-input";
@@ -378,56 +378,33 @@ export function UIApp({
 
                 {/* Friends page */}
                 {currentPage == "friends" && (<>
-                    {user.circle.length == 0 ? (<>
-                        <Image
-                            src={`/add-new-case-indication-arrow.svg`}
-                            position="absolute"
-                            right="46px"
-                            top="48px"
-                        />
-                        <Text
-                            position="absolute"
-                            top="0"
-                            left="0"
-                            justifyContent="center"
-                            alignItems="center"
-                            display="flex"
-                            height="calc(100vh - 72px)"
-                            width="100vw"
-                            color="text.dark"
-                            margin="auto"
-                            textAlign="center"
-                            fontFamily="Inter"
-                            fontSize="16px"
-                            fontWeight="regular"
-                            zIndex="1"
-                        >
-                            Tempo is better with friends!
-                            <br />
-                            Why not try adding someone?
-                        </Text>
-                    </>) : (<Box marginTop="24px">
-                        {/* {user.circle.map((v, i) => {
-                            Tempo is better with friends!
-                            <br />
-                            Why not try adding someone?
-                        </Text>
-                    </>) : (<Box marginTop="24px">
-                        {/* {user.circle.map((v, i) => {
-                            return (<UserLookupResult
-                                userId={v.id}
-                                firstItem={i == 0}
-                                firstName={v.firstName}
-                                lastName={v.lastName}
-                                profession={v.profession}
-                                gravatarHash={v.gravatarHash}
-                                onClick={() => {
-                                    openPrivateConversation(v.id);
-                                }}
-                            />
-                            );
-                        })} */}
-                    </Box>)}
+                    <Image
+                        src={`/add-new-case-indication-arrow.svg`}
+                        position="absolute"
+                        right="46px"
+                        top="48px"
+                    />
+                    <Text
+                        position="absolute"
+                        top="0"
+                        left="0"
+                        justifyContent="center"
+                        alignItems="center"
+                        display="flex"
+                        height="calc(100vh - 72px)"
+                        width="100vw"
+                        color="text.dark"
+                        margin="auto"
+                        textAlign="center"
+                        fontFamily="Inter"
+                        fontSize="16px"
+                        fontWeight="regular"
+                        zIndex="1"
+                    >
+                        Tempo is better with friends!
+                        <br />
+                        Why not try adding someone?
+                    </Text>
                 </>)}
 
                 {/* Settings page */}
@@ -442,7 +419,7 @@ export function UIApp({
                             draggable={false}
                         />
                         <Stack gap="0">
-                            <Text
+                            {/* <Text
                                 fontFamily="Inter"
                                 fontWeight="medium"
                                 fontSize="20px"
@@ -454,7 +431,7 @@ export function UIApp({
                                 fontSize="18px"
                                 color="text.dark"
                                 opacity="0.75"
-                            >{user.profession}</Text>
+                            >{user.profession}</Text> */}
                             <Text
                                 fontFamily="Inter"
                                 fontWeight="regular"
@@ -482,7 +459,7 @@ export function UIApp({
                     >
                         Invite Colleagues
                     </Text>
-                    <span>
+                    {/* <span>
                         {user.inviteCode !== "" ? (<>
                             <Text as="span">
                                 {"Your invite code is "}
@@ -498,7 +475,7 @@ export function UIApp({
                                 {"Sorry, your invite code is currently unavailable!"}
                             </Text>
                         </>)}
-                    </span>
+                    </span> */}
                 </>)}
             </Box>
         </Box>
