@@ -1,5 +1,5 @@
 import { UpdateEvent } from "@/lib/live-ingest";
-import { Box, HStack, Image, Stack, Text } from "@chakra-ui/react";
+import { Box, HStack, Image, Stack, Text, Skeleton } from "@chakra-ui/react";
 import { FaReact } from "react-icons/fa6";
 import { MdAddReaction, MdExplicit } from "react-icons/md";
 import { useEffect, useState, useRef } from "react";
@@ -28,7 +28,9 @@ export function PlaybackState({
 
     return (<>
         <HStack alignItems="self-start" width="100%">
-            <Image width="64px" height="64px" background="rgba(255, 255, 255, 0.2)" borderRadius="6px" src={data.state?.imageUrl} />
+            <Skeleton height="64px" width="64px" isLoaded={false}>
+                <Image width="64px" height="64px" background="rgba(255, 255, 255, 0.2)" borderRadius="6px" src={data.state?.imageUrl} />
+            </Skeleton>
             <Stack height="100%" width="100%" gap="0" fontFamily="arial, helvetica" lineHeight="18px">
                 <HStack pos="relative" gap="5px" justifyContent="space-between">
                     <HStack width="100%" gap="5px">
