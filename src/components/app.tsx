@@ -80,25 +80,30 @@ export function UIApp({
             setLivePlaybackStates(v => {
                 const existingIndex = v.findIndex(a => a.data.userId === data.userId);
 
-                if (existingIndex !== -1) {
-                    if (data.data.action.type === "STOPPED") {
-                        v.splice(existingIndex, 1);
-                    } else {
-                        v[existingIndex].data = data;
+                const doUpdateCb = () => {
+                    // Check user id incase simultaneous events cause data to switch places
+                    if (v[existingIndex] && v[existingIndex].updateCb !== undefined && v[existingIndex].data.userId == data.userId) {
+                        v[existingIndex].updateCb!(data.data);
                     }
-                } else if (data.data.action.type !== "STOPPED") {
-                    v.push({
-                        data,
-                        updateCb: undefined
-                    });
-                }
-
-                // Check user id incase simultaneous events cause data to switch places
-                if (v[existingIndex] && v[existingIndex].updateCb !== undefined && v[existingIndex].data.userId == data.userId) {
-                    v[existingIndex].updateCb!(data.data);
                 }
                 
-                return [...v];
+                if (existingIndex !== -1) {
+                    if (data.data.action.type === "STOPPED") {
+                        return v.filter((_, index) => index !== existingIndex);
+                    } else {
+                        doUpdateCb();
+
+                        return v.map((item, index) => 
+                            index === existingIndex ? { ...item, data } : item
+                        );
+                    }
+                } else if (data.data.action.type !== "STOPPED") {
+                    doUpdateCb();
+
+                    return [...v, { data, updateCb: undefined }];
+                }
+
+                return v;
             });
         });
 
