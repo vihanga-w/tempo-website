@@ -74,6 +74,9 @@ importers:
       react-icons:
         specifier: ^5.4.0
         version: 5.4.0(react@18.2.0)
+      react-loading-skeleton:
+        specifier: ^3.5.0
+        version: 3.5.0(react@18.2.0)
       uuid:
         specifier: ^9.0.1
         version: 9.0.1
@@ -2513,6 +2516,11 @@ packages:
     resolution: {integrity: sha512-yq9laq2ccH0MeSOZ7aTD21TNl0MsmADgDqVV5JIIMIaQOY7Ybpstbv/4T3ArSRatr+fuo2Xh2HUhwJG/UoELKQ==}
     peerDependencies:
       react: ^18.2.0
+
+  react-loading-skeleton@3.5.0:
+    resolution: {integrity: sha512-gxxSyLbrEAdXTKgfbpBEFZCO/P153DnqSCQau2+o6lNy1jgMRr2MmRmOzMmyrwSaSYLRB8g7b0waYPmUjz7IhQ==}
+    peerDependencies:
+      react: '>=16.8.0'
 
   react-remove-scroll-bar@2.3.5:
     resolution: {integrity: sha512-3cqjOqg6s0XbOjWvmasmqHch+RLxIEk2r/70rzGXuz3iIGQsQheEQyqYCBb5EECoD01Vo2SIbDqW4paLeLTASw==}
@@ -5939,6 +5947,10 @@ snapshots:
     dependencies:
       jdenticon: 3.3.0
       prop-types: 15.8.1
+      react: 18.2.0
+
+  react-loading-skeleton@3.5.0(react@18.2.0):
+    dependencies:
       react: 18.2.0
 
   react-remove-scroll-bar@2.3.5(@types/react@18.2.64)(react@18.2.0):
