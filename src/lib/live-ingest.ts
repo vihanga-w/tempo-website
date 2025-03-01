@@ -163,6 +163,7 @@ export class DataStreamer extends EventEmitter {
                                 sock.onclose = () => {
                                     if (interval)
                                         clearInterval(interval);
+                                    
                                     console.warn("Socket closed for stream:", userId);
                                     removeSession();
                                 };
