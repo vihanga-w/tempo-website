@@ -1,9 +1,7 @@
 'use client';
 
 import styles from "./page.module.css";
-import { StateChangeEvent, Uplink } from '@/lib/uplink';
 import PageRouter from "@/lib/page-router";
-import { TokenStorage } from "@/lib/tokens";
 
 import {
   Box,
@@ -22,8 +20,6 @@ import User from "@/lib/usrlib";
 
 export default function Home() {
   // Application states
-  const [uplink, setUplink] = useState<Uplink>();
-  // const [connectionState, setConnectionState] = useState<string>("offline");
   const [debugInjected, setDebugInjected] = useState<boolean>(false);
   const [isInMobileBrowser, setIsInMobileBrowser] = useState<boolean>(false);
   const [hasPreviouslyBeenOpened, setHasPreviouslyBeenOpened] = useState<boolean>(false);

@@ -2,7 +2,6 @@
 
 import { E404 } from "@/components/404";
 import { EventEmitter } from "events";
-import { Uplink } from "./uplink";
 import React from "react";
 import { UIApp } from "@/components/app";
 import User from "./usrlib";
