@@ -14,7 +14,7 @@ const nextConfig = {
             },
             {
                 source: '/api/sub/:userId',
-                destination: `${apiBase}/spotify/stream/:userId`
+                destination: `${apiBase}/stream/:userId`
             },
             {
                 source: `/public/noprecache/icheck`,

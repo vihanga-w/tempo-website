@@ -26,6 +26,8 @@ import { ConversationResponse as ConvoType, ConversationHandler, MessageSuperObj
 import { CaseListItem } from "./case-list-item";
 import { Loader } from "./loader";
 import { PlaybackState } from "./playback-state";
+import { DataStreamer, UpdateEvent } from "@/lib/live-ingest";
+import { MdAddReaction } from "react-icons/md";
 
 export function UIApp({
     prouter,
@@ -40,8 +42,8 @@ export function UIApp({
     // const [pinEntryError, setPinEntryError] = useState<boolean>(false);
     // const [encryption, setEncryption] = useState<MessageAuthority>();
     // const [isPinProcessing, setIsPinProcessing] = useState<boolean>(false);
-    const [currentPage, setCurrentPage] = useState<string>("discover");
-    const [currentPageTitle, setCurrentPageTitle] = useState<string>("Discover");
+    const [currentPage, setCurrentPage] = useState<string>("activity");
+    const [currentPageTitle, setCurrentPageTitle] = useState<string>("Activity");
     const [prevPage, setPrevPage] = useState<string>("");
     const [pageSwitcherActive, setPageSwitcherActive] = useState<boolean>(false);
     // const [gravatarQuickEditor, setGravatarQuickEditor] = useState<GravatarQuickEditorCore | undefined>();
@@ -66,6 +68,7 @@ export function UIApp({
     // const [conversationActivityStatus, setConversationActivityStatus] = useState<string>("Loading activity status");
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [isFading, setIsFading] = useState<boolean>(false);
+    const [livePlaybackStates, setLivePlaybackStates] = useState<UpdateEvent[]>([]);
 
     const { isOpen: isModalOpen, onOpen: onModalOpen, onClose: onModalClose } = useDisclosure();
 
@@ -83,6 +86,30 @@ export function UIApp({
     useEffect(() => {
         
     }, [user.isLoggedIn]);
+
+    useEffect(() => {
+        const streamer = new DataStreamer();
+
+        streamer.on("update", (data: UpdateEvent) => {
+            setLivePlaybackStates(v => {
+                const existingIndex = v.findIndex(a => a.userId === data.userId);
+
+                if (existingIndex !== -1) {
+                    if (data.data.action.type === "STOPPED") {
+                        v.splice(existingIndex, 1);
+                    } else {
+                        v[existingIndex] = data;
+                    }
+                } else if (data.data.action.type !== "STOPPED") {
+                    v.push(data);
+                }
+                
+                return [...v];
+            });
+        });
+
+        streamer.init();
+    }, []);
 
     const pages: {
         name: string;
@@ -326,12 +353,25 @@ export function UIApp({
                 {currentPage == "activity" && (
                     <Stack gap="18px">
                         <Text fontFamily="arial, helvetica" fontWeight="bold" fontSize="24px">Now Playing</Text>
-                        {[1,1,1,1,1].map((_, i) => {
+                        {livePlaybackStates.map((v, i) => {
+                            const key = v.userId + v.data.state?.songId + v.data.interpolatedProgress;
+                            
                             return (<>
                                 {i !== 0 && (
                                     <Box width="100%" height="1px" background="rgba(255, 255, 255, 0.2)" />
                                 )}
-                                <PlaybackState key={"ps-" + i} isExplicit={true} />
+                                <Stack gap="8px">
+                                    <HStack justifyContent="space-between">
+                                        <HStack>
+                                            {v.data.state?.pfpUrl !== "" && (
+                                                <Image width="24px" borderRadius="6px" src={v.data.state?.pfpUrl} />
+                                            )}
+                                            <Text fontSize="18px" fontWeight="bold">{v.data.state?.username}</Text>
+                                        </HStack>
+                                        <MdAddReaction opacity="0.45" size="22px" />
+                                    </HStack>
+                                    <PlaybackState key={key} data={v.data} />
+                                </Stack>
                             </>);
                         })}
                     </Stack>
@@ -363,6 +403,12 @@ export function UIApp({
                             fontWeight="regular"
                             zIndex="1"
                         >
+                            Tempo is better with friends!
+                            <br />
+                            Why not try adding someone?
+                        </Text>
+                    </>) : (<Box marginTop="24px">
+                        {/* {user.circle.map((v, i) => {
                             Tempo is better with friends!
                             <br />
                             Why not try adding someone?
