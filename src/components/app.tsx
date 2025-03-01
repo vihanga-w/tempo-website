@@ -170,7 +170,7 @@ export function UIApp({
             indexed: true,
         },
         {
-            name: "Settings",
+            name: "Profile",
             id: "settings",
             indexed: true,
         },
