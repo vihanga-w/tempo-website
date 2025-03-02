@@ -241,7 +241,10 @@ export class DataStreamer extends EventEmitter {
                 this.init();
             }
 
-            this.sock.send(JSON.stringify(sessions));
+            this.sock.onopen = () => {
+                if (this.sock)
+                    this.sock.send(JSON.stringify(sessions));
+            }
         } catch (ex) {
             console.error("Failed to initialise DataStreamer, error:", ex);
         }
