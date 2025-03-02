@@ -61,14 +61,10 @@ export function PlaybackState({
             if (stats.totalSessionDuration >= 4 && data.data.state?.duration)
                 factPool.push("spent " + formatTimeToMin(stats.totalSessionDuration * data.data.state?.duration) + " listening to");
 
-            console.log(stats);
-            
             if (factPool.length == 0) {
                 setUserListenershipFact("");
             } else {
                 const electedFact = factPool[Math.floor(Math.random() * factPool.length)];
-
-                console.log(electedFact)
 
                 setUserListenershipFact(electedFact);
             }
@@ -125,8 +121,8 @@ export function PlaybackState({
                         )}
                         {data?.state && (
                             <Text
-                                opacity={(userListenershipFact !== "" && replayCountVisible) ? "0.75" : "0"}
-                                transform={(userListenershipFact !== "" && replayCountVisible) ? "translateX(0)" : "translateX(-6px)"}
+                                opacity={(userListenershipFact !== "" && !replayCountVisible) ? "0.75" : "0"}
+                                transform={(userListenershipFact !== "" && !replayCountVisible) ? "translateX(0)" : "translateX(-6px)"}
                                 transition="opacity 0.5s, transform 0.5s"
                             >
                                 {userListenershipFact}
