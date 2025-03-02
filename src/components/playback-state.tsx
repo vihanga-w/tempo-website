@@ -58,11 +58,16 @@ export function PlaybackState({
             setData(data.data);
             setProgress(data.data.interpolatedProgress ?? data.data.state?.progressNormal ?? 0);
 
+            let makeULFV = false;
+
             if (data.data.state?.replayCount && data.data.state?.replayCount > 0) {
                 setUserListenershipFact({
                     sid: data.data.state.songId,
                     text: `replayed x${replayCount}`,
                 });
+                makeULFV = true;
+                // Also set the state here as we may return if no stats provided
+                setUserListenershipFactVisible(true);
             }
 
             // Process song stats for the day and generate facts
@@ -84,9 +89,7 @@ export function PlaybackState({
                     sid: data.data.state?.songId ?? "",
                     text: "paused"
                 });
-                setUserListenershipFactVisible(true);
-            } else if (factPool.length == 0) {
-                setUserListenershipFactVisible(false);
+                makeULFV = true;
             } else {
                 const electedFact = factPool[Math.floor((data.data.state?.entropy ?? 0) * factPool.length)];
 
@@ -94,8 +97,10 @@ export function PlaybackState({
                     sid: data.data.state?.songId ?? "",
                     text: electedFact
                 });
-                setUserListenershipFactVisible(true);
+                makeULFV = true;
             }
+
+            setUserListenershipFactVisible(makeULFV);
         }
 
         stream.on("update-" + userId, (data: UpdateEvent) => {
