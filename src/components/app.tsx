@@ -263,6 +263,13 @@ export function UIApp({
                 overflow="hidden"
             />
 
+            <Box
+                width="100vw"
+                height="50px"
+                background="red"
+                zIndex="999"
+            />
+
             <HStack
                 width="100%"
                 height="100%"
