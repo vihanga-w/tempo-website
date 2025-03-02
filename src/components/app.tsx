@@ -225,7 +225,7 @@ export function UIApp({
         </Box>
 
         {/* The main user interface */}
-        <Box padding="20px">
+        <Box padding="20px" width="100%" height="100%">
             <Image
                 src="/menu-bg.png"
                 position="absolute"
