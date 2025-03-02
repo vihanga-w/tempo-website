@@ -51,10 +51,6 @@ export function PlaybackState({
         const updateState = (data: UpdateEvent) => {
             setData(data.data);
             setProgress(data.data.interpolatedProgress ?? data.data.state?.progressNormal ?? 0);
-        }
-
-        stream.on("update-" + userId, (data: UpdateEvent) => {
-            updateState(data);
 
             // Process song stats for the day and generate facts
             const stats = data.data.state?.todayStats;
@@ -81,6 +77,10 @@ export function PlaybackState({
                 setUserListenershipFact(electedFact);
                 setUserListenershipFactVisible(true);
             }
+        }
+
+        stream.on("update-" + userId, (data: UpdateEvent) => {
+            updateState(data);
         });
 
         const prevState = stream.getPrevState(userId);
