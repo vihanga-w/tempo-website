@@ -148,29 +148,23 @@ export function PlaybackState({
                 <HStack justifyContent="space-between">
                     <HStack>
                         {data?.state?.pfpUrl !== "" && (
-                            <Image width="24px" borderRadius="6px" src={data?.state?.pfpUrl} draggable={false} />
+                            <Image width="28px" borderRadius="6px" src={data?.state?.pfpUrl} draggable={false} />
                         )}
-                        <Text fontSize="18px" fontWeight="bold">{data?.state?.username}</Text>
-                        {data?.state && (
-                            <Text
-                                opacity={userListenershipFactVisible ? "0.75" : "0"}
-                                transform={userListenershipFactVisible ? "translateX(0)" : "translateX(-6px)"}
-                                transition="opacity 0.5s, transform 0.5s"
-                                whiteSpace="nowrap"
-                                overflow="hidden"
-                                textOverflow="ellipsis"
-                                display="inline-block"
-                                maxWidth="calc(100% - 46px)" // 24px for profile picture + 22px for icon
-                            >
-                                <Box
-                                    as="span"
-                                    display="inline-block"
-                                    animation={userListenershipFact.text.length > 20 ? `${scrollText} 10s linear infinite` : "none"}
+                        <Stack>
+                            <Text fontSize="18px" fontWeight="bold">{data?.state?.username}</Text>
+                            {data?.state && (
+                                <Text
+                                    opacity={userListenershipFactVisible ? "0.75" : "0"}
+                                    transform={userListenershipFactVisible ? "translateX(0)" : "translateX(-6px)"}
+                                    transition="opacity 0.5s, transform 0.5s"
+                                    whiteSpace="nowrap"
+                                    overflow="hidden"
+                                    textOverflow="ellipsis"
                                 >
                                     {userListenershipFact.text}
-                                </Box>
-                            </Text>
-                        )}
+                                </Text>
+                            )}
+                        </Stack>
                     </HStack>
                     <MdAddReaction opacity="0.45" size="22px" />
                 </HStack>
