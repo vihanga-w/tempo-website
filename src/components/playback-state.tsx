@@ -61,7 +61,9 @@ export function PlaybackState({
             if (stats.totalSessionDuration >= 4 && data.data.state?.duration)
                 factPool.push("spent " + formatTimeToMin(stats.totalSessionDuration * data.data.state?.duration) + " listening to");
 
-            if (factPool.length == 0) {
+            if (!data.data.state?.isPlaying) {
+                setUserListenershipFact("paused");
+            } else if (factPool.length == 0) {
                 setUserListenershipFact("");
             } else {
                 const electedFact = factPool[Math.floor((data.data.state?.entropy ?? 0) * factPool.length)];
