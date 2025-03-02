@@ -149,7 +149,10 @@ export class DataStreamer extends EventEmitter {
                         return;
 
                     const newSessions = await this.fetchPublicStreams();
+                    console.log("New Sessions:", newSessions);
+
                     const currentListeners = await this.getListeners();
+                    console.log("Current Listeners:", currentListeners);
 
                     const expiredListeners = currentListeners.filter(v => !newSessions.includes(v));
                     
@@ -166,8 +169,10 @@ export class DataStreamer extends EventEmitter {
                         this.emit("remove", id);
                     }
 
-                    if (currentListeners.sort().join("") !== newSessions.join("") && this.sock && this.sock.OPEN)
+                    if (currentListeners.sort().join("") !== newSessions.join("") && this.sock && this.sock.OPEN) {
+                        console.log("Sending new sessions:", newSessions);
                         this.sock.send(JSON.stringify(newSessions));
+                    }
                 }, 5e3);
 
                 let userIntervals: {[key: string]: NodeJS.Timeout} = {};
