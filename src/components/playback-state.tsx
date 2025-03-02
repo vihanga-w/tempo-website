@@ -61,6 +61,15 @@ export function PlaybackState({
     });
     const [userListenershipFactVisible, setUserListenershipFactVisible] = useState<boolean>(false);
 
+    const calculateContainerWidth = (username: string) => {
+        const usernameLength = username.length;
+        const profilePictureSize = 24; // in pixels
+        const iconSize = 22; // in pixels
+        const padding = 16; // in pixels (8px padding on each side)
+        const usernameWidth = usernameLength * 8; // assuming average character width is 8px
+        return profilePictureSize + iconSize + padding + usernameWidth;
+    };
+
     useEffect(() => {
         if (!stream)
             return;
@@ -151,7 +160,7 @@ export function PlaybackState({
                                 overflow="hidden"
                                 textOverflow="ellipsis"
                                 display="inline-block"
-                                maxWidth="150px"
+                                maxWidth={`${calculateContainerWidth(data?.state?.username ?? "")}px`}
                             >
                                 <Box
                                     as="span"
