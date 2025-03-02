@@ -148,7 +148,7 @@ export function PlaybackState({
                 <HStack justifyContent="space-between">
                     <HStack>
                         {data?.state?.pfpUrl !== "" && (
-                            <Image width="36px" borderRadius="6px" src={data?.state?.pfpUrl} draggable={false} />
+                            <Image width="36px" height="36px" objectFit="cover" borderRadius="6px" src={data?.state?.pfpUrl} draggable={false} />
                         )}
                         <Stack spacing="0">
                             <Text fontSize="16px" fontWeight="bold" marginBottom="-5px">{data?.state?.username}</Text>
