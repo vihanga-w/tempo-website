@@ -107,6 +107,8 @@ export class DataStreamer extends EventEmitter {
                     userIds: string[];
                 }
 
+                delete this.sockCallbacks[id];
+
                 resolve(payload.userIds);
             }
             
