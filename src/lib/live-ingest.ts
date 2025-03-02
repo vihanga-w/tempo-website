@@ -151,7 +151,22 @@ export class DataStreamer extends EventEmitter {
                     const newSessions = await this.fetchPublicStreams();
                     const currentListeners = await this.getListeners();
 
-                    if (currentListeners.sort().join("") !== newSessions.join(""))
+                    const expiredListeners = currentListeners.filter(v => !newSessions.includes(v));
+                    
+                    for (const id of expiredListeners) {
+                        if (!this.sock || !this.sock.OPEN)
+                            return;
+
+                        this.sock.send(JSON.stringify([
+                            "RM",
+                            id,
+                            "nocb",
+                        ]));
+
+                        this.emit("remove", id);
+                    }
+
+                    if (currentListeners.sort().join("") !== newSessions.join("") && this.sock && this.sock.OPEN)
                         this.sock.send(JSON.stringify(newSessions));
                 }, 5e3);
 
