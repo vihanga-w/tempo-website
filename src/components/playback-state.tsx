@@ -7,7 +7,15 @@ function formatTime(ms: number) {
     const seconds = ms / 1e3;
     const minutes = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
+
     return `${minutes}:${secs < 10 ? '0' : ''}${secs}`;
+}
+
+function formatTimeToMin(ms: number) {
+    const seconds = ms / 1e3;
+    const minutes = Math.round(seconds / 60);
+
+    return `${minutes} minutes`;
 }
 
 function getSpotifyDeeplink(trackId: string) {
@@ -25,6 +33,7 @@ export function PlaybackState({
     const [progress, setProgress] = useState(data?.interpolatedProgress ?? data?.state?.progressNormal ?? 0);
     const [replayCountVisible, setReplayCountVisible] = useState<boolean>(false);
     const [replayCount, setReplayCount] = useState<number>(0);
+    const [userListenershipFact, setUserListenershipFact] = useState<string>("");
 
     useEffect(() => {
         if (!stream)
@@ -37,6 +46,28 @@ export function PlaybackState({
 
         stream.on("update-" + userId, (data: UpdateEvent) => {
             updateState(data);
+
+            // Process song stats for the day and generate facts
+            const stats = data.data.state?.todayStats;
+
+            if (!stats)
+                return;
+
+            const factPool: string[] = [];
+
+            if (stats.completeListenCount >= 5)
+                factPool.push("has listened to " + stats.completeListenCount + " times");
+
+            if (stats.totalSessionDuration >= 4 && data.data.state?.duration)
+                factPool.push("spent " + formatTimeToMin(stats.totalSessionDuration * data.data.state?.duration) + " listening to");
+
+            if (factPool.length == 0) {
+                setUserListenershipFact("");
+            } else {
+                const electedFact = factPool[Math.floor(Math.random() * factPool.length)];
+
+                setUserListenershipFact(electedFact);
+            }
         });
 
         const prevState = stream.getPrevState(userId);
@@ -78,15 +109,26 @@ export function PlaybackState({
                         <Image width="24px" borderRadius="6px" src={data?.state?.pfpUrl} />
                     )}
                     <Text fontSize="18px" fontWeight="bold">{data?.state?.username}</Text>
-                    {data?.state && (
-                        <Text
-                            opacity={replayCountVisible ? "0.75" : "0"}
-                            transform={replayCountVisible ? "translateX(0)" : "translateX(-6px)"}
-                            transition="opacity 0.5s, transform 0.5s"
-                        >
-                            replayed x{replayCount}
-                        </Text>
-                    )}
+                    <>
+                        {data?.state && (
+                            <Text
+                                opacity={replayCountVisible ? "0.75" : "0"}
+                                transform={replayCountVisible ? "translateX(0)" : "translateX(-6px)"}
+                                transition="opacity 0.5s, transform 0.5s"
+                            >
+                                replayed x{replayCount}
+                            </Text>
+                        )}
+                        {data?.state && (
+                            <Text
+                                opacity={(userListenershipFact !== "" && replayCountVisible) ? "0.75" : "0"}
+                                transform={(userListenershipFact !== "" && replayCountVisible) ? "translateX(0)" : "translateX(-6px)"}
+                                transition="opacity 0.5s, transform 0.5s"
+                            >
+                                {userListenershipFact}
+                            </Text>
+                        )}
+                    </>
                 </HStack>
                 <MdAddReaction opacity="0.45" size="22px" />
             </HStack>
