@@ -266,7 +266,10 @@ export function UIApp({
             <Box
                 width="100vw"
                 height="50px"
-                background="red"
+                pos="fixed"
+                top="0"
+                left="0"
+                background="linear-gradient(180deg, rgba(13,13,14,1) 10%, rgba(13,13,14,0) 100%)"
                 zIndex="999"
             />
 
