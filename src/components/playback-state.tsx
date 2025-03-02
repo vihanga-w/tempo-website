@@ -4,6 +4,9 @@ import { MdAddReaction, MdExplicit } from "react-icons/md";
 import { useEffect, useState } from "react";
 
 function formatTime(ms: number) {
+    if (ms < 0)
+        ms = 0;
+
     const seconds = ms / 1e3;
     const minutes = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
@@ -12,6 +15,9 @@ function formatTime(ms: number) {
 }
 
 function formatTimeToMin(ms: number) {
+    if (ms < 0)
+        ms = 0;
+    
     const seconds = ms / 1e3;
     const minutes = Math.round(seconds / 60);
 
