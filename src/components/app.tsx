@@ -353,13 +353,15 @@ export function UIApp({
                 pointerEvents={pageSwitcherActive ? "none" : "all"}
                 zIndex="5"
                 overflow="hidden"
+                width="100%"
+                height="100%"
             >
                 {/* Activity page */}
                 {currentPage == "activity" && (<>
                     {activityPageLoading ? (<Center width="100%" height="100%">
                         <Spinner size="lg" />
                     </Center>) : (
-                        <Stack gap="18px">
+                        <Stack gap="18px" overflowY="auto">
                             <Text fontFamily="arial, helvetica" fontWeight="bold" fontSize="24px">Now Playing</Text>
                             {livePlaybackStates.map((v, i) => {
                                 // const key = v.userId + v.data.state?.songId + v.data.interpolatedProgress;
