@@ -357,7 +357,7 @@ export function UIApp({
                                     <Box width="100%" height="1px" background="rgba(255, 255, 255, 0.2)" />
                                 )}
                                 <Stack gap="8px">
-                                    <HStack key={"ui-" + v.userId} justifyContent="space-between">
+                                    <HStack key={"ui-" + v.userId + v.data.state?.replayCount} justifyContent="space-between">
                                         <HStack>
                                             {data.state?.pfpUrl !== "" && (
                                                 <Image width="24px" borderRadius="6px" src={data.state?.pfpUrl} />
