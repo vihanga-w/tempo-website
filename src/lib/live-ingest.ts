@@ -41,6 +41,7 @@ interface PlaybackState {
     todayStats: SongStatistic;
 };
 interface StateUpdateEvent {
+    id?: string;
     code: number;
     data?: {
         state?: PlaybackState;
@@ -149,10 +150,7 @@ export class DataStreamer extends EventEmitter {
                         return;
 
                     const newSessions = await this.fetchPublicStreams();
-                    console.log("New Sessions:", newSessions);
-
                     const currentListeners = await this.getListeners();
-                    console.log("Current Listeners:", currentListeners);
 
                     const expiredListeners = currentListeners.filter(v => !newSessions.includes(v));
                     
@@ -180,6 +178,14 @@ export class DataStreamer extends EventEmitter {
                 this.sock.onmessage = (m) => {
                     try {
                         const data = JSON.parse(m.data) as StateUpdateEvent;
+
+                        if (data.id && this.sockCallbacks[data.id]) {
+                            try { this.sockCallbacks[data.id](data); } catch (ex) {
+                                console.warn("Failed to process socket callback, error:", ex);
+                            }
+
+                            return;
+                        }
 
                         // This is a keepalive
                         if (this.sock && data.code == -1) {
