@@ -151,7 +151,7 @@ export function PlaybackState({
                             <Image width="36px" borderRadius="6px" src={data?.state?.pfpUrl} draggable={false} />
                         )}
                         <Stack spacing="0">
-                            <Text fontSize="16px" fontWeight="bold">{data?.state?.username}</Text>
+                            <Text fontSize="16px" fontWeight="bold" marginBottom="-5px">{data?.state?.username}</Text>
                             {data?.state && (
                                 <Text
                                     opacity={userListenershipFactVisible ? "0.75" : "0"}
