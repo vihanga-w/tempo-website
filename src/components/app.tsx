@@ -357,7 +357,7 @@ export function UIApp({
                                     <Box width="100%" height="1px" background="rgba(255, 255, 255, 0.2)" />
                                 )}
                                 <Stack gap="8px">
-                                    <HStack key={"ui-" + v.userId + v.data.state?.replayCount} justifyContent="space-between">
+                                    <HStack justifyContent="space-between">
                                         <HStack>
                                             {data.state?.pfpUrl !== "" && (
                                                 <Image width="24px" borderRadius="6px" src={data.state?.pfpUrl} />
@@ -365,6 +365,7 @@ export function UIApp({
                                             <Text fontSize="18px" fontWeight="bold">{data.state?.username}</Text>
                                             {data.state && (
                                                 <Text
+                                                    key={"ui-" + v.userId + v.data.state?.progressNormal}
                                                     opacity={data.state.replayCount > 0 ? "0.75" : "0"}
                                                     transform={data.state.replayCount > 0 ? "translateX(0)" : "translateX(-6px)"}
                                                     transition="opacity 0.5s, transform 0.5s"
