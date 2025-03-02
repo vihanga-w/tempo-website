@@ -1,6 +1,6 @@
 import PageRouter from "@/lib/page-router";
 import User from "@/lib/usrlib";
-import { Text, Image, useColorModeValue, Center, Spinner, Box, HStack, VStack, Button, useDisclosure, Stack, Avatar } from "@chakra-ui/react";
+import { Text, Image, Box, HStack, VStack, useDisclosure, Stack } from "@chakra-ui/react";
 import {  useEffect, useRef, useState } from "react";
 import React from "react";
 import { SmallAddButton } from "./small-add-btn";
@@ -8,7 +8,6 @@ import { Modal } from "./modal";
 import { Loader } from "./loader";
 import { PlaybackState } from "./playback-state";
 import { DataStreamer, UpdateEvent } from "@/lib/live-ingest";
-import { MdAddReaction } from "react-icons/md";
 import { Mutex } from "async-mutex";
 
 const updateMutex = new Mutex();
@@ -356,28 +355,7 @@ export function UIApp({
                                 {i !== 0 && (
                                     <Box width="100%" height="1px" background="rgba(255, 255, 255, 0.2)" />
                                 )}
-                                <Stack gap="8px">
-                                    <HStack justifyContent="space-between">
-                                        <HStack>
-                                            {data.state?.pfpUrl !== "" && (
-                                                <Image width="24px" borderRadius="6px" src={data.state?.pfpUrl} />
-                                            )}
-                                            <Text fontSize="18px" fontWeight="bold">{data.state?.username}</Text>
-                                            {data.state && (
-                                                <Text
-                                                    key={"ui-" + v.userId + v.data.state?.progressNormal}
-                                                    opacity={data.state.replayCount > 0 ? "0.75" : "0"}
-                                                    transform={data.state.replayCount > 0 ? "translateX(0)" : "translateX(-6px)"}
-                                                    transition="opacity 0.5s, transform 0.5s"
-                                                >
-                                                    replayed x{Math.max(data.state?.replayCount, 1)}
-                                                </Text>
-                                            )}
-                                        </HStack>
-                                        <MdAddReaction opacity="0.45" size="22px" />
-                                    </HStack>
-                                    <PlaybackState key={"ps-" + v.userId + data.state?.songId} stream={streamer} userId={v.userId} />
-                                </Stack>
+                                <PlaybackState key={"ps-" + v.userId + data.state?.songId} stream={streamer} userId={v.userId} />
                             </>);
                         })}
                     </Stack>
