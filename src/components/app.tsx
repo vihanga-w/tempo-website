@@ -62,8 +62,8 @@ export function UIApp({
                 setLivePlaybackStates(v => {
                     const existing = v.find(a => a.userId === data.userId);
         
-                    if (existing && data.data.action.type === "STOPPED") {
-                            return v.filter((a) => a.userId !== existing.userId);
+                    if (existing && data.data.action.type == "STOPPED") {
+                            return v.filter((a) => a.userId !== data.data.state?.userId);
                     } else if (!existing && data.data.action.type !== "STOPPED") {
                         return [...v, ...[data]].sort((a, b) => {
                             return (a.data.state?.username ?? "").localeCompare(b.data.state?.username ?? "");
