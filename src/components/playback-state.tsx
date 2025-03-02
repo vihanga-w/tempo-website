@@ -38,7 +38,7 @@ export function PlaybackState({
     }, [stream]);
 
     useEffect(() => {
-        if (!data?.state)
+        if (!data?.state?.replayCount)
             return;
 
         const count = data?.state?.replayCount;
@@ -51,7 +51,7 @@ export function PlaybackState({
             return;
         }
 
-        if (count > 0 && data.state.isPlaying) {
+        if (count > 0) {
             setReplayCount(count);
         }
     }, [data?.state?.replayCount]);
