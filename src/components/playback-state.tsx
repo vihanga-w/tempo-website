@@ -160,7 +160,7 @@ export function PlaybackState({
                                 overflow="hidden"
                                 textOverflow="ellipsis"
                                 display="inline-block"
-                                maxWidth={`${calculateContainerWidth(data?.state?.username ?? "")}px`}
+                                maxWidth="calc(100% - 46px)" // 24px for profile picture + 22px for icon
                             >
                                 <Box
                                     as="span"
