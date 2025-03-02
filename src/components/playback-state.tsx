@@ -110,21 +110,13 @@ export function PlaybackState({
                     )}
                     <Text fontSize="18px" fontWeight="bold">{data?.state?.username}</Text>
                     <>
-                        {data?.state && (
-                            <Text
-                                opacity={replayCountVisible ? "0.75" : "0"}
-                                transform={replayCountVisible ? "translateX(0)" : "translateX(-6px)"}
-                                transition="opacity 0.5s, transform 0.5s"
-                            >
+                        {(data?.state && replayCountVisible) && (
+                            <Text>
                                 replayed x{replayCount}
                             </Text>
                         )}
-                        {data?.state && (
-                            <Text
-                                opacity={(userListenershipFact !== "" && !replayCountVisible) ? "0.75" : "0"}
-                                transform={(userListenershipFact !== "" && !replayCountVisible) ? "translateX(0)" : "translateX(-6px)"}
-                                transition="opacity 0.5s, transform 0.5s"
-                            >
+                        {(data?.state && (userListenershipFact !== "" && !replayCountVisible)) && (
+                            <Text>
                                 {userListenershipFact}
                             </Text>
                         )}
