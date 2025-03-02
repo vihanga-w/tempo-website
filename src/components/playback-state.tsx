@@ -102,7 +102,7 @@ export function PlaybackState({
                 });
 
                 makeULFV = true;
-            } else if (data.data.state.playSessionStart !== -1) {
+            } else if (data.data.state.playSessionStart !== -1 && new Date().getTime() - data.data.state.playSessionStart > (60e3 * 5)) {
                 setUserListenershipFact({
                     sid: data.data.state?.songId ?? "",
                     text: `listening for ${formatTimeToMinAndHour(new Date().getTime() - data.data.state.playSessionStart)}`,
