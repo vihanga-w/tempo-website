@@ -412,7 +412,7 @@ export function UIApp({
                                                     transform={v.data.data.state.replayCount > 0 ? "translateX(0)" : "translateX(-6px)"}
                                                     transition="opacity 0.5s, transform 0.5s"
                                                 >
-                                                    replayed x{v.data.data.state?.replayCount}
+                                                    replayed x{Math.max(v.data.data.state?.replayCount, 1)}
                                                 </Text>
                                             )}
                                         </HStack>
