@@ -112,6 +112,7 @@ export function UIApp({
         if (streamerReset && streamer && livePlaybackStates.length == 0) {
             streamer.cleanup();
             streamer.init();
+            setStreamerReset(false);
         }
     }, [livePlaybackStates, streamer, streamerReset]);
 
