@@ -270,7 +270,7 @@ export function UIApp({
                 marginRight="0"
                 marginTop="-15px"
             >
-                <Box position="fixed" overflow="hidden" zIndex="9999999">
+                <Box position="fixed" overflow="hidden" zIndex="999999">
                     <HStack
                         gap="10px"
                         onClick={handlePageMenuClick}
