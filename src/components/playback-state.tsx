@@ -197,7 +197,7 @@ export function PlaybackState({
                             return v.name
                         }).join(", ")}</Text>
                         {data?.state && (
-                            <HStack justifyContent="space-between" marginTop="10px">
+                            <HStack justifyContent="space-between" marginTop="16px">
                                 <Text>{progress < 1 && data ? formatTime(data.state.duration * progress) : formatTime(data?.state.duration ?? 0)}</Text>
                                 <Text>{progress < 1 && data ? formatTime(data.state.duration) : formatTime(data?.state.duration ?? 0)}</Text>
                             </HStack>
