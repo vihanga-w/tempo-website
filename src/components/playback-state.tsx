@@ -39,8 +39,6 @@ export function PlaybackState({
 }) {
     const [data, setData] = useState<UpdateEvent["data"]>();
     const [progress, setProgress] = useState(data?.interpolatedProgress ?? data?.state?.progressNormal ?? 0);
-    const [replayCountVisible, setReplayCountVisible] = useState<boolean>(false);
-    const [replayCount, setReplayCount] = useState<number>(0);
     const [userListenershipFact, setUserListenershipFact] = useState<{
         sid: string;
         text: string
@@ -77,7 +75,7 @@ export function PlaybackState({
             if (data.data.state?.replayCount && data.data.state?.replayCount > 0) {
                 setUserListenershipFact({
                     sid: data.data.state.songId,
-                    text: `replayed x${replayCount}`,
+                    text: `replayed x${data.data.state?.replayCount}`,
                 });
 
                 makeULFV = true;
@@ -111,12 +109,6 @@ export function PlaybackState({
         if (prevState)
             updateState(prevState);
     }, [stream]);
-
-    // Wait for count to update to make sure it is at the correct value when we make it visible
-    useEffect(() => {
-        if (replayCount > 0)
-            setReplayCountVisible(true);
-    }, [replayCount]);
 
     return (<>
         {data?.action.type !== "STOPPED" && (<>
