@@ -19,6 +19,7 @@ interface PlaybackState {
     pfpUrl: string;
     username: string;
     explicit: boolean;
+    replayCount: number;
     name: string;
     artists: {
         name: string;

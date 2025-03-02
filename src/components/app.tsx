@@ -406,6 +406,15 @@ export function UIApp({
                                                 <Image width="24px" borderRadius="6px" src={data.state?.pfpUrl} />
                                             )}
                                             <Text fontSize="18px" fontWeight="bold">{data.state?.username}</Text>
+                                            {v.data.data.state && (
+                                                <Text
+                                                    opacity={(v.data.data.state.replayCount - 1) > 0 ? "0.75" : "0"}
+                                                    transform={(v.data.data.state.replayCount - 1) > 0 ? "translateX(0)" : "translateX(-6px)"}
+                                                    transition="opacity 0.5s, transform 0.5s"
+                                                >
+                                                    replayed x{(v.data.data.state.replayCount - 1)}
+                                                </Text>
+                                            )}
                                         </HStack>
                                         <MdAddReaction opacity="0.45" size="22px" />
                                     </HStack>
