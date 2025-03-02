@@ -37,9 +37,8 @@ function getSpotifyDeeplink(trackId: string) {
 }
 
 const scrollText = keyframes`
-  0% { transform: translateX(0); }
-  50% { transform: translateX(-50%); }
-  100% { transform: translateX(0); }
+  0% { transform: translateX(100%); }
+  100% { transform: translateX(-100%); }
 `;
 
 export function PlaybackState({
@@ -151,6 +150,7 @@ export function PlaybackState({
                                 whiteSpace="nowrap"
                                 overflow="hidden"
                                 textOverflow="ellipsis"
+                                display="inline-block"
                                 animation={userListenershipFact.text.length > 20 ? `${scrollText} 10s linear infinite` : "none"}
                             >
                                 {userListenershipFact.text}
