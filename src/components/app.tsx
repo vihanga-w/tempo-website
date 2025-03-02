@@ -385,10 +385,11 @@ export function UIApp({
                                 const data = v.data;
                                 
                                 return (<>
-                                    {i !== 0 && (
-                                        <Box width="100%" height="1px" background="rgba(255, 255, 255, 0.2)" />
-                                    )}
-                                    <PlaybackState key={"ps-" + v.userId + data.state?.songId} stream={streamer} userId={v.userId} />
+                                    <PlaybackState
+                                        key={"ps-" + v.userId + data.state?.songId}
+                                        index={i}
+                                        stream={streamer} userId={v.userId}
+                                    />
                                 </>);
                             })}
                         </Stack>
