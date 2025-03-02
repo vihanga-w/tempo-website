@@ -109,17 +109,15 @@ export function PlaybackState({
                         <Image width="24px" borderRadius="6px" src={data?.state?.pfpUrl} />
                     )}
                     <Text fontSize="18px" fontWeight="bold">{data?.state?.username}</Text>
-                    <>
-                        {data?.state && (
-                            <Text
-                                opacity={replayCountVisible || (userListenershipFact !== "" && !replayCountVisible) ? "0.75" : "0"}
-                                transform={replayCountVisible || (userListenershipFact !== "" && !replayCountVisible) ? "translateX(0)" : "translateX(-6px)"}
-                                transition="opacity 0.5s, transform 0.5s"
-                            >
-                                {userListenershipFact == "" ? userListenershipFact : `replayed x${replayCount}`}
-                            </Text>
-                        )}
-                    </>
+                    {data?.state && (
+                        <Text
+                            opacity={replayCountVisible || (userListenershipFact !== "" && !replayCountVisible) ? "0.75" : "0"}
+                            transform={replayCountVisible || (userListenershipFact !== "" && !replayCountVisible) ? "translateX(0)" : "translateX(-6px)"}
+                            transition="opacity 0.5s, transform 0.5s"
+                        >
+                            {userListenershipFact == "" ? userListenershipFact : `replayed x${replayCount}`}
+                        </Text>
+                    )}
                 </HStack>
                 <MdAddReaction opacity="0.45" size="22px" />
             </HStack>
