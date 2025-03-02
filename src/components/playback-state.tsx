@@ -58,6 +58,13 @@ export function PlaybackState({
             setData(data.data);
             setProgress(data.data.interpolatedProgress ?? data.data.state?.progressNormal ?? 0);
 
+            if (data.data.state?.replayCount && data.data.state?.replayCount > 0) {
+                setUserListenershipFact({
+                    sid: data.data.state.songId,
+                    text: `replayed x${replayCount}`,
+                });
+            }
+
             // Process song stats for the day and generate facts
             const stats = data.data.state?.todayStats;
 
@@ -100,29 +107,6 @@ export function PlaybackState({
         if (prevState)
             updateState(prevState);
     }, [stream]);
-
-    useEffect(() => {
-        if (!data?.state?.replayCount)
-            return;
-
-        const count = data?.state?.replayCount;
-
-        // Dont update the count though
-        // We dont want it to appear to tick down as it fades away
-        if (count == 0) {
-            setReplayCountVisible(false);
-
-            return;
-        }
-
-        if (count > 0 && userListenershipFact.sid !== data.state.songId) {
-            setUserListenershipFact({
-                sid: data.state.songId,
-                text: `replayed x${replayCount}`,
-            });
-            setReplayCount(count);
-        }
-    }, [data?.state?.replayCount, userListenershipFact]);
 
     // Wait for count to update to make sure it is at the correct value when we make it visible
     useEffect(() => {
