@@ -150,7 +150,7 @@ export function PlaybackState({
                         {data?.state?.pfpUrl !== "" && (
                             <Image width="28px" borderRadius="6px" src={data?.state?.pfpUrl} draggable={false} />
                         )}
-                        <Stack>
+                        <Stack spacing="2px">
                             <Text fontSize="18px" fontWeight="bold">{data?.state?.username}</Text>
                             {data?.state && (
                                 <Text
