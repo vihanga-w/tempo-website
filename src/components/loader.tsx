@@ -14,7 +14,7 @@ export function Loader() {
                 100% {background-position:right}
             }`}
         </style>
-        <Box background="#0D0D0E" pos="fixed" zIndex="99999999">
+        <Box background="#0D0D0E">
             <Center width="100vw" height="100vh">
                 <Image width="100px" src="/icons/ui/logo-clear.svg" />
             </Center>
