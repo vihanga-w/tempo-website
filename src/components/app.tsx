@@ -225,7 +225,7 @@ export function UIApp({
         </Box>
 
         {/* The main user interface */}
-        <Box padding="20px" width="100%" height="100%">
+        <Box padding="20px">
             <Image
                 src="/menu-bg.png"
                 position="absolute"
@@ -354,7 +354,7 @@ export function UIApp({
                 zIndex="5"
                 overflow="hidden"
                 width="100%"
-                height="100%"
+                height="100vh"
             >
                 {/* Activity page */}
                 {currentPage == "activity" && (<>
