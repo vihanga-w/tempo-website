@@ -14,14 +14,21 @@ function formatTime(ms: number) {
     return `${minutes}:${secs < 10 ? '0' : ''}${secs}`;
 }
 
-function formatTimeToMin(ms: number) {
+function formatTimeToMinAndHour(ms: number) {
     if (ms < 0)
         ms = 0;
 
     const seconds = ms / 1e3;
     const minutes = Math.round(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    const mins = Math.floor(minutes % 60);
 
-    return `${minutes} minutes`;
+    if (minutes < 60)
+        return `${minutes} minute${minutes !== 1 ? "s" : ""}`;
+    else if (minutes == 60)
+        return "1 hour";
+    else
+        return `${hours}hr${hours !== 1 ? "s" : ""} ${mins}min${mins !== 1 ? "s" : ""}`;
 }
 
 function getSpotifyDeeplink(trackId: string) {
@@ -70,7 +77,7 @@ export function PlaybackState({
                 factPool.push("has listened to " + stats.completeListenCount + " times");
 
             if (stats.totalSessionDuration >= 4 && data.data.state?.duration)
-                factPool.push("spent " + formatTimeToMin(stats.totalSessionDuration * data.data.state?.duration) + " listening to");
+                factPool.push("spent " + formatTimeToMinAndHour(stats.totalSessionDuration * data.data.state?.duration) + " listening to");
 
             if (data.data.state?.replayCount && data.data.state?.replayCount > 0) {
                 setUserListenershipFact({
@@ -92,6 +99,13 @@ export function PlaybackState({
                 setUserListenershipFact({
                     sid: data.data.state?.songId ?? "",
                     text: electedFact
+                });
+
+                makeULFV = true;
+            } else if (data.data.state.playSessionStart !== -1) {
+                setUserListenershipFact({
+                    sid: data.data.state?.songId ?? "",
+                    text: `listening for ${formatTimeToMinAndHour(new Date().getTime() - data.data.state.playSessionStart)}`,
                 });
 
                 makeULFV = true;

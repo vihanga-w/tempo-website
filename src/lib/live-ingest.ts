@@ -24,6 +24,7 @@ interface PlaybackState {
     progressNormal: number;
     isPlaying: boolean;
     timeRemaining: number;
+    playSessionStart: number;
     duration: number;
     imageUrl: string;
     pfpUrl: string;
