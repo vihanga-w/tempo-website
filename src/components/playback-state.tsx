@@ -23,6 +23,8 @@ export function PlaybackState({
 }) {
     const [data, setData] = useState<UpdateEvent["data"]>();
     const [progress, setProgress] = useState(data?.interpolatedProgress ?? data?.state?.progressNormal ?? 0);
+    const [replayCountVisible, setReplayCountVisible] = useState<boolean>(false);
+    const [replayCount, setReplayCount] = useState<number>(0);
 
     useEffect(() => {
         if (!stream)
@@ -35,6 +37,31 @@ export function PlaybackState({
         });
     }, [stream]);
 
+    useEffect(() => {
+        if (!data?.state?.replayCount)
+            return;
+
+        const count = data?.state?.replayCount;
+
+        // Dont update the count though
+        // We dont want it to appear to tick down as it fades away
+        if (count == 0) {
+            setReplayCountVisible(false);
+
+            return;
+        }
+
+        if (replayCount > 0) {
+            setReplayCount(replayCount);
+        }
+    }, [data?.state?.replayCount]);
+
+    // Wait for count to update to make sure it is at the correct value when we make it visible
+    useEffect(() => {
+        if (replayCount > 0)
+            setReplayCountVisible(true);
+    }, [replayCount]);
+
     return (<>
         <Stack gap="8px">
             <HStack justifyContent="space-between">
@@ -45,11 +72,11 @@ export function PlaybackState({
                     <Text fontSize="18px" fontWeight="bold">{data?.state?.username}</Text>
                     {data?.state && (
                         <Text
-                            opacity={data.state.replayCount > 0 ? "0.75" : "0"}
-                            transform={data.state.replayCount > 0 ? "translateX(0)" : "translateX(-6px)"}
+                            opacity={replayCountVisible ? "0.75" : "0"}
+                            transform={replayCountVisible ? "translateX(0)" : "translateX(-6px)"}
                             transition="opacity 0.5s, transform 0.5s"
                         >
-                            replayed x{Math.max(data.state?.replayCount, 1)}
+                            replayed x{replayCount}
                         </Text>
                     )}
                 </HStack>
