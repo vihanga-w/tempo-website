@@ -34,6 +34,7 @@ export function PlaybackState({
     const [replayCountVisible, setReplayCountVisible] = useState<boolean>(false);
     const [replayCount, setReplayCount] = useState<number>(0);
     const [userListenershipFact, setUserListenershipFact] = useState<string>("");
+    const [userListenershipFactVisible, setUserListenershipFactVisible] = useState<boolean>(false);
 
     useEffect(() => {
         if (!stream)
@@ -63,12 +64,14 @@ export function PlaybackState({
 
             if (!data.data.state?.isPlaying) {
                 setUserListenershipFact("paused");
+                setUserListenershipFactVisible(true);
             } else if (factPool.length == 0) {
-                setUserListenershipFact("");
+                setUserListenershipFactVisible(false);
             } else {
                 const electedFact = factPool[Math.floor((data.data.state?.entropy ?? 0) * factPool.length)];
 
                 setUserListenershipFact(electedFact);
+                setUserListenershipFactVisible(true);
             }
         });
 
@@ -113,8 +116,8 @@ export function PlaybackState({
                     <Text fontSize="18px" fontWeight="bold">{data?.state?.username}</Text>
                     {data?.state && (
                         <Text
-                            opacity={replayCountVisible || (userListenershipFact !== "" && !replayCountVisible) ? "0.75" : "0"}
-                            transform={replayCountVisible || (userListenershipFact !== "" && !replayCountVisible) ? "translateX(0)" : "translateX(-6px)"}
+                            opacity={replayCountVisible || userListenershipFactVisible ? "0.75" : "0"}
+                            transform={replayCountVisible || userListenershipFactVisible ? "translateX(0)" : "translateX(-6px)"}
                             transition="opacity 0.5s, transform 0.5s"
                         >
                             {userListenershipFact !== "" ? userListenershipFact : `replayed x${replayCount}`}
