@@ -1,13 +1,13 @@
 import EventEmitter from "events";
 import { API_URL, API_URL_SOCK } from "./const";
+import { randomBytes } from "crypto";
 
 type PublicSessionResponse = string[];
-interface Stream {
-    socket: WebSocket;
-    lastState?: UpdateEvent;
-    closeExpected: boolean;
-    close: () => void;
-}
+// interface Stream {
+//     socket: WebSocket;
+//     closeExpected: boolean;
+//     close: () => void;
+// }
 interface SongStatistic {
     totalListenCount: number;
     completeListenCount: number;
@@ -18,6 +18,7 @@ interface SongStatistic {
 }
 
 interface PlaybackState {
+    userId: string;
     songId: string;
     albumId: string;
     progressNormal: number;
@@ -59,26 +60,57 @@ export interface UpdateEvent {
 }
 
 export class DataStreamer extends EventEmitter {
-    private streams: { [key: string]: Stream };
+    // private stream?: Stream;
+    private sock?: WebSocket;
     private interval?: NodeJS.Timeout;
     private cache: {[key: string]: UpdateEvent};
+    private sockCallbacks: {[key: string]: (data: {[key: string]: any}) => void}
 
     constructor() {
         super();
-
-        this.streams = {};
+        
         this.cache = {};
+        this.sockCallbacks = {};
     }
 
     cleanup() {
-        // Reset all states
-        for (const s of Object.keys(this.streams)) {
-            const stream = this.streams[s];
+        if (this.interval)
+            try { clearInterval(this.interval); } catch { }
+        
+        if (this.sock && !this.sock.CLOSED)
+            try { this.sock.close(); } catch { }
 
-            try { stream.close(); } catch { }
+        for (const k of Object.keys(this.cache)) {
+            const ev = this.cache[k];
+
+            this.emit("remove", ev.userId);
         }
 
-        this.streams = {};
+        this.cache = {};
+        this.sockCallbacks = {};
+    }
+
+    getListeners() {
+        return new Promise<string[]>(resolve => {
+            if (!this.sock || !this.sock.OPEN)
+                return resolve([]);
+    
+            const id = randomBytes(6).toString("hex");
+    
+            this.sockCallbacks[id] = (data) => {
+                const payload = data as {
+                    id: string;
+                    userIds: string[];
+                }
+
+                resolve(payload.userIds);
+            }
+            
+            this.sock.send(JSON.stringify([
+                "QUERY",
+                id,
+            ]));
+        });
     }
 
     async init(prevUserIds?: string[]) {
@@ -98,91 +130,70 @@ export class DataStreamer extends EventEmitter {
                     this.emit("remove", userId);
             }
 
+            const sock = new WebSocket(API_URL_SOCK + "/stream/sessions");
+
             this.interval = setInterval(async () => {
+                if (!sock.OPEN)
+                    return;
+
                 const newSessions = await this.fetchPublicStreams();
+                const currentListeners = await this.getListeners();
 
-                if (sessions.join("") !== newSessions.join("")) {
-                    for (const k of Object.keys(this.streams)) {
-                        const stream = this.streams[k];
-
-                        if (newSessions.includes(k))
-                            stream.closeExpected = true;
-
-                        stream.close();
-                    }
-
-                    this.init();
-                }
+                if (currentListeners.sort().join("") !== newSessions.join(""))
+                    sock.send(JSON.stringify(newSessions));
             }, 5e3);
 
-            sessions.forEach((userId) => {
-                const sock = new WebSocket(API_URL_SOCK + "/stream/" + userId);
+            let userIntervals: {[key: string]: NodeJS.Timeout} = {};
 
-                const removeSession = () => {
-                    const s = this.streams[userId];
+            sock.onmessage = (m) => {
+                try {
+                    const data = JSON.parse(m.data) as StateUpdateEvent;
 
-                    if (s) {
-                        // Try close socket if not already
-                        try {
-                            if (!sock.CLOSED && !sock.CLOSING)
-                                sock.close();
-                        } catch { }
+                    // This is a keepalive
+                    if (data.code == -1) {
+                        sock.send(JSON.stringify({
+                            code: -1
+                        }));
 
-                        if (!this.streams[userId].closeExpected)
-                            this.emit("remove", userId);
-
-                        this.streams[userId].closeExpected = false;
-
-                        delete this.streams[userId];
+                        return;
                     }
-                }
 
-                let interval: NodeJS.Timeout;
+                    if (data.code == 200) {
+                        const state = data.data;
+                        const action = state?.action;
 
-                sock.onmessage = (m) => {
-                    try {
-                        const data = JSON.parse(m.data) as StateUpdateEvent;
+                        let parsed: ParsedStateUpdate = {
+                            state: state?.state,
+                            action: {
+                                type: action as ParsedStateUpdate["action"]["type"] ?? "LOAD",
+                                songId: "",
+                            }
+                        };
 
-                        // This is a keepalive
-                        if (data.code == -1) {
-                            sock.send(JSON.stringify({
-                                code: -1
-                            }));
+                        const intervalId = (parsed.state?.userId ?? "");
 
-                            return;
+                        if (userIntervals[intervalId])
+                            clearInterval(userIntervals[intervalId]);
+
+                        if (action?.startsWith("PLAYING") || action?.startsWith("SKIPPED") || action?.startsWith("LISTENED") || action?.startsWith("PAUSED") || action?.startsWith("REPLAYED")) {
+                            const targetAction = action.split(":")[0];
+                            const songId = action.split(":")[1];
+
+                            parsed.action.type = targetAction as ParsedStateUpdate["action"]["type"];
+                            parsed.action.songId = songId;
                         }
 
-                        if (data.code == 200) {
-                            const state = data.data;
-                            const action = state?.action;
+                        const userId = (parsed.state?.userId ?? "");
 
-                            if (interval)
-                                clearInterval(interval);
+                        if (parsed.state?.isPlaying) {
+                            const now = Date.now();
+                            const timeElapsed = (now - parsed.state.updatedAt) / 1000; // in seconds
+                            const duration = parsed.state.duration;
+                            const currentTime = Math.min(duration * parsed.state.progressNormal, duration);
+                            parsed.interpolatedProgress = (currentTime + (timeElapsed * 1e3)) / duration;
 
-                            let parsed: ParsedStateUpdate = {
-                                state: state?.state,
-                                action: {
-                                    type: action as ParsedStateUpdate["action"]["type"] ?? "LOAD",
-                                    songId: "",
-                                }
-                            };
-
-                            if (action?.startsWith("PLAYING") || action?.startsWith("SKIPPED") || action?.startsWith("LISTENED") || action?.startsWith("PAUSED") || action?.startsWith("REPLAYED")) {
-                                const targetAction = action.split(":")[0];
-                                const songId = action.split(":")[1];
-
-                                parsed.action.type = targetAction as ParsedStateUpdate["action"]["type"];
-                                parsed.action.songId = songId;
-                            }
-
-                            if (parsed.state?.isPlaying) {
-                                const now = Date.now();
-                                const timeElapsed = (now - parsed.state.updatedAt) / 1000; // in seconds
-                                const duration = parsed.state.duration;
-                                const currentTime = Math.min(duration * parsed.state.progressNormal, duration);
-                                parsed.interpolatedProgress = (currentTime + (timeElapsed * 1e3)) / duration;
-
-                                interval = setInterval(() => {
+                            if (intervalId !== "") {
+                                userIntervals[intervalId] = setInterval(() => {
                                     requestAnimationFrame(() => {
                                         const now = Date.now();
                                         const timeElapsed = (now - parsed.state!.updatedAt) / 1000; // in seconds
@@ -201,37 +212,36 @@ export class DataStreamer extends EventEmitter {
                                         this.emit("update-" + userId , payload);
                                     });
                                 }, 500);
-
-                                sock.onclose = () => {
-                                    if (interval)
-                                        clearInterval(interval);
-                                    
-                                    console.warn("Socket closed for stream:", userId);
-                                    removeSession();
-                                };
                             }
-
-                            const payload: UpdateEvent = {
-                                userId,
-                                data: parsed,
-                            };
-
-                            this.streams[userId].lastState = payload;
-
-                            this.emit("update", payload);
-                            this.emit("update-" + userId, payload);
                         }
-                    } catch (ex) {
-                        console.warn("Failed to parse streaming API response, error:", ex);
-                    }
-                }
 
-                this.streams[userId] = {
-                    socket: sock,
-                    close: removeSession,
-                    closeExpected: false,
+                        const payload: UpdateEvent = {
+                            userId,
+                            data: parsed,
+                        };
+
+                        this.cache[userId] = payload;
+
+                        this.emit("update", payload);
+                        this.emit("update-" + userId, payload);
+                    }
+                } catch (ex) {
+                    console.warn("Failed to parse streaming API response, error:", ex);
                 }
-            });
+            }
+
+            sock.onclose = async () => {
+                Object.values(userIntervals).forEach(v => {
+                    try { clearInterval(v); } catch { }
+                });
+
+                await new Promise(resolve => setTimeout(resolve, 1e3));
+
+                // Attempt to reconnect
+                this.init();
+            }
+
+            sock.send(JSON.stringify(sessions));
         } catch (ex) {
             console.error("Failed to initialise DataStreamer, error:", ex);
         }
@@ -248,12 +258,5 @@ export class DataStreamer extends EventEmitter {
         const res = await req.json() as PublicSessionResponse;
 
         return res.sort();
-    }
-
-    public getLastState(userId: string) {
-        if (!this.streams[userId])
-            return undefined;
-
-        return this.streams[userId].lastState;
     }
 }

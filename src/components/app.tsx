@@ -31,6 +31,7 @@ export function UIApp({
     const [isFading, setIsFading] = useState<boolean>(false);
     const [livePlaybackStates, setLivePlaybackStates] = useState<UpdateEvent[]>([]);
     const [streamer, setStreamer] = useState<DataStreamer | null>(null);
+    const [streamerReset, setStreamerReset] = useState<boolean>(false);
 
     const { isOpen: isModalOpen, onOpen: onModalOpen, onClose: onModalClose } = useDisclosure();
 
@@ -89,12 +90,8 @@ export function UIApp({
     useEffect(() => {
         const handleFocus = async () => {
             if (streamer) {
-                const prevStates = livePlaybackStates.map(v => v.userId);
-
-                streamer.cleanup();
-                await new Promise<void>((resolve) => setTimeout(resolve, 250));
-
-                await streamer.init(prevStates);
+                setLivePlaybackStates([]);
+                setStreamerReset(true);
             }
         };
 
@@ -104,6 +101,13 @@ export function UIApp({
             window.removeEventListener("focus", handleFocus);
         };
     }, [streamer]);
+
+    useEffect(() => {
+        if (streamerReset && streamer && livePlaybackStates.length == 0) {
+            streamer.cleanup();
+            streamer.init();
+        }
+    }, [livePlaybackStates, streamer, streamerReset]);
 
     const pages: {
         name: string;
