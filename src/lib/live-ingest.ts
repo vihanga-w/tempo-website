@@ -31,6 +31,7 @@ interface PlaybackState {
     explicit: boolean;
     replayCount: number;
     name: string;
+    entropy: number;
     artists: {
         name: string;
         url: string;

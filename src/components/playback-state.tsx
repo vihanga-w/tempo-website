@@ -64,7 +64,7 @@ export function PlaybackState({
             if (factPool.length == 0) {
                 setUserListenershipFact("");
             } else {
-                const electedFact = factPool[Math.floor(Math.random() * factPool.length)];
+                const electedFact = factPool[Math.floor((data.data.state?.entropy ?? 0) * factPool.length)];
 
                 setUserListenershipFact(electedFact);
             }
