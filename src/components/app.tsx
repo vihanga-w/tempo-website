@@ -20,42 +20,17 @@ export function UIApp({
     prouter: PageRouter,
     user: User,
 }>) {
-    // const [cState, setCState] = useState<string>("");
-    // const [perfMsg, setPerfMsg] = useState<string>("");
-    // const [encReadyState, setEncReadyState] = useState<"waiting" | "invalid" | "valid" | "authorised">("waiting");
-    // const [pinEntryError, setPinEntryError] = useState<boolean>(false);
-    // const [encryption, setEncryption] = useState<MessageAuthority>();
-    // const [isPinProcessing, setIsPinProcessing] = useState<boolean>(false);
     const [currentPage, setCurrentPage] = useState<string>("activity");
     const [currentPageTitle, setCurrentPageTitle] = useState<string>("Activity");
     const [prevPage, setPrevPage] = useState<string>("");
     const [pageSwitcherActive, setPageSwitcherActive] = useState<boolean>(false);
-    // const [gravatarQuickEditor, setGravatarQuickEditor] = useState<GravatarQuickEditorCore | undefined>();
     const [modalTitle, setModalTitle] = useState<string>("");
     const [modalContent, setModalContent] = useState<JSX.Element>(<></>);
-    // const [conversationHeader, setConversationHeader] = useState<JSX.Element | undefined>();
-    // const [conversationUser, setConversationUser] = useState<PublicUserAccount | undefined | null>();
-    // const [conversation, setConversation] = useState<ConvoType | undefined>();
-    // const [activeCaseMeta, setActiveCaseMeta] = useState<CaseMeta | undefined>();
-    // const [cases, setCases] = useState<{
-    //     convo: ConvoDataType;
-    //     lastMessage: {
-    //         text: string;
-    //         lastUpdated: number;
-    //         creatorNameText :string
-    //     }
-    // }[]>([]);
     const [modalPBtn, setModalPBtn] = useState<{ text: string; callback: () => void } | undefined>();
     const [modalSBtn, setModalSBtn] = useState<{ text: string; callback: () => void } | undefined>();
-    // const [gravatarHash, setGravatarHash] = useState<string>("");
-    // const [pfpCacheBuster, setPfpCacheBuster] = useState<string>(new Date().getTime().toString());
-    // const [conversationActivityStatus, setConversationActivityStatus] = useState<string>("Loading activity status");
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [isFading, setIsFading] = useState<boolean>(false);
-    const [livePlaybackStates, setLivePlaybackStates] = useState<{
-        updateCb: ((data: UpdateEvent["data"]) => void) | undefined;
-        data: UpdateEvent;
-    }[]>([]);
+    const [livePlaybackStates, setLivePlaybackStates] = useState<UpdateEvent[]>([]);
     const [streamer, setStreamer] = useState<DataStreamer | null>(null);
 
     const { isOpen: isModalOpen, onOpen: onModalOpen, onClose: onModalClose } = useDisclosure();
@@ -82,29 +57,14 @@ export function UIApp({
         newStreamer.on("update", (data: UpdateEvent) => {
             updateMutex.runExclusive(() => {
                 setLivePlaybackStates(v => {
-                    const existingIndex = v.findIndex(a => a.data.userId === data.userId);
+                    const existing = v.find(a => a.userId === data.userId);
         
-                    const doUpdateCb = () => {
-                        // Check user id in case simultaneous events cause data to switch places
-                        if (v[existingIndex] && v[existingIndex].updateCb !== undefined && v[existingIndex].data.userId === data.userId) {
-                            v[existingIndex].updateCb!(data.data);
-                        }
-                    };
-        
-                    if (existingIndex !== -1) {
-                        if (data.data.action.type === "STOPPED") {
-                            return v.filter((_, index) => index !== existingIndex);
-                        } else {
-                            doUpdateCb();
-        
-                            return v.map((item, index) => 
-                                index === existingIndex ? { ...item, data } : item
-                            ).sort((a, b) => (a.data.data.state?.username ?? "").localeCompare(b.data.data.state?.username ?? ""));
-                        }
-                    } else if (data.data.action.type !== "STOPPED") {
-                        doUpdateCb();
-        
-                        return [...v, { data, updateCb: undefined }].sort((a, b) => (a.data.data.state?.username ?? "").localeCompare(b.data.data.state?.username ?? ""));
+                    if (existing && data.data.action.type === "STOPPED") {
+                            return v.filter((a) => a.userId !== existing.userId);
+                    } else if (!existing && data.data.action.type !== "STOPPED") {
+                        return [...v, ...[data]].sort((a, b) => {
+                            return (a.data.state?.username ?? "").localeCompare(b.data.state?.username ?? "");
+                        })
                     }
         
                     return v;
@@ -115,13 +75,7 @@ export function UIApp({
         newStreamer.on("remove", userId => {
             updateMutex.runExclusive(() => {
                 setLivePlaybackStates(v => {
-                    const existingIndex = v.findIndex(a => a.data.userId === userId);
-            
-                    if (existingIndex !== -1) {
-                        return v.filter((_, index) => index !== existingIndex);
-                    }
-            
-                    return v;
+                    return v.filter((a) => a.userId !== userId);
                 });
             });
         });
@@ -136,9 +90,12 @@ export function UIApp({
     useEffect(() => {
         const handleFocus = async () => {
             if (streamer) {
+                const prevStates = livePlaybackStates.map(v => v.userId);
+
                 streamer.cleanup();
                 await new Promise<void>((resolve) => setTimeout(resolve, 250));
-                await streamer.init(livePlaybackStates.map(v => v.data.userId));
+
+                await streamer.init(prevStates);
             }
         };
 
@@ -393,38 +350,32 @@ export function UIApp({
                         <Text fontFamily="arial, helvetica" fontWeight="bold" fontSize="24px">Now Playing</Text>
                         {livePlaybackStates.map((v, i) => {
                             // const key = v.userId + v.data.state?.songId + v.data.interpolatedProgress;
-                            const data = v.data.data;
+                            const data = v.data;
                             
                             return (<>
                                 {i !== 0 && (
                                     <Box width="100%" height="1px" background="rgba(255, 255, 255, 0.2)" />
                                 )}
                                 <Stack gap="8px">
-                                    <HStack justifyContent="space-between">
+                                    <HStack key={"ui-" + v.userId} justifyContent="space-between">
                                         <HStack>
                                             {data.state?.pfpUrl !== "" && (
                                                 <Image width="24px" borderRadius="6px" src={data.state?.pfpUrl} />
                                             )}
                                             <Text fontSize="18px" fontWeight="bold">{data.state?.username}</Text>
-                                            {v.data.data.state && (
+                                            {data.state && (
                                                 <Text
-                                                    opacity={v.data.data.state.replayCount > 0 ? "0.75" : "0"}
-                                                    transform={v.data.data.state.replayCount > 0 ? "translateX(0)" : "translateX(-6px)"}
+                                                    opacity={data.state.replayCount > 0 ? "0.75" : "0"}
+                                                    transform={data.state.replayCount > 0 ? "translateX(0)" : "translateX(-6px)"}
                                                     transition="opacity 0.5s, transform 0.5s"
                                                 >
-                                                    replayed x{Math.max(v.data.data.state?.replayCount, 1)}
+                                                    replayed x{Math.max(data.state?.replayCount, 1)}
                                                 </Text>
                                             )}
                                         </HStack>
                                         <MdAddReaction opacity="0.45" size="22px" />
                                     </HStack>
-                                    <PlaybackState registerUpdateCb={cb => {
-                                        setLivePlaybackStates(prev => {
-                                            prev[i].updateCb = cb;
-
-                                            return [...prev];
-                                        })
-                                    }} />
+                                    <PlaybackState key={"ps-" + v.userId + data.state?.songId} stream={streamer} userId={v.userId} />
                                 </Stack>
                             </>);
                         })}

@@ -1,8 +1,7 @@
-import { UpdateEvent } from "@/lib/live-ingest";
-import { Box, HStack, Image, Stack, Text}  from "@chakra-ui/react";
-import { FaReact } from "react-icons/fa6";
-import { MdAddReaction, MdExplicit } from "react-icons/md";
-import { useEffect, useState, useRef } from "react";
+import { DataStreamer, UpdateEvent } from "@/lib/live-ingest";
+import { Box, HStack, Image, Stack, Text}  from "@chakra-ui/react"
+import { MdExplicit } from "react-icons/md";
+import { useEffect, useState } from "react";
 
 function formatTime(ms: number) {
     const seconds = ms / 1e3;
@@ -16,26 +15,25 @@ function getSpotifyDeeplink(trackId: string) {
 }
 
 export function PlaybackState({
-    registerUpdateCb,
+    stream,
+    userId,
 }: {
-    registerUpdateCb: ((cb: (data: UpdateEvent["data"]) => void) => void),
+    stream: DataStreamer | null,
+    userId: string,
 }) {
     const [data, setData] = useState<UpdateEvent["data"]>();
     const [progress, setProgress] = useState(data?.interpolatedProgress ?? data?.state?.progressNormal ?? 0);
 
     useEffect(() => {
-        if (!data)
+        if (!stream)
             return;
-        
-        setProgress(data.interpolatedProgress ?? data.state?.progressNormal ?? 0);
-    }, [data]);
 
-    useEffect(() => {
-        registerUpdateCb(data => {
-            setData(data);
-            setProgress(data.interpolatedProgress ?? data.state?.progressNormal ?? 0);
+        stream.on("update-" + userId, (data: UpdateEvent) => {
+            setData(data.data);
+            setProgress(data.data.interpolatedProgress ?? data.data.state?.progressNormal ?? 0);
+            // console.log(data)
         });
-    }, []);
+    }, [stream]);
 
     return (<>
         <HStack alignItems="self-start" width="100%">

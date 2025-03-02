@@ -183,6 +183,7 @@ export class DataStreamer extends EventEmitter {
                                         };
 
                                         this.emit("update", payload);
+                                        this.emit("update-" + userId , payload);
                                     });
                                 }, 500);
 
@@ -203,6 +204,7 @@ export class DataStreamer extends EventEmitter {
                             this.streams[userId].lastState = payload;
 
                             this.emit("update", payload);
+                            this.emit("update-" + userId, payload);
                         }
                     } catch (ex) {
                         console.warn("Failed to parse streaming API response, error:", ex);
