@@ -95,6 +95,7 @@ export function UIApp({
     useEffect(() => {
         const handleFocus = async () => {
             if (streamer) {
+                streamer.cleanup()
                 setActivityPageLoading(true);
                 setLivePlaybackStates([]);
                 setStreamerReset(true);
