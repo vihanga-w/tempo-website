@@ -120,7 +120,7 @@ export function PlaybackState({
                             transform={replayCountVisible || userListenershipFactVisible ? "translateX(0)" : "translateX(-6px)"}
                             transition="opacity 0.5s, transform 0.5s"
                         >
-                            {userListenershipFact !== "" ? userListenershipFact : `replayed x${replayCount}`}
+                            {userListenershipFactVisible ? userListenershipFact : `replayed x${replayCount}`}
                         </Text>
                     )}
                 </HStack>
