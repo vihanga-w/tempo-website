@@ -73,6 +73,10 @@ export class DataStreamer extends EventEmitter {
         this.sockCallbacks = {};
     }
 
+    isReady() {
+        return (this.sock && this.sock.OPEN);
+    }
+
     cleanup() {
         if (this.interval)
             try { clearInterval(this.interval); } catch { }

@@ -84,7 +84,7 @@ export function UIApp({
         });
 
         newStreamer.on("close", () => {
-            // Connection lost display loading screen and trust the connection strategy will reconnect
+            // Connection lost, display loading screen and trust the connection strategy will reconnect
             setActivityPageLoading(true);
         });
 
@@ -97,8 +97,7 @@ export function UIApp({
 
     useEffect(() => {
         const handleFocus = async () => {
-            if (streamer) {
-                streamer.cleanup()
+            if (streamer && !streamer.isReady()) {
                 setActivityPageLoading(true);
                 setLivePlaybackStates([]);
                 setStreamerReset(true);
