@@ -117,10 +117,10 @@ export function PlaybackState({
                 });
 
                 makeULFV = true;
-            } else if (data.data.state.playSessionStart !== -1 && new Date().getTime() - data.data.state.playSessionStart >= (60e3 * 5)) {
+            } else if (data.data.state.playSessionStart !== -1) {
                 setUserListenershipFact({
                     sid: data.data.state?.songId ?? "",
-                    text: `listening for ${formatTimeToMinAndHour(new Date().getTime() - data.data.state.playSessionStart)}`,
+                    text: (new Date().getTime() - data.data.state.playSessionStart >= (60e3 * 5) ? `listening for ${formatTimeToMinAndHour(new Date().getTime() - data.data.state.playSessionStart)}` : "Started listening recently"),
                 });
 
                 makeULFV = true;
@@ -148,10 +148,10 @@ export function PlaybackState({
                 <HStack justifyContent="space-between">
                     <HStack>
                         {data?.state?.pfpUrl !== "" && (
-                            <Image width="28px" borderRadius="6px" src={data?.state?.pfpUrl} draggable={false} />
+                            <Image width="36px" borderRadius="6px" src={data?.state?.pfpUrl} draggable={false} />
                         )}
                         <Stack spacing="2px">
-                            <Text fontSize="18px" fontWeight="bold">{data?.state?.username}</Text>
+                            <Text fontSize="16px" fontWeight="bold">{data?.state?.username}</Text>
                             {data?.state && (
                                 <Text
                                     opacity={userListenershipFactVisible ? "0.75" : "0"}
@@ -160,6 +160,7 @@ export function PlaybackState({
                                     whiteSpace="nowrap"
                                     overflow="hidden"
                                     textOverflow="ellipsis"
+                                    fontSize="16px"
                                 >
                                     {userListenershipFact.text}
                                 </Text>
@@ -169,7 +170,7 @@ export function PlaybackState({
                     <MdAddReaction opacity="0.45" size="22px" />
                 </HStack>
                 <HStack alignItems="self-start" width="100%">
-                    <Image width="64px" height="64px" background="rgba(255, 255, 255, 0.2)" borderRadius="6px" src={data?.state?.imageUrl} draggable={false} />
+                    <Image width="72px" height="72px" background="rgba(255, 255, 255, 0.2)" borderRadius="6px" src={data?.state?.imageUrl} draggable={false} />
                     <Stack height="100%" width="100%" gap="0" fontFamily="arial, helvetica" lineHeight="18px">
                         <HStack pos="relative" gap="5px" justifyContent="space-between">
                             <HStack width="100%" gap="5px">
