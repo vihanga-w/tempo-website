@@ -60,16 +60,6 @@ export function PlaybackState({
 
             let makeULFV = false;
 
-            if (data.data.state?.replayCount && data.data.state?.replayCount > 0) {
-                setUserListenershipFact({
-                    sid: data.data.state.songId,
-                    text: `replayed x${replayCount}`,
-                });
-                makeULFV = true;
-                // Also set the state here as we may return if no stats provided
-                setUserListenershipFactVisible(true);
-            }
-
             // Process song stats for the day and generate facts
             const stats = data.data.state?.todayStats;
 
@@ -84,19 +74,28 @@ export function PlaybackState({
             if (stats.totalSessionDuration >= 4 && data.data.state?.duration)
                 factPool.push("spent " + formatTimeToMin(stats.totalSessionDuration * data.data.state?.duration) + " listening to");
 
-            if (!data.data.state?.isPlaying) {
+            if (data.data.state?.replayCount && data.data.state?.replayCount > 0) {
+                setUserListenershipFact({
+                    sid: data.data.state.songId,
+                    text: `replayed x${replayCount}`,
+                });
+
+                makeULFV = true;
+            } else if (!data.data.state?.isPlaying) {
                 setUserListenershipFact({
                     sid: data.data.state?.songId ?? "",
                     text: "paused"
                 });
+
                 makeULFV = true;
-            } else {
+            } else if (factPool.length > 0) {
                 const electedFact = factPool[Math.floor((data.data.state?.entropy ?? 0) * factPool.length)];
 
                 setUserListenershipFact({
                     sid: data.data.state?.songId ?? "",
                     text: electedFact
                 });
+
                 makeULFV = true;
             }
 
