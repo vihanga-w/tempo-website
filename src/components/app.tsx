@@ -1,6 +1,6 @@
 import PageRouter from "@/lib/page-router";
 import User from "@/lib/usrlib";
-import { Text, Image, Box, HStack, VStack, useDisclosure, Stack } from "@chakra-ui/react";
+import { Text, Image, Box, HStack, VStack, useDisclosure, Stack, Center, Spinner } from "@chakra-ui/react";
 import {  useEffect, useRef, useState } from "react";
 import React from "react";
 import { SmallAddButton } from "./small-add-btn";
@@ -29,6 +29,7 @@ export function UIApp({
     const [modalSBtn, setModalSBtn] = useState<{ text: string; callback: () => void } | undefined>();
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [isFading, setIsFading] = useState<boolean>(false);
+    const [activityPageLoading, setActivityPageLoading] = useState<boolean>(true);
     const [livePlaybackStates, setLivePlaybackStates] = useState<UpdateEvent[]>([]);
     const [streamer, setStreamer] = useState<DataStreamer | null>(null);
     const [streamerReset, setStreamerReset] = useState<boolean>(false);
@@ -55,6 +56,8 @@ export function UIApp({
         setStreamer(newStreamer);
 
         newStreamer.on("update", (data: UpdateEvent) => {
+            setActivityPageLoading(false);
+
             updateMutex.runExclusive(() => {
                 setLivePlaybackStates(v => {
                     const existing = v.find(a => a.userId === data.userId);
@@ -73,6 +76,8 @@ export function UIApp({
         });
 
         newStreamer.on("remove", userId => {
+            setActivityPageLoading(false);
+
             updateMutex.runExclusive(() => {
                 setLivePlaybackStates(v => {
                     return v.filter((a) => a.userId !== userId);
@@ -104,6 +109,8 @@ export function UIApp({
 
     useEffect(() => {
         if (streamerReset && streamer && livePlaybackStates.length == 0) {
+            setActivityPageLoading(true);
+
             streamer.cleanup();
             streamer.init();
         }
@@ -348,22 +355,26 @@ export function UIApp({
                 overflow="hidden"
             >
                 {/* Activity page */}
-                {currentPage == "activity" && (
-                    <Stack gap="18px">
-                        <Text fontFamily="arial, helvetica" fontWeight="bold" fontSize="24px">Now Playing</Text>
-                        {livePlaybackStates.map((v, i) => {
-                            // const key = v.userId + v.data.state?.songId + v.data.interpolatedProgress;
-                            const data = v.data;
-                            
-                            return (<>
-                                {i !== 0 && (
-                                    <Box width="100%" height="1px" background="rgba(255, 255, 255, 0.2)" />
-                                )}
-                                <PlaybackState key={"ps-" + v.userId + data.state?.songId} stream={streamer} userId={v.userId} />
-                            </>);
-                        })}
-                    </Stack>
-                )}
+                {currentPage == "activity" && (<>
+                    {activityPageLoading ? (<Center width="100%" height="100%">
+                        <Spinner size="lg" />
+                    </Center>) : (
+                        <Stack gap="18px">
+                            <Text fontFamily="arial, helvetica" fontWeight="bold" fontSize="24px">Now Playing</Text>
+                            {livePlaybackStates.map((v, i) => {
+                                // const key = v.userId + v.data.state?.songId + v.data.interpolatedProgress;
+                                const data = v.data;
+                                
+                                return (<>
+                                    {i !== 0 && (
+                                        <Box width="100%" height="1px" background="rgba(255, 255, 255, 0.2)" />
+                                    )}
+                                    <PlaybackState key={"ps-" + v.userId + data.state?.songId} stream={streamer} userId={v.userId} />
+                                </>);
+                            })}
+                        </Stack>
+                    )}
+                </>)}
 
                 {/* Friends page */}
                 {currentPage == "friends" && (<>
