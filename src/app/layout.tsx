@@ -108,6 +108,7 @@ export default function RootLayout({
       <body style={{
         height: "100%",
         width: "100%",
+        WebkitTouchCallout: "none",
       }}>
         <Analytics />
         <ColorModeScript initialColorMode={theme.initialColorMode} />
