@@ -2,6 +2,7 @@ import { DataStreamer, UpdateEvent } from "@/lib/live-ingest";
 import { Box, HStack, Image, Stack, Text}  from "@chakra-ui/react"
 import { MdAddReaction, MdExplicit } from "react-icons/md";
 import { useEffect, useState } from "react";
+import { keyframes } from "@emotion/react";
 
 function formatTime(ms: number) {
     if (ms < 0)
@@ -34,6 +35,12 @@ function formatTimeToMinAndHour(ms: number) {
 function getSpotifyDeeplink(trackId: string) {
     return `spotify://track/${trackId}`;
 }
+
+const scrollText = keyframes`
+  0% { transform: translateX(0); }
+  50% { transform: translateX(-50%); }
+  100% { transform: translateX(0); }
+`;
 
 export function PlaybackState({
     stream,
@@ -141,8 +148,11 @@ export function PlaybackState({
                                 opacity={userListenershipFactVisible ? "0.75" : "0"}
                                 transform={userListenershipFactVisible ? "translateX(0)" : "translateX(-6px)"}
                                 transition="opacity 0.5s, transform 0.5s"
+                                whiteSpace="nowrap"
+                                overflow="hidden"
+                                textOverflow="ellipsis"
+                                animation={userListenershipFact.text.length > 20 ? `${scrollText} 10s linear infinite` : "none"}
                             >
-                                {/* {userListenershipFact !== "" && (!userListenershipFactVisible || replayCount == 0) ? userListenershipFact : `replayed x${replayCount}`} */}
                                 {userListenershipFact.text}
                             </Text>
                         )}
