@@ -408,11 +408,11 @@ export function UIApp({
                                             <Text fontSize="18px" fontWeight="bold">{data.state?.username}</Text>
                                             {v.data.data.state && (
                                                 <Text
-                                                    opacity={(v.data.data.state.replayCount - 1) > 0 ? "0.75" : "0"}
-                                                    transform={(v.data.data.state.replayCount - 1) > 0 ? "translateX(0)" : "translateX(-6px)"}
+                                                    opacity={v.data.data.state.replayCount > 0 ? "0.75" : "0"}
+                                                    transform={v.data.data.state.replayCount > 0 ? "translateX(0)" : "translateX(-6px)"}
                                                     transition="opacity 0.5s, transform 0.5s"
                                                 >
-                                                    replayed x{(v.data.data.state.replayCount - 1)}
+                                                    replayed x{v.data.data.state?.replayCount}
                                                 </Text>
                                             )}
                                         </HStack>
