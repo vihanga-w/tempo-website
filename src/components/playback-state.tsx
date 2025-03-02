@@ -151,9 +151,15 @@ export function PlaybackState({
                                 overflow="hidden"
                                 textOverflow="ellipsis"
                                 display="inline-block"
-                                animation={userListenershipFact.text.length > 20 ? `${scrollText} 10s linear infinite` : "none"}
+                                maxWidth="150px"
                             >
-                                {userListenershipFact.text}
+                                <Box
+                                    as="span"
+                                    display="inline-block"
+                                    animation={userListenershipFact.text.length > 20 ? `${scrollText} 10s linear infinite` : "none"}
+                                >
+                                    {userListenershipFact.text}
+                                </Box>
                             </Text>
                         )}
                     </HStack>
