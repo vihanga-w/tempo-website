@@ -83,6 +83,11 @@ export function UIApp({
             });
         });
 
+        newStreamer.on("close", () => {
+            // Connection lost display loading screen and trust the connection strategy will reconnect
+            setActivityPageLoading(true);
+        });
+
         newStreamer.init();
 
         return () => {

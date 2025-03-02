@@ -231,6 +231,8 @@ export class DataStreamer extends EventEmitter {
             }
 
             this.sock.onclose = async () => {
+                this.emit("close");
+                
                 Object.values(userIntervals).forEach(v => {
                     try { clearInterval(v); } catch { }
                 });
