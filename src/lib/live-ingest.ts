@@ -76,7 +76,7 @@ export class DataStreamer extends EventEmitter {
     cleanup() {
         if (this.interval)
             try { clearInterval(this.interval); } catch { }
-        
+
         if (this.sock && !this.sock.CLOSED)
             try { this.sock.close(); } catch { }
 
@@ -130,28 +130,28 @@ export class DataStreamer extends EventEmitter {
                     this.emit("remove", userId);
             }
 
-            const sock = new WebSocket(API_URL_SOCK + "/stream/sessions");
+            this.sock = new WebSocket(API_URL_SOCK + "/stream/sessions");
 
             this.interval = setInterval(async () => {
-                if (!sock.OPEN)
+                if (!this.sock || !this.sock.OPEN)
                     return;
 
                 const newSessions = await this.fetchPublicStreams();
                 const currentListeners = await this.getListeners();
 
                 if (currentListeners.sort().join("") !== newSessions.join(""))
-                    sock.send(JSON.stringify(newSessions));
+                    this.sock.send(JSON.stringify(newSessions));
             }, 5e3);
 
             let userIntervals: {[key: string]: NodeJS.Timeout} = {};
 
-            sock.onmessage = (m) => {
+            this.sock.onmessage = (m) => {
                 try {
                     const data = JSON.parse(m.data) as StateUpdateEvent;
 
                     // This is a keepalive
-                    if (data.code == -1) {
-                        sock.send(JSON.stringify({
+                    if (this.sock && data.code == -1) {
+                        this.sock.send(JSON.stringify({
                             code: -1
                         }));
 
@@ -230,7 +230,7 @@ export class DataStreamer extends EventEmitter {
                 }
             }
 
-            sock.onclose = async () => {
+            this.sock.onclose = async () => {
                 Object.values(userIntervals).forEach(v => {
                     try { clearInterval(v); } catch { }
                 });
@@ -241,7 +241,7 @@ export class DataStreamer extends EventEmitter {
                 this.init();
             }
 
-            sock.send(JSON.stringify(sessions));
+            this.sock.send(JSON.stringify(sessions));
         } catch (ex) {
             console.error("Failed to initialise DataStreamer, error:", ex);
         }
