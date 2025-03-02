@@ -133,7 +133,7 @@ export default function Home() {
   }
 
   return (
-    <Box background={bgColour} height="100%" width="100%" overflow="hidden">
+    <Box background={bgColour} height="100%" width="100%" overflow="auto">
       {isInMobileBrowser ? (
         <>
           <Box
