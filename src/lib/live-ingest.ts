@@ -8,6 +8,15 @@ interface Stream {
     closeExpected: boolean;
     close: () => void;
 }
+interface SongStatistic {
+    totalListenCount: number;
+    completeListenCount: number;
+    averageSessionDuration: number;
+    totalSessionDuration: number;
+    skipCount: number;
+    replayCount: number;
+}
+
 interface PlaybackState {
     songId: string;
     albumId: string;
@@ -27,6 +36,7 @@ interface PlaybackState {
     }[];
     updatedAt: number;
     lastEventSentAt: number;
+    todayStats: SongStatistic;
 };
 interface StateUpdateEvent {
     code: number;
@@ -51,11 +61,13 @@ export interface UpdateEvent {
 export class DataStreamer extends EventEmitter {
     private streams: { [key: string]: Stream };
     private interval?: NodeJS.Timeout;
+    private cache: {[key: string]: UpdateEvent};
 
     constructor() {
         super();
 
         this.streams = {};
+        this.cache = {};
     }
 
     cleanup() {
@@ -182,6 +194,9 @@ export class DataStreamer extends EventEmitter {
                                             data: parsed,
                                         };
 
+                                        if (parsed.state)
+                                            this.cache[userId] = payload;
+
                                         this.emit("update", payload);
                                         this.emit("update-" + userId , payload);
                                     });
@@ -220,6 +235,10 @@ export class DataStreamer extends EventEmitter {
         } catch (ex) {
             console.error("Failed to initialise DataStreamer, error:", ex);
         }
+    }
+
+    public getPrevState(userId: string) {
+        return this.cache[userId];
     }
 
     private async fetchPublicStreams() {

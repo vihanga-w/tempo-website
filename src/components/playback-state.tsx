@@ -30,11 +30,19 @@ export function PlaybackState({
         if (!stream)
             return;
 
-        stream.on("update-" + userId, (data: UpdateEvent) => {
+        const updateState = (data: UpdateEvent) => {
             setData(data.data);
             setProgress(data.data.interpolatedProgress ?? data.data.state?.progressNormal ?? 0);
-            // console.log(data)
+        }
+
+        stream.on("update-" + userId, (data: UpdateEvent) => {
+            updateState(data);
         });
+
+        const prevState = stream.getPrevState(userId);
+
+        if (prevState)
+            updateState(prevState);
     }, [stream]);
 
     useEffect(() => {
