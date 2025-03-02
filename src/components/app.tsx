@@ -378,7 +378,7 @@ export function UIApp({
                     >
                         <Spinner size="lg" />
                     </Center>) : (
-                        <Stack gap="18px" overflowY="auto">
+                        <Stack gap="18px" overflowY="auto" paddingBottom="18px">
                             <Text fontFamily="arial, helvetica" fontWeight="bold" fontSize="24px">Now Playing</Text>
                             {livePlaybackStates.map((v, i) => {
                                 // const key = v.userId + v.data.state?.songId + v.data.interpolatedProgress;
