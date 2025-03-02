@@ -353,12 +353,16 @@ export function UIApp({
                 pointerEvents={pageSwitcherActive ? "none" : "all"}
                 zIndex="5"
                 overflow="hidden"
-                width="100%"
-                height="100vh"
             >
                 {/* Activity page */}
                 {currentPage == "activity" && (<>
-                    {activityPageLoading ? (<Center width="100%" height="100%">
+                    {activityPageLoading ? (<Center
+                        pos="absolute"
+                        width="100vw"
+                        height="100vh"
+                        top="0"
+                        left="0"
+                    >
                         <Spinner size="lg" />
                     </Center>) : (
                         <Stack gap="18px" overflowY="auto">
