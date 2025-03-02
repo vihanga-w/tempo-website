@@ -41,7 +41,13 @@ export function PlaybackState({
     const [progress, setProgress] = useState(data?.interpolatedProgress ?? data?.state?.progressNormal ?? 0);
     const [replayCountVisible, setReplayCountVisible] = useState<boolean>(false);
     const [replayCount, setReplayCount] = useState<number>(0);
-    const [userListenershipFact, setUserListenershipFact] = useState<string>("");
+    const [userListenershipFact, setUserListenershipFact] = useState<{
+        sid: string;
+        text: string
+    }>({
+        sid: "",
+        text: "",
+    });
     const [userListenershipFactVisible, setUserListenershipFactVisible] = useState<boolean>(false);
 
     useEffect(() => {
@@ -67,14 +73,20 @@ export function PlaybackState({
                 factPool.push("spent " + formatTimeToMin(stats.totalSessionDuration * data.data.state?.duration) + " listening to");
 
             if (!data.data.state?.isPlaying) {
-                setUserListenershipFact("paused");
+                setUserListenershipFact({
+                    sid: data.data.state?.songId ?? "",
+                    text: "paused"
+                });
                 setUserListenershipFactVisible(true);
             } else if (factPool.length == 0) {
                 setUserListenershipFactVisible(false);
             } else {
                 const electedFact = factPool[Math.floor((data.data.state?.entropy ?? 0) * factPool.length)];
 
-                setUserListenershipFact(electedFact);
+                setUserListenershipFact({
+                    sid: data.data.state?.songId ?? "",
+                    text: electedFact
+                });
                 setUserListenershipFactVisible(true);
             }
         }
@@ -103,10 +115,14 @@ export function PlaybackState({
             return;
         }
 
-        if (count > 0) {
+        if (count > 0 && userListenershipFact.sid !== data.state.songId) {
+            setUserListenershipFact({
+                sid: data.state.songId,
+                text: `replayed x${replayCount}`,
+            });
             setReplayCount(count);
         }
-    }, [data?.state?.replayCount]);
+    }, [data?.state?.replayCount, userListenershipFact]);
 
     // Wait for count to update to make sure it is at the correct value when we make it visible
     useEffect(() => {
@@ -128,11 +144,12 @@ export function PlaybackState({
                         <Text fontSize="18px" fontWeight="bold">{data?.state?.username}</Text>
                         {data?.state && (
                             <Text
-                                opacity={replayCountVisible || userListenershipFactVisible ? "0.75" : "0"}
-                                transform={replayCountVisible || userListenershipFactVisible ? "translateX(0)" : "translateX(-6px)"}
+                                opacity={userListenershipFactVisible ? "0.75" : "0"}
+                                transform={userListenershipFactVisible ? "translateX(0)" : "translateX(-6px)"}
                                 transition="opacity 0.5s, transform 0.5s"
                             >
-                                {userListenershipFactVisible ? userListenershipFact : `replayed x${replayCount}`}
+                                {/* {userListenershipFact !== "" && (!userListenershipFactVisible || replayCount == 0) ? userListenershipFact : `replayed x${replayCount}`} */}
+                                {userListenershipFact.text}
                             </Text>
                         )}
                     </HStack>
