@@ -76,8 +76,6 @@ export function UIApp({
         });
 
         newStreamer.on("remove", userId => {
-            setActivityPageLoading(false);
-
             updateMutex.runExclusive(() => {
                 setLivePlaybackStates(v => {
                     return v.filter((a) => a.userId !== userId);
