@@ -28,6 +28,8 @@ function formatTimeToMinAndHour(ms: number) {
         return `${minutes} minute${minutes !== 1 ? "s" : ""}`;
     else if (minutes == 60)
         return "1 hour";
+    else if (mins == 0)
+        return `${hours}hr${hours !== 1 ? "s" : ""}`;
     else
         return `${hours}hr${hours !== 1 ? "s" : ""} ${mins}min${mins !== 1 ? "s" : ""}`;
 }
