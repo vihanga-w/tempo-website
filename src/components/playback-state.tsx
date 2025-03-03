@@ -143,9 +143,6 @@ export function PlaybackState({
 
     return (<>
         {data?.action.type !== "STOPPED" && (<>
-            {index !== 0 && (
-                <Box width="100%" height="1px" background="rgba(255, 255, 255, 0.2)" />
-            )}
             <Stack gap="8px">
                 <HStack justifyContent="space-between">
                     <HStack>

@@ -56,7 +56,7 @@ export function UIApp({
                     const existing = v.find(a => a.userId === data.userId);
         
                     if (existing && data.data.action.type == "STOPPED") {
-                            return v.filter((a) => a.userId !== data.data.state?.userId);
+                            return v.filter((a) => a.userId !== data.userId);
                     } else if (!existing && data.data.action.type !== "STOPPED") {
                         return [...v, ...[data]].sort((a, b) => {
                             return (a.data.state?.username ?? "").localeCompare(b.data.state?.username ?? "");
@@ -360,10 +360,14 @@ export function UIApp({
                                 const data = v.data;
                                 
                                 return (<>
+                                    {i !== 0 && (
+                                        <Box width="100%" height="1px" background="rgba(255, 255, 255, 0.2)" />
+                                    )}
                                     <PlaybackState
-                                        key={"ps-" + v.userId + data.state?.songId}
+                                        key={"ps-" + v.userId + data.state?.songId + (data.state?.artists ? "AA" : "ANA")}
                                         index={i}
-                                        stream={streamer} userId={v.userId}
+                                        stream={streamer}
+                                        userId={v.userId}
                                     />
                                 </>);
                             })}
