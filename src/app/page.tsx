@@ -193,9 +193,15 @@ export default function Home() {
         </>
       ) : !perfMsg ? page : (<>
           <Center background="#0D0D0E" pos="fixed" width="100vw" height="100vh" top="0" left="0">
-            <Stack>
+            <Stack gap="15px">
               <Image width="100px" src="/icons/ui/logo-clear.svg" />
-              <Text>{perfMsg}</Text>
+              <Text
+                fontFamily="arial, helvetica"
+                fontSize="20px"
+                width="80%"
+                textAlign="center"
+                opacity="0.85"
+              >{perfMsg}</Text>
             </Stack>
           </Center>
       </>)}
