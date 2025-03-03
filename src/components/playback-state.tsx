@@ -120,7 +120,7 @@ export function PlaybackState({
             } else if (data.data.state.playSessionStart !== -1) {
                 setUserListenershipFact({
                     sid: data.data.state?.songId ?? "",
-                    text: (new Date().getTime() - data.data.state.playSessionStart >= (60e3 * 5) ? `Listened to music for ${formatTimeToMinAndHour(new Date().getTime() - data.data.state.playSessionStart)} today` : "Started listening recently"),
+                    text: (new Date().getTime() - data.data.state.playSessionStart >= (60e3 * 5) ? `Listened to music for ${formatTimeToMinAndHour(new Date().getTime() - data.data.state.playSessionStart)}` : "Started listening recently"),
                 });
 
                 makeULFV = true;
