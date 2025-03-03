@@ -126,7 +126,7 @@ export default function Home() {
 
   useEffect(() => {
     setDisplayUI(true);
-
+    
     if (isInMobileBrowser)
       return;
 
@@ -270,6 +270,9 @@ export default function Home() {
 
   return (<div style={{
     opacity: displayUI ? "1" : "0",
+    pointerEvents: displayUI ? "all" : "none",
+    overflowY: displayUI ? "auto" : "hidden",
+    height: "100%",
   }}>
     <Modal
         title={modalTitle}
