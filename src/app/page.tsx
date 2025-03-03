@@ -33,6 +33,7 @@ export default function Home() {
   const [deferredPWAInstaller, setDeferredPWAInstaller] = useState<any>();
   const [page, setPage] = useState<JSX.Element>();
   const [perfMsg, setPerfMsg] = useState<string | undefined>();
+  const [displayUI, setDisplayUI] = useState<boolean>(false);
 
   const [modalTitle, setModalTitle] = useState<string>("");
   const [modalContent, setModalContent] = useState<JSX.Element>(<></>);
@@ -124,6 +125,8 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    setDisplayUI(true);
+    
     if (isInMobileBrowser)
       return;
 
@@ -265,7 +268,10 @@ export default function Home() {
     deferredPWAInstaller.prompt();
   }
 
-  return (<>
+  return (<div style={{
+    opacity: displayUI ? "1" : "0",
+    pointerEvents: displayUI ? "all" : "none",
+  }}>
     <Modal
         title={modalTitle}
         isOpen={isModalOpen}
@@ -344,5 +350,5 @@ export default function Home() {
           </Center>
       </>)}
     </Box>
-  </>);
+  </div>);
 }
