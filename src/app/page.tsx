@@ -118,6 +118,15 @@ export default function Home() {
       setDebugInjected(true);
     }
 
+    // Check whether we are in a PWA standalone app
+    if (window.navigator && !window.localStorage.getItem("tempo-override-pwa-detection")) setIsInMobileBrowser(!(("standalone" in window.navigator) && window.navigator.standalone));
+    else if (window.localStorage.getItem("tempo-override-pwa-detection")) setIsInMobileBrowser(false);
+  }, []);
+
+  useEffect(() => {
+    if (isInMobileBrowser)
+      return;
+
     // Instantiate a user handler for this session
     const user = new User();
 
@@ -244,15 +253,6 @@ export default function Home() {
         prouter.setPage("app");
       }
     });
-
-    // Check whether we are in a PWA standalone app
-    if (window.navigator && !window.localStorage.getItem("tempo-override-pwa-detection")) setIsInMobileBrowser(!(("standalone" in window.navigator) && window.navigator.standalone));
-    else if (window.localStorage.getItem("tempo-override-pwa-detection")) setIsInMobileBrowser(false);
-  }, []);
-
-  useEffect(() => {
-    if (isInMobileBrowser)
-      return;
 
     // Wait for the user handler to finish initialising
     user.init()
