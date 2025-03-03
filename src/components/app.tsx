@@ -325,7 +325,7 @@ export function UIApp({
                     scale={prevPage || !addNewItemPossiblePages.includes(currentPage) ? 0.65 : 1}
                     opacity={prevPage || !addNewItemPossiblePages.includes(currentPage) ? "0" : "1"}
                     active={prevPage == "" || !addNewItemPossiblePages.includes(currentPage)}
-                    zIndex="7"
+                    zIndex="9999999999"
                 />
             </HStack>
             
@@ -333,12 +333,15 @@ export function UIApp({
                 pointerEvents={pageSwitcherActive ? "none" : "all"}
                 zIndex="5"
                 overflow="hidden"
+                height="100%"
             >
                 {/* Discover page */}
                 {currentPage == "discover" && (<>
                     <Center width="100%" height="100%">
-                        <Text>Tempo is still learning about your music taste.</Text>
-                        <Text>We'll let you know when Discover is ready!</Text>
+                        <Stack>
+                            <Text textAlign="center">Tempo is still learning your music taste.</Text>
+                            <Text textAlign="center">We'll let you know when Discover is ready!</Text>
+                        </Stack>
                     </Center>
                 </>)}
 
@@ -382,6 +385,7 @@ export function UIApp({
                         position="absolute"
                         right="46px"
                         top="48px"
+                        zIndex="999999999"
                     />
                     <Text
                         position="absolute"
