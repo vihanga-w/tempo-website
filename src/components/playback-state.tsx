@@ -92,7 +92,7 @@ export function PlaybackState({
                 factPool.push("Listened to song " + stats.completeListenCount + " times");
 
             if (stats.totalSessionDuration >= 4 && data.data.state?.duration)
-                factPool.push("Spent " + formatTimeToMinAndHour(stats.totalSessionDuration * data.data.state?.duration) + " listening to");
+                factPool.push("Spent " + formatTimeToMinAndHour(stats.totalSessionDuration * data.data.state?.duration) + " listening to song");
 
             if (data.data.state?.replayCount && data.data.state?.replayCount > 0) {
                 setUserListenershipFact({
