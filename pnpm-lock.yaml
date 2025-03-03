@@ -83,6 +83,9 @@ importers:
       react-loading-skeleton:
         specifier: ^3.5.0
         version: 3.5.0(react@18.2.0)
+      react-pwa-push-notifications:
+        specifier: ^1.0.0
+        version: 1.0.0
       uuid:
         specifier: ^9.0.1
         version: 9.0.1
@@ -2542,6 +2545,9 @@ packages:
     resolution: {integrity: sha512-gxxSyLbrEAdXTKgfbpBEFZCO/P153DnqSCQau2+o6lNy1jgMRr2MmRmOzMmyrwSaSYLRB8g7b0waYPmUjz7IhQ==}
     peerDependencies:
       react: '>=16.8.0'
+
+  react-pwa-push-notifications@1.0.0:
+    resolution: {integrity: sha512-WmNCT7stmEPK1WDcGSXQttheauVQrMqgqhrLN0oenMoIFApNyiGuP/b7lXL1nmGbhZCsFVT0FQ5hnP257zk30w==}
 
   react-remove-scroll-bar@2.3.5:
     resolution: {integrity: sha512-3cqjOqg6s0XbOjWvmasmqHch+RLxIEk2r/70rzGXuz3iIGQsQheEQyqYCBb5EECoD01Vo2SIbDqW4paLeLTASw==}
@@ -5985,6 +5991,8 @@ snapshots:
   react-loading-skeleton@3.5.0(react@18.2.0):
     dependencies:
       react: 18.2.0
+
+  react-pwa-push-notifications@1.0.0: {}
 
   react-remove-scroll-bar@2.3.5(@types/react@18.2.64)(react@18.2.0):
     dependencies:

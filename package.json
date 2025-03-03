@@ -34,6 +34,7 @@
     "react-dom": "^18.2.0",
     "react-icons": "^5.4.0",
     "react-loading-skeleton": "^3.5.0",
+    "react-pwa-push-notifications": "^1.0.0",
     "uuid": "^9.0.1",
     "ws": "8.16.0",
     "z85-codec": "^0.1.0"
