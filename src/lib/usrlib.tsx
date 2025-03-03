@@ -67,8 +67,34 @@ export default class User extends EventEmitter {
     }
 
     async init(): Promise<void> {
+        const perfMsg = await this.getPerfMessage();
+
+        if (perfMsg) {
+            this.emit("performance-message", perfMsg);
+            return;
+        }
+
         await this.refreshDetails();
         this.emit("user-init");
+    }
+
+    public async getPerfMessage() {
+        try {
+            const req = await fetch(API_URL + "/perf");
+            const res = await req.json() as {
+                active: boolean;
+                message: string;
+            };
+
+            if (!res.active)
+                return undefined;
+            else
+                return res.message;
+        } catch (ex) {
+            console.error("Failed to get perf msg, error:", ex);
+
+            return undefined;
+        }
     }
 
     public async refreshDetails() {

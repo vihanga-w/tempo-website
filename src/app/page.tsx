@@ -27,6 +27,7 @@ export default function Home() {
   const [mobileOS, setMobileOS] = useState<"ios" | "android" | "generic">("generic");
   const [deferredPWAInstaller, setDeferredPWAInstaller] = useState<any>();
   const [page, setPage] = useState<JSX.Element>();
+  const [perfMsg, setPerfMsg] = useState<string | undefined>();
 
   // Element references
   const debuggerConsole = useRef<HTMLTextAreaElement>(null);
@@ -104,8 +105,14 @@ export default function Home() {
 
     prouter.initRouter();
 
+    user.on("performance-message", (msg) => {
+      setPerfMsg(msg);
+    });
+
     user.on("user-init", async () => {
       console.log("User object has been updated! User object:", user);
+
+      setPerfMsg(undefined);
 
       // TODO: Re-enable this when singup flow has been made
       // prouter.setPage(user.isLoggedIn ? "app" : "signup");
@@ -144,7 +151,6 @@ export default function Home() {
             paddingRight="32px"
           >
             <Stack gap="5px">
-              {/* <Text fontSize="56px">👋</Text> */}
               <Image
                 src={`/icons/ui/logo-clear.svg`}
                 alt="Tempo logo"
@@ -185,7 +191,16 @@ export default function Home() {
             </Stack>
           </Box>
         </>
-      ) : page}
+      ) : !perfMsg ? page : (<>
+        <Box background="#0D0D0E" pos="fixed" width="100vw" height="100vh" top="0" left="0">
+          <Center>
+            <Stack>
+              <Image width="100px" src="/icons/ui/logo-clear.svg" />
+              <Text>{perfMsg}</Text>
+            </Stack>
+          </Center>
+        </Box>
+      </>)}
     </Box>
   );
 }
