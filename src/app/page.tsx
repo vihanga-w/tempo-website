@@ -245,16 +245,21 @@ export default function Home() {
       }
     });
 
+    // Check whether we are in a PWA standalone app
+    if (window.navigator && !window.localStorage.getItem("tempo-override-pwa-detection")) setIsInMobileBrowser(!(("standalone" in window.navigator) && window.navigator.standalone));
+    else if (window.localStorage.getItem("tempo-override-pwa-detection")) setIsInMobileBrowser(false);
+  }, []);
+
+  useEffect(() => {
+    if (isInMobileBrowser)
+      return;
+
     // Wait for the user handler to finish initialising
     user.init()
     .then(() => {
       console.log("User handler has been initialised!");
     });
-
-    // Check whether we are in a PWA standalone app
-    if (window.navigator && !window.localStorage.getItem("tempo-override-pwa-detection")) setIsInMobileBrowser(!(("standalone" in window.navigator) && window.navigator.standalone));
-    else if (window.localStorage.getItem("tempo-override-pwa-detection")) setIsInMobileBrowser(false);
-  }, []);
+  }, [isInMobileBrowser]);
 
   function triggerInstallPWA() {
     deferredPWAInstaller.prompt();
