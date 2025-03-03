@@ -153,6 +153,8 @@ export default function Home() {
         })
       });
 
+      onModalClose();
+
       if (!localAllow) {
         window.localStorage.setItem("tempo-rejected-notifs", "true");
 
