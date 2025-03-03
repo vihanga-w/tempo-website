@@ -129,7 +129,7 @@ export default function Home() {
         return;
       }
 
-      if (window.localStorage.getItem("tempo-rejected-notifs"))
+      if (window.localStorage.getItem("tempo-notif-processed"))
         return;
 
       const localAllow = await new Promise<boolean>(resolve => {
@@ -153,10 +153,11 @@ export default function Home() {
         })
       });
 
+      window.localStorage.setItem("tempo-notif-processed", "true");
       onModalClose();
 
       if (!localAllow) {
-        window.localStorage.setItem("tempo-rejected-notifs", "true");
+        window.localStorage.setItem("tempo-notif-processed", "true");
 
         return;
       }
@@ -202,6 +203,7 @@ export default function Home() {
         // Log a warning in case of an error
         console.warn(e);
 
+        try { window.localStorage.removeItem("tempo-notif-processed"); } catch { }
         removeSubscription();
       }
     };
