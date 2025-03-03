@@ -27,7 +27,7 @@ import { Modal } from "@/components/modal";
 export default function Home() {
   // Application states
   const [debugInjected, setDebugInjected] = useState<boolean>(false);
-  const [isInMobileBrowser, setIsInMobileBrowser] = useState<boolean>(false);
+  const [isInMobileBrowser, setIsInMobileBrowser] = useState<boolean>(true);
   const [hasPreviouslyBeenOpened, setHasPreviouslyBeenOpened] = useState<boolean>(false);
   const [mobileOS, setMobileOS] = useState<"ios" | "android" | "generic">("generic");
   const [deferredPWAInstaller, setDeferredPWAInstaller] = useState<any>();
