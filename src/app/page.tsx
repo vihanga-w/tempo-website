@@ -192,14 +192,12 @@ export default function Home() {
           </Box>
         </>
       ) : !perfMsg ? page : (<>
-        <Box background="#0D0D0E" pos="fixed" width="100vw" height="100vh" top="0" left="0">
-          <Center>
+          <Center background="#0D0D0E" pos="fixed" width="100vw" height="100vh" top="0" left="0">
             <Stack>
               <Image width="100px" src="/icons/ui/logo-clear.svg" />
               <Text>{perfMsg}</Text>
             </Stack>
           </Center>
-        </Box>
       </>)}
     </Box>
   );
