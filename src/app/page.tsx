@@ -137,6 +137,7 @@ export default function Home() {
           <Text>
             Would you like to receive notifications from Tempo?
           </Text>
+          <br />
           <Text>
             Allowing notification permissions allows us to send you relevant notifications such as when a friend sends you a message or reacts to a song you are listening to.
           </Text>
