@@ -337,12 +337,27 @@ export function UIApp({
             >
                 {/* Discover page */}
                 {currentPage == "discover" && (<>
-                    <Center width="100%" height="100%">
-                        <Stack>
-                            <Text textAlign="center">Tempo is still learning your music taste.</Text>
-                            <Text textAlign="center">We'll let you know when Discover is ready!</Text>
-                        </Stack>
-                    </Center>
+                    <Text
+                        position="absolute"
+                        top="0"
+                        left="0"
+                        justifyContent="center"
+                        alignItems="center"
+                        display="flex"
+                        height="calc(100vh - 72px)"
+                        width="100vw"
+                        color="text.dark"
+                        margin="auto"
+                        textAlign="center"
+                        fontFamily="Inter"
+                        fontSize="16px"
+                        fontWeight="regular"
+                        zIndex="1"
+                    >
+                        Tempo is learning your music taste.
+                        <br />
+                        We'll let you know when Discover is ready!
+                    </Text>
                 </>)}
 
                 {/* Activity page */}
