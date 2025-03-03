@@ -32,6 +32,13 @@ export default function Home() {
   const [page, setPage] = useState<JSX.Element>();
   const [perfMsg, setPerfMsg] = useState<string | undefined>();
 
+  const [modalTitle, setModalTitle] = useState<string>("");
+  const [modalContent, setModalContent] = useState<JSX.Element>(<></>);
+  const [modalPBtn, setModalPBtn] = useState<{ text: string; callback: () => void } | undefined>();
+  const [modalSBtn, setModalSBtn] = useState<{ text: string; callback: () => void } | undefined>();
+
+  const { isOpen: isModalOpen, onOpen: onModalOpen, onClose: onModalClose } = useDisclosure();
+
   // Element references
   const debuggerConsole = useRef<HTMLTextAreaElement>(null);
   const bgColour = "bg.dark";
@@ -41,6 +48,21 @@ export default function Home() {
     // TODO: Load VAPID public key from server?
     publicKey: "BNFOFLUsXVVvitmhdnJ_jCR9U-c0RAudISRpeDBL-wTOBZaz2y6cltxJa7WbGHLj-6FEI8fJ7g5g8EMmyVkMIMA",
   });
+
+  const triggerModal = (title: string, content: JSX.Element, primaryButton?: {
+    text: string;
+    callback: () => void;
+  }, secondaryButton?: {
+    text: string;
+    callback: () => void;
+  }) => {
+    setModalTitle(title);
+    setModalContent(content);
+    setModalPBtn(primaryButton);
+    setModalSBtn(secondaryButton);
+
+    onModalOpen();
+  }
 
   useEffect(() => {
     if (!window) return;
@@ -101,6 +123,37 @@ export default function Home() {
     const onSubmitSubscribe = async () => {
       if (!user.isLoggedIn) {
         console.error("Attempted to subscribe to notifications without being authorised");
+        
+        return;
+      }
+
+      if (window.localStorage.getItem("tempo-rejected-notifs"))
+        return;
+
+      const localAllow = await new Promise<boolean>(resolve => {
+        triggerModal("Notifications", (<>
+          <Text>
+            Would you like to receive notifications from Tempo?
+          </Text>
+          <Text>
+            Allowing notification permissions allows us to send you relevant notifications such as when a friend sends you a message or reacts to a song you are listening to.
+          </Text>
+        </>), {
+          text: "Count me in!",
+          callback() {
+            resolve(true);
+          },
+        }, {
+          text: "No thanks",
+          callback() {
+            resolve(false);
+          },
+        })
+      });
+
+      if (!localAllow) {
+        window.localStorage.setItem("tempo-rejected-notifs", "true");
+
         return;
       }
 
@@ -200,7 +253,17 @@ export default function Home() {
     deferredPWAInstaller.prompt();
   }
 
-  return (
+  return (<>
+    <Modal
+        title={modalTitle}
+        isOpen={isModalOpen}
+        onOpen={onModalOpen}
+        onClose={onModalClose}
+        primaryButton={modalPBtn}
+        secondaryButton={modalSBtn}
+    >
+        {modalContent}
+    </Modal>
     <Box background={bgColour} height="100%" width="100%" overflow="auto">
       {isInMobileBrowser ? (
         <>
@@ -269,5 +332,5 @@ export default function Home() {
           </Center>
       </>)}
     </Box>
-  );
+  </>);
 }

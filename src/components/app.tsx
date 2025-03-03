@@ -4,7 +4,6 @@ import { Text, Image, Box, HStack, VStack, useDisclosure, Stack, Center, Spinner
 import {  useEffect, useRef, useState } from "react";
 import React from "react";
 import { SmallAddButton } from "./small-add-btn";
-import { Modal } from "./modal";
 import { Loader } from "./loader";
 import { PlaybackState } from "./playback-state";
 import { DataStreamer, UpdateEvent } from "@/lib/live-ingest";
@@ -23,18 +22,12 @@ export function UIApp({
     const [currentPageTitle, setCurrentPageTitle] = useState<string>("Activity");
     const [prevPage, setPrevPage] = useState<string>("");
     const [pageSwitcherActive, setPageSwitcherActive] = useState<boolean>(false);
-    const [modalTitle, setModalTitle] = useState<string>("");
-    const [modalContent, setModalContent] = useState<JSX.Element>(<></>);
-    const [modalPBtn, setModalPBtn] = useState<{ text: string; callback: () => void } | undefined>();
-    const [modalSBtn, setModalSBtn] = useState<{ text: string; callback: () => void } | undefined>();
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [isFading, setIsFading] = useState<boolean>(false);
     const [activityPageLoading, setActivityPageLoading] = useState<boolean>(true);
     const [livePlaybackStates, setLivePlaybackStates] = useState<UpdateEvent[]>([]);
     const [streamer, setStreamer] = useState<DataStreamer | null>(null);
     const [streamerReset, setStreamerReset] = useState<boolean>(false);
-
-    const { isOpen: isModalOpen, onOpen: onModalOpen, onClose: onModalClose } = useDisclosure();
 
     useEffect(() => {
         // Extra actions to perform when page switched
@@ -180,33 +173,7 @@ export function UIApp({
         "friends",
     ];
 
-    const triggerModal = (title: string, content: JSX.Element, primaryButton?: {
-        text: string;
-        callback: () => void;
-    }, secondaryButton?: {
-        text: string;
-        callback: () => void;
-    }) => {
-        setModalTitle(title);
-        setModalContent(content);
-        setModalPBtn(primaryButton);
-        setModalSBtn(secondaryButton);
-
-        onModalOpen();
-    }
-
     return (<>
-        <Modal
-            title={modalTitle}
-            isOpen={isModalOpen}
-            onOpen={onModalOpen}
-            onClose={onModalClose}
-            primaryButton={modalPBtn}
-            secondaryButton={modalSBtn}
-        >
-            {modalContent}
-        </Modal>
-
         <Box
             position="fixed"
             top="0"
