@@ -16,8 +16,11 @@ import {
   Button,
 } from '@chakra-ui/react';
 import React, { useEffect, useRef, useState } from "react";
+
 import User from "@/lib/usrlib";
 import { API_URL } from "@/lib/const";
+import { registerServiceWorker, removeSubscription, useSubscribe } from "@/lib/notify";
+import { randomBytes } from "crypto";
 
 export default function Home() {
   // Application states
@@ -31,8 +34,13 @@ export default function Home() {
 
   // Element references
   const debuggerConsole = useRef<HTMLTextAreaElement>(null);
-
   const bgColour = "bg.dark";
+
+  // Notification subscription
+  const { getSubscription } = useSubscribe({
+    // TODO: Load VAPID public key from server?
+    publicKey: "BNFOFLUsXVVvitmhdnJ_jCR9U-c0RAudISRpeDBL-wTOBZaz2y6cltxJa7WbGHLj-6FEI8fJ7g5g8EMmyVkMIMA",
+  });
 
   useEffect(() => {
     if (!window) return;
@@ -89,6 +97,58 @@ export default function Home() {
     // Instantiate a user handler for this session
     const user = new User();
 
+    // Handler for subscribing to push notifications
+    const onSubmitSubscribe = async () => {
+      if (!user.isLoggedIn) {
+        console.error("Attempted to subscribe to notifications without being authorised");
+        return;
+      }
+
+      const allowed = await Notification.requestPermission();
+
+      if (allowed !== "granted") {
+        console.warn("User denied notification request");
+
+        return;
+      }
+
+      await registerServiceWorker();
+
+      try {
+        // Get the subscription object using the getSubscription function
+        const subscription = await getSubscription();
+        const subId = randomBytes(8).toString("hex");
+
+        console.log("Registering notification handler with id:", subId);
+
+        // Send the subscription object and ID to the server for registration
+        const res = await fetch(API_URL + "/notify/subscribe", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            id: `${user.id}-${subId}`,
+            subscription: subscription.toJSON()
+          }),
+        });
+
+        console.log(await res.json());
+        // await axios.post('/api/subscribe', {
+        //     subscription: subscription,
+        //     id: subscribeId
+        // });
+
+        // // Log a message in case of successful subscription
+        // console.log('Subscribe success');
+      } catch (e) {
+        // Log a warning in case of an error
+        console.warn(e);
+
+        removeSubscription();
+      }
+    };
+
     // Initialise the page router
     const prouter = new PageRouter(user);
 
@@ -120,6 +180,7 @@ export default function Home() {
       if (!user.isLoggedIn) {
         window.location.href = API_URL + "/auth/ui";
       } else {
+        onSubmitSubscribe();
         prouter.setPage("app");
       }
     });

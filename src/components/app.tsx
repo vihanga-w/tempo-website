@@ -367,6 +367,14 @@ export function UIApp({
                 zIndex="5"
                 overflow="hidden"
             >
+                {/* Discover page */}
+                {currentPage == "discover" && (<>
+                    <Center width="100%" height="100%">
+                        <Text>Tempo is still learning about your music taste.</Text>
+                        <Text>We'll let you know when Discover is ready!</Text>
+                    </Center>
+                </>)}
+
                 {/* Activity page */}
                 {currentPage == "activity" && (<>
                     {activityPageLoading ? (<Center
