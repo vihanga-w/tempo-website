@@ -67,11 +67,14 @@ export default class User extends EventEmitter {
     }
 
     async init(): Promise<void> {
-        const perfMsg = await this.getPerfMessage();
+        let perfMsg = await this.getPerfMessage();
 
-        if (perfMsg) {
+        while (perfMsg) {
             this.emit("performance-message", perfMsg);
-            return;
+            
+            await new Promise(resolve => setTimeout(resolve, 5e3));
+
+            perfMsg = await this.getPerfMessage();
         }
 
         await this.refreshDetails();
