@@ -14,6 +14,7 @@ import {
   ListItem,
   HStack,
   Button,
+  useDisclosure,
 } from '@chakra-ui/react';
 import React, { useEffect, useRef, useState } from "react";
 
@@ -21,6 +22,7 @@ import User from "@/lib/usrlib";
 import { API_URL } from "@/lib/const";
 import { registerServiceWorker, removeSubscription, useSubscribe } from "@/lib/notify";
 import { randomBytes } from "crypto";
+import { Modal } from "@/components/modal";
 
 export default function Home() {
   // Application states
