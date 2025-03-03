@@ -195,9 +195,9 @@ export function PlaybackState({
                                 </Box>
                             </HStack>
                         </HStack>
-                        <Text maxWidth="180px" textOverflow="ellipsis" whiteSpace="nowrap" overflow="hidden">{data?.state?.artists.map(v => {
+                        <Text maxWidth="180px" textOverflow="ellipsis" whiteSpace="nowrap" overflow="hidden">{data?.state?.artists ? data?.state?.artists.map(v => {
                             return v.name
-                        }).join(", ")}</Text>
+                        }).join(", ") : ""}</Text>
                         {data?.state && (
                             <HStack justifyContent="space-between" marginTop="16px">
                                 <Text>{progress < 1 && data ? formatTime(data.state.duration * progress) : formatTime(data?.state.duration ?? 0)}</Text>
