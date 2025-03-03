@@ -89,22 +89,22 @@ export function PlaybackState({
             const factPool: string[] = [];
 
             if (stats.completeListenCount >= 5)
-                factPool.push("has listened to " + stats.completeListenCount + " times");
+                factPool.push("Listened to song " + stats.completeListenCount + " times");
 
             if (stats.totalSessionDuration >= 4 && data.data.state?.duration)
-                factPool.push("spent " + formatTimeToMinAndHour(stats.totalSessionDuration * data.data.state?.duration) + " listening to");
+                factPool.push("Spent " + formatTimeToMinAndHour(stats.totalSessionDuration * data.data.state?.duration) + " listening to");
 
             if (data.data.state?.replayCount && data.data.state?.replayCount > 0) {
                 setUserListenershipFact({
                     sid: data.data.state.songId,
-                    text: `replayed x${data.data.state?.replayCount}`,
+                    text: `Replayed x${data.data.state?.replayCount}`,
                 });
 
                 makeULFV = true;
             } else if (!data.data.state?.isPlaying) {
                 setUserListenershipFact({
                     sid: data.data.state?.songId ?? "",
-                    text: "paused"
+                    text: "Paused"
                 });
 
                 makeULFV = true;
@@ -120,7 +120,7 @@ export function PlaybackState({
             } else if (data.data.state.playSessionStart !== -1) {
                 setUserListenershipFact({
                     sid: data.data.state?.songId ?? "",
-                    text: (new Date().getTime() - data.data.state.playSessionStart >= (60e3 * 5) ? `listening for ${formatTimeToMinAndHour(new Date().getTime() - data.data.state.playSessionStart)}` : "Started listening recently"),
+                    text: (new Date().getTime() - data.data.state.playSessionStart >= (60e3 * 5) ? `Listening for ${formatTimeToMinAndHour(new Date().getTime() - data.data.state.playSessionStart)}` : "Started listening recently"),
                 });
 
                 makeULFV = true;
