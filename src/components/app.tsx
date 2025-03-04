@@ -8,6 +8,7 @@ import { Loader } from "./loader";
 import { PlaybackState } from "./playback-state";
 import { DataStreamer, UpdateEvent } from "@/lib/live-ingest";
 import { Mutex } from "async-mutex";
+import { API_URL } from "@/lib/const";
 
 const updateMutex = new Mutex();
 
@@ -28,6 +29,10 @@ export function UIApp({
     const [livePlaybackStates, setLivePlaybackStates] = useState<UpdateEvent[]>([]);
     const [streamer, setStreamer] = useState<DataStreamer | null>(null);
     const [streamerReset, setStreamerReset] = useState<boolean>(false);
+    const [discoveryData, setDiscoveryData] = useState<{
+        songId: string;
+        similarity: number;
+    }[]>([]);
 
     useEffect(() => {
         // Extra actions to perform when page switched
@@ -82,6 +87,35 @@ export function UIApp({
         });
 
         newStreamer.init();
+
+        // Fetch user discovery page data
+        fetch(API_URL + "/me/taste", {
+            "credentials": "include"
+        })
+        .then(r => r.json())
+        .then(r => {
+            const data: {
+                error: boolean;
+                message?: string;
+                data: {
+                    songId: string;
+                    similarity: number;
+                }[];
+            } = r;
+
+            if (data.error) {
+                console.warn("Failed to fetch discovery data due to error response:", data);
+
+                return;
+            }
+
+            console.log("Got discovery data:", data.data);
+
+            setDiscoveryData(data.data);
+        })
+        .catch(ex => {
+            console.warn("Failed to fetch user discovery data due to request error:", ex);
+        });
 
         return () => {
             newStreamer.cleanup();
@@ -337,27 +371,35 @@ export function UIApp({
             >
                 {/* Discover page */}
                 {currentPage == "discover" && (<>
-                    <Text
-                        position="absolute"
-                        top="0"
-                        left="0"
-                        justifyContent="center"
-                        alignItems="center"
-                        display="flex"
-                        height="calc(100vh - 72px)"
-                        width="100vw"
-                        color="text.dark"
-                        margin="auto"
-                        textAlign="center"
-                        fontFamily="Inter"
-                        fontSize="16px"
-                        fontWeight="regular"
-                        zIndex="1"
-                    >
-                        Tempo is learning your music taste.
-                        <br />
-                        We'll let you know when Discover is ready!
-                    </Text>
+                    {discoveryData.length == 0 ? (
+                        <Text
+                            position="absolute"
+                            top="0"
+                            left="0"
+                            justifyContent="center"
+                            alignItems="center"
+                            display="flex"
+                            height="calc(100vh - 72px)"
+                            width="100vw"
+                            color="text.dark"
+                            margin="auto"
+                            textAlign="center"
+                            fontFamily="Inter"
+                            fontSize="16px"
+                            fontWeight="regular"
+                            zIndex="1"
+                        >
+                            Tempo is learning your music taste.
+                            <br />
+                            We'll let you know when Discover is ready!
+                        </Text>
+                    ) : (<Stack gap="10px">
+                        {discoveryData.map(v => {
+                            return (<Box key={v.songId + v.similarity}>
+                                <Text>{v.songId} - {v.similarity}</Text>
+                            </Box>)
+                        })}
+                    </Stack>)}
                 </>)}
 
                 {/* Activity page */}
