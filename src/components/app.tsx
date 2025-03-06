@@ -402,7 +402,7 @@ export function UIApp({
                     ) : (<Stack gap="10px">
                         {discoveryData.map(v => {
                             return (<Box key={v.title + v.likeness}>
-                                <Text>{v.title} ({v.artists.join(", ")}) - {v.likeness}</Text>
+                                <Text>{v.title} ({v.artists.join(", ")}) - {Math.ceil(v.likeness * 100)}%</Text>
                             </Box>)
                         })}
                     </Stack>)}
