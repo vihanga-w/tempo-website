@@ -30,8 +30,11 @@ export function UIApp({
     const [streamer, setStreamer] = useState<DataStreamer | null>(null);
     const [streamerReset, setStreamerReset] = useState<boolean>(false);
     const [discoveryData, setDiscoveryData] = useState<{
-        songId: string;
-        similarity: number;
+        id: string;
+        title: string;
+        artists: string[];
+        album: string;
+        likeness: number;
     }[]>([]);
 
     useEffect(() => {
@@ -98,8 +101,11 @@ export function UIApp({
                 error: boolean;
                 message?: string;
                 data: {
-                    songId: string;
-                    similarity: number;
+                    id: string;
+                    title: string;
+                    artists: string[];
+                    album: string;
+                    likeness: number;
                 }[];
             } = r;
 
@@ -395,8 +401,8 @@ export function UIApp({
                         </Text>
                     ) : (<Stack gap="10px">
                         {discoveryData.map(v => {
-                            return (<Box key={v.songId + v.similarity}>
-                                <Text>{v.songId} - {v.similarity}</Text>
+                            return (<Box key={v.title + v.likeness}>
+                                <Text>{v.title} ({v.artists.join(", ")}) - {v.likeness}</Text>
                             </Box>)
                         })}
                     </Stack>)}
