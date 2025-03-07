@@ -29,9 +29,9 @@ function formatTimeToMinAndHour(ms: number, fullText?: boolean) {
     else if (minutes == 60)
         return "1 hour";
     else if (mins == 0)
-        return `${hours}${fullText ? "hour" : "hr"}${hours !== 1 ? "s" : ""}`;
+        return `${hours}${fullText ? " hour" : "hr"}${hours !== 1 ? "s" : ""}`;
     else
-        return `${hours}${fullText ? "hour" : "hr"}${hours !== 1 ? "s" : ""} ${mins}${fullText ? "minute" : "min"}${mins !== 1 ? "s" : ""}`;
+        return `${hours}${fullText ? " hour" : "hr"}${hours !== 1 ? "s" : ""} ${mins}${fullText ? " minute" : "min"}${mins !== 1 ? "s" : ""}`;
 }
 
 function getSpotifyDeeplink(trackId: string) {
