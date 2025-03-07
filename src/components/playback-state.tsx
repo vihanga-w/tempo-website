@@ -161,12 +161,13 @@ export function PlaybackState({
                             <Text fontSize="16px" fontWeight="bold" marginBottom="-5px">{data?.state?.username}</Text>
                             {data?.state && (
                                 <Text
-                                    opacity={userListenershipFactVisible ? "0.75" : "0"}
+                                    opacity={userListenershipFactVisible ? "1" : "0"}
                                     transform={userListenershipFactVisible ? "translateX(0)" : "translateX(-6px)"}
                                     transition="opacity 0.5s, transform 0.5s"
                                     whiteSpace="nowrap"
                                     overflow="hidden"
                                     textOverflow="ellipsis"
+                                    color="#b4b4b4"
                                     fontSize="16px"
                                 >
                                     {userListenershipFact.text}
