@@ -1,5 +1,5 @@
 import { DataStreamer, UpdateEvent } from "@/lib/live-ingest";
-import { Box, HStack, Image, Stack, Text}  from "@chakra-ui/react"
+import { Avatar, Box, HStack, Image, Stack, Text}  from "@chakra-ui/react"
 import { MdAddReaction, MdExplicit } from "react-icons/md";
 import { useEffect, useState } from "react";
 import { keyframes } from "@emotion/react";
@@ -146,8 +146,15 @@ export function PlaybackState({
             <Stack gap="8px">
                 <HStack justifyContent="space-between">
                     <HStack>
-                        {data?.state?.pfpUrl !== "" && (
+                        {data?.state?.pfpUrl !== "" ? (
                             <Image width="36px" height="36px" objectFit="cover" borderRadius="6px" src={data?.state?.pfpUrl} draggable={false} />
+                        ) : (
+                            <Avatar
+                                name={data.state.username}
+                                borderRadius="6px"
+                                width="36px"
+                                height="36px"
+                            />
                         )}
                         <Stack spacing="0">
                             <Text fontSize="16px" fontWeight="bold" marginBottom="-5px">{data?.state?.username}</Text>
