@@ -15,7 +15,7 @@ function formatTime(ms: number) {
     return `${minutes}:${secs < 10 ? '0' : ''}${secs}`;
 }
 
-function formatTimeToMinAndHour(ms: number) {
+function formatTimeToMinAndHour(ms: number, fullText?: boolean) {
     if (ms < 0)
         ms = 0;
 
@@ -29,9 +29,9 @@ function formatTimeToMinAndHour(ms: number) {
     else if (minutes == 60)
         return "1 hour";
     else if (mins == 0)
-        return `${hours}hr${hours !== 1 ? "s" : ""}`;
+        return `${hours}${fullText ? "hour" : "hr"}${hours !== 1 ? "s" : ""}`;
     else
-        return `${hours}hr${hours !== 1 ? "s" : ""} ${mins}min${mins !== 1 ? "s" : ""}`;
+        return `${hours}${fullText ? "hour" : "hr"}${hours !== 1 ? "s" : ""} ${mins}${fullText ? "minute" : "min"}${mins !== 1 ? "s" : ""}`;
 }
 
 function getSpotifyDeeplink(trackId: string) {
@@ -122,7 +122,7 @@ export function PlaybackState({
             } else if (data.data.state.playSessionStart !== -1) {
                 setUserListenershipFact({
                     sid: data.data.state?.songId ?? "",
-                    text: (new Date().getTime() - data.data.state.playSessionStart >= (60e3 * 5) ? `🔥 ${formatTimeToMinAndHour(new Date().getTime() - data.data.state.playSessionStart)}` : "Started listening recently"),
+                    text: (new Date().getTime() - data.data.state.playSessionStart >= (60e3 * 5) ? `🔥 ${formatTimeToMinAndHour(new Date().getTime() - data.data.state.playSessionStart), true}` : "Started listening recently"),
                 });
 
                 makeULFV = true;
