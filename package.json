@@ -44,6 +44,7 @@
     "z85-codec": "^0.1.0"
   },
   "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
     "@capacitor/cli": "^7.0.1",
     "@types/mutexify": "^1.2.4",
     "@types/node": "^20.17.10",
