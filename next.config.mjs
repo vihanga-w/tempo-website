@@ -12,7 +12,11 @@ const nextConfig = {
             }
         ]
     },
-    reactStrictMode: false,
+    reactStrictMode: true,
+    images: {
+        unoptimized: true,
+    },
+    output: 'export',
 };
 
 import npwa from "next-pwa";

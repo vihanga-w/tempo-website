@@ -5,10 +5,14 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build::mobile": "next build && npx cap sync",
     "start": "next start",
     "lint": "next lint"
   },
   "dependencies": {
+    "@capacitor/android": "^7.0.1",
+    "@capacitor/core": "^7.0.1",
+    "@capacitor/ios": "^7.0.1",
     "@chakra-ui/icons": "^2.1.1",
     "@chakra-ui/next-js": "^2.2.0",
     "@chakra-ui/react": "^2.8.2",
@@ -40,6 +44,7 @@
     "z85-codec": "^0.1.0"
   },
   "devDependencies": {
+    "@capacitor/cli": "^7.0.1",
     "@types/mutexify": "^1.2.4",
     "@types/node": "^20.17.10",
     "@types/react": "^18.2.64",
