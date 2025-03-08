@@ -249,8 +249,10 @@ export default function Home() {
       // TODO: Re-enable this when singup flow has been made
       // prouter.setPage(user.isLoggedIn ? "app" : "signup");
 
-      if (!user.isLoggedIn) {
+      if (!user.isLoggedIn && !user.authError) {
         window.location.href = API_URL + "/auth/ui";
+      } else if (user.authError) {
+        setPerfMsg("Sorry, Tempo is not available right now, please try again later");
       } else {
         onSubmitSubscribe();
         prouter.setPage("app");

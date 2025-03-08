@@ -53,6 +53,7 @@ export type EncryptionAvailability = {
 
 export default class User extends EventEmitter {
     public isLoggedIn: boolean = false;
+    public authError: boolean = false;
     public id: string = "";
     public email: string = "";
     public object: ClientUserAccount | undefined;
@@ -143,6 +144,8 @@ export default class User extends EventEmitter {
             return res.data;
         } catch (ex) {
             console.error("Failed to check user authentication status, error:", ex, "\nWe will assume the user is not authenticated");
+
+            this.authError = true;
 
             return undefined;
         }
