@@ -160,10 +160,6 @@ export function PlaybackHistoryItem({
                         >
                             {new Date().getTime() - data.timestamp <= 3600e3 * 12 ? (
                                 <ReactTimeAgo date={data.timestamp} locale="en-GB" />
-                            ) : new Date().getTime() - data.timestamp <= 3600e3 * 24 ? (
-                                <Text>
-                                    Today at {timestampToParsedTime(data.timestamp)}
-                                </Text>
                             ) : (
                                 <Text>
                                     {/* TODO: Match locale with spotify account */}
