@@ -141,6 +141,10 @@ export default function Home() {
 
     // Handler for subscribing to push notifications
     const onSubmitSubscribe = async () => {
+      // TODO: Figure out how to setup notifications on native app
+      if (Capacitor.isNativePlatform())
+        return;
+
       if (!user.isLoggedIn) {
         console.error("Attempted to subscribe to notifications without being authorised");
         
