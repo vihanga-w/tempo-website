@@ -1,0 +1,47 @@
+PODS:
+  - Capacitor (7.0.1):
+    - CapacitorCordova
+  - CapacitorBrowser (7.0.0):
+    - Capacitor
+  - CapacitorCordova (7.0.1)
+  - CapacitorInappbrowser (2.0.0):
+    - Capacitor
+    - OSInAppBrowserLib (~> 1.0)
+  - CordovaPlugins (7.0.1):
+    - CapacitorCordova
+  - OSInAppBrowserLib (1.0.0)
+
+DEPENDENCIES:
+  - "Capacitor (from `../../node_modules/.pnpm/@capacitor+ios@7.0.1_@capacitor+core@7.0.1/node_modules/@capacitor/ios`)"
+  - "CapacitorBrowser (from `../../node_modules/.pnpm/@capacitor+browser@7.0.0_@capacitor+core@7.0.1/node_modules/@capacitor/browser`)"
+  - "CapacitorCordova (from `../../node_modules/.pnpm/@capacitor+ios@7.0.1_@capacitor+core@7.0.1/node_modules/@capacitor/ios`)"
+  - "CapacitorInappbrowser (from `../../node_modules/.pnpm/@capacitor+inappbrowser@2.0.0_@capacitor+core@7.0.1/node_modules/@capacitor/inappbrowser`)"
+  - CordovaPlugins (from `../capacitor-cordova-ios-plugins`)
+
+SPEC REPOS:
+  trunk:
+    - OSInAppBrowserLib
+
+EXTERNAL SOURCES:
+  Capacitor:
+    :path: "../../node_modules/.pnpm/@capacitor+ios@7.0.1_@capacitor+core@7.0.1/node_modules/@capacitor/ios"
+  CapacitorBrowser:
+    :path: "../../node_modules/.pnpm/@capacitor+browser@7.0.0_@capacitor+core@7.0.1/node_modules/@capacitor/browser"
+  CapacitorCordova:
+    :path: "../../node_modules/.pnpm/@capacitor+ios@7.0.1_@capacitor+core@7.0.1/node_modules/@capacitor/ios"
+  CapacitorInappbrowser:
+    :path: "../../node_modules/.pnpm/@capacitor+inappbrowser@2.0.0_@capacitor+core@7.0.1/node_modules/@capacitor/inappbrowser"
+  CordovaPlugins:
+    :path: "../capacitor-cordova-ios-plugins"
+
+SPEC CHECKSUMS:
+  Capacitor: de199cba6c8b20995428ad0b7cb0bc6ca625ffd4
+  CapacitorBrowser: 55c21db47416dcc8fc3b623e18fd7d09acb26081
+  CapacitorCordova: 63d476958d5022d76f197031e8b7ea3519988c64
+  CapacitorInappbrowser: ac3d26121a7fe3ed1c189c78b6d80f41af7be077
+  CordovaPlugins: c1b07aa5a30eeff293189f83d40c92b3d3e2c448
+  OSInAppBrowserLib: c3d0b21a0c8b6d81e69117ad08bb6b8a4849c4e1
+
+PODFILE CHECKSUM: 10015bff712f149ba78fbc9c8930e36fa349a883
+
+COCOAPODS: 1.16.2

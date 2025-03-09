@@ -17,6 +17,8 @@ import {
   useDisclosure,
 } from '@chakra-ui/react';
 import React, { useEffect, useRef, useState } from "react";
+import { Capacitor } from "@capacitor/core";
+import { AndroidViewStyle, DefaultAndroidSystemBrowserOptions, DefaultSystemBrowserOptions, DefaultWebViewOptions, DefaultiOSSystemBrowserOptions, DismissStyle, InAppBrowser, iOSViewStyle } from '@capacitor/inappbrowser';
 
 import User from "@/lib/usrlib";
 import { API_URL } from "@/lib/const";
@@ -27,7 +29,7 @@ import { Modal } from "@/components/modal";
 export default function Home() {
   // Application states
   const [debugInjected, setDebugInjected] = useState<boolean>(false);
-  const [isInMobileBrowser, setIsInMobileBrowser] = useState<boolean>(true);
+  const [isInMobileBrowser, setIsInMobileBrowser] = useState<boolean>(!Capacitor.isNativePlatform());
   const [hasPreviouslyBeenOpened, setHasPreviouslyBeenOpened] = useState<boolean>(false);
   const [mobileOS, setMobileOS] = useState<"ios" | "android" | "generic">("generic");
   const [deferredPWAInstaller, setDeferredPWAInstaller] = useState<any>();
@@ -120,7 +122,7 @@ export default function Home() {
     }
 
     // Check whether we are in a PWA standalone app
-    if (window.navigator && !window.localStorage.getItem("tempo-override-pwa-detection")) setIsInMobileBrowser(!(("standalone" in window.navigator) && window.navigator.standalone));
+    if (window.navigator && !window.localStorage.getItem("tempo-override-pwa-detection") && !Capacitor.isNativePlatform()) setIsInMobileBrowser(!(("standalone" in window.navigator) && window.navigator.standalone));
     else if (window.localStorage.getItem("tempo-override-pwa-detection")) setIsInMobileBrowser(false);
   }, []);
 
@@ -237,7 +239,7 @@ export default function Home() {
 
     prouter.initRouter();
 
-    user.on("performance-message", (msg) => {
+    user.on("performance-message", (msg: string) => {
       setPerfMsg(msg);
     });
 
@@ -250,7 +252,54 @@ export default function Home() {
       // prouter.setPage(user.isLoggedIn ? "app" : "signup");
 
       if (!user.isLoggedIn && !user.authError) {
-        window.location.href = API_URL + "/auth/ui";
+        if (!Capacitor.isNativePlatform()) {
+          window.location.href = API_URL + "/auth/ui";
+        } else {
+          const seshReq = await fetch(API_URL + "/createTokenSwapSession");
+          const seshRes = await seshReq.json() as {
+            error: boolean;
+            token: string;
+          }
+
+          if (seshRes.error) {
+            console.error("Failed to create token swap session, response:", seshRes);
+            return;
+          }
+
+          const getSwappedToken = async () => {
+            const req = await fetch(API_URL + "/swapToken/" + seshRes.token);
+            const res = await req.text() as ("INIT" | "ERR" | string);
+
+            if (res == "INIT") {
+              console.warn("Attempted to get swapped token but it is still initialising server-side");
+            } else if (res == "ERR") {
+              console.warn("Failed to swap auth token as server returned an error state");
+            } else {
+              console.log("Got swapped token:", res);
+            }
+          }
+
+          InAppBrowser.addListener("browserClosed", async () => {
+            await getSwappedToken();
+            alert("bc");
+          });
+
+          InAppBrowser.openInSystemBrowser({
+            url: API_URL + "/auth/app/" + seshRes.token,
+            options: {
+              ...DefaultSystemBrowserOptions,
+              iOS: {
+                ...DefaultiOSSystemBrowserOptions,
+                closeButtonText: DismissStyle.CANCEL,
+                viewStyle: iOSViewStyle.FULL_SCREEN,
+              },
+              android: {
+                ...DefaultAndroidSystemBrowserOptions,
+                viewStyle: AndroidViewStyle.FULL_SCREEN,
+              },
+            }
+          });
+        }
       } else if (user.authError) {
         setPerfMsg("Sorry, Tempo is not available right now, please try again later");
       } else {
@@ -308,6 +357,7 @@ export default function Home() {
                 <Text fontFamily="Inter" fontSize="20px">{!hasPreviouslyBeenOpened ? "Welcome to " : "Welcome back to "}<b>Tempo</b>!</Text>
                 <Box overflow="auto">
                   <Stack gap="20px">
+                    {Capacitor.isNativePlatform()}
                     <Text>Tempo is a social media for your music, think of it like Instagram for music.</Text>
                     <Text>{hasPreviouslyBeenOpened ? "It seems like you have visited this page before. If you have already setup Tempo, please open the app from your home screen, if not, follow the instructions below." : "Before you can start using Tempo, we have to do some setup first!"}</Text>
                     {mobileOS == "generic" ? (<>

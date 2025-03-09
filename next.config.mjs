@@ -3,15 +3,6 @@
 import { existsSync } from "fs";
 
 const nextConfig = {
-    // Rewrite the relative API paths to go to the hosted backend server
-    async rewrites() {
-        return [
-            {
-                source: `/public/noprecache/icheck`,
-                destination: "http://www.msftncsi.com/ncsi.txt",
-            }
-        ]
-    },
     reactStrictMode: true,
     images: {
         unoptimized: true,

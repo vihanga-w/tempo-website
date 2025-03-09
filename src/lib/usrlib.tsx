@@ -84,6 +84,7 @@ export default class User extends EventEmitter {
 
     public async getPerfMessage() {
         try {
+            console.log(API_URL + "/perf")
             const req = await fetch(API_URL + "/perf");
             const res = await req.json() as {
                 active: boolean;
@@ -95,7 +96,7 @@ export default class User extends EventEmitter {
             else
                 return res.message;
         } catch (ex) {
-            console.error("Failed to get perf msg, error:", ex);
+            console.error("Failed to get perf msg, error:", (ex as unknown as Error).toString());
 
             return undefined;
         }

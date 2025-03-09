@@ -11,9 +11,15 @@ importers:
       '@capacitor/android':
         specifier: ^7.0.1
         version: 7.0.1(@capacitor/core@7.0.1)
+      '@capacitor/browser':
+        specifier: ^7.0.0
+        version: 7.0.0(@capacitor/core@7.0.1)
       '@capacitor/core':
         specifier: ^7.0.1
         version: 7.0.1
+      '@capacitor/inappbrowser':
+        specifier: ^2.0.0
+        version: 2.0.0(@capacitor/core@7.0.1)
       '@capacitor/ios':
         specifier: ^7.0.1
         version: 7.0.1(@capacitor/core@7.0.1)
@@ -59,6 +65,9 @@ importers:
       chakra-react-select:
         specifier: ^4.7.6
         version: 4.7.6(65554d76f01b7f5a24d640ff4319edbb)
+      cordova-plugin-inappbrowser:
+        specifier: ^6.0.0
+        version: 6.0.0
       framer-motion:
         specifier: ^11.0.8
         version: 11.0.8(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
@@ -111,6 +120,9 @@ importers:
       '@capacitor/cli':
         specifier: ^7.0.1
         version: 7.0.1
+      '@types/cordova-plugin-inappbrowser':
+        specifier: ^2.0.3
+        version: 2.0.3
       '@types/mutexify':
         specifier: ^1.2.4
         version: 1.2.4
@@ -727,6 +739,11 @@ packages:
     engines: {node: '>=10.3.0'}
     hasBin: true
 
+  '@capacitor/browser@7.0.0':
+    resolution: {integrity: sha512-wM2gclpulyOAvno9HDKI1X6Vxd0qXviO1zFeY5dplsNSR4tm6k6BtVGW7jEqUbQCFXbnDmhKLQgLr39JUwjzcA==}
+    peerDependencies:
+      '@capacitor/core': '>=7.0.0'
+
   '@capacitor/cli@5.7.8':
     resolution: {integrity: sha512-qN8LDlREMhrYhOvVXahoJVNkP8LP55/YPRJrzTAFrMqlNJC18L3CzgWYIblFPnuwfbH/RxbfoZT/ydkwgVpMrw==}
     engines: {node: '>=16.0.0'}
@@ -739,6 +756,11 @@ packages:
 
   '@capacitor/core@7.0.1':
     resolution: {integrity: sha512-1Ob9bvA/p8g8aNwK6VesxEekGXowLVf6APjkW4LRnr05H+7z/bke+Q5pn9zqh/GgTbIxAQ/rwZrAZvvxkdm1UA==}
+
+  '@capacitor/inappbrowser@2.0.0':
+    resolution: {integrity: sha512-u8Z4JYv6MXy4xcazi/PjEZwZILaz+wLEgsB3Q8WOLp9ptn569LUgOpBy3/4pfBg35po09MbjmC9E79LF5HPUyQ==}
+    peerDependencies:
+      '@capacitor/core': '>=7.0.0'
 
   '@capacitor/ios@7.0.1':
     resolution: {integrity: sha512-RN6S1C1k7ue57DFmJM4EizzsYBrahTTiMhcnlHspFLaojgHbFWZbYq1VriuRKysPU1ka/P+klsdtRFsB5K9jyw==}
@@ -1522,6 +1544,10 @@ packages:
   '@tsconfig/node16@1.0.4':
     resolution: {integrity: sha512-vxhUy4J8lyeyinH7Azl1pdd43GJhZH/tP2weN8TntQblOY+A0XbT8DJk1/oCPuOOyg/Ja757rG0CgHcWC8OfMA==}
 
+  '@types/cordova-plugin-inappbrowser@2.0.3':
+    resolution: {integrity: sha512-l/fWbgw6kf3m1L1qz/BzvSk0Q3xvDRVSRzn5tGP6tdpi/hdPonwIAJ+vFD+DuGoOcf6EfT0D+45nv7FKobuVxw==}
+    deprecated: This is a stub types definition. cordova-plugin-inappbrowser provides its own type definitions, so you do not need this installed.
+
   '@types/eslint-scope@3.7.7':
     resolution: {integrity: sha512-MzMFlSLBqNF2gcHWO0G1vP/YQyfvrxZ0bF+u7mzUdZ1/xK4A4sru+nraZz5i3iEIk1l1uyicaDVTB4QbbEkAYg==}
 
@@ -2135,6 +2161,10 @@ packages:
 
   copy-to-clipboard@3.3.3:
     resolution: {integrity: sha512-2KV8NhB5JqC3ky0r9PMCAZKbUHSwtEo4CwCs0KXgruG43gX5PMqDEBbVU4OUzw2MuAWUfsuFmWvEKG5QRfSnJA==}
+
+  cordova-plugin-inappbrowser@6.0.0:
+    resolution: {integrity: sha512-nMJ67YQZwkx1WMfA4tKFdVdTg6FNkh/nQflP1uMw0RVe/cP2kfDrO3SbpUr8yKahpWdSQl1Lmd8D3KKzuAjucA==}
+    engines: {cordovaDependencies: {0.2.3: {cordova: '>=3.1.0'}, 4.0.0: {cordova: '>=3.1.0', cordova-ios: '>=4.0.0'}, 5.0.0: {cordova: '>=9.0.0', cordova-android: '>=9.0.0', cordova-ios: '>=6.0.0'}, 6.0.0: {cordova: '>=9.0.0', cordova-android: '>=10.0.0', cordova-ios: '>=6.0.0'}, 7.0.0: {cordova: '>100'}}}
 
   core-js-compat@3.36.0:
     resolution: {integrity: sha512-iV9Pd/PsgjNWBXeq8XRtWVSgz2tKAfhfvBs7qxYty+RlRd+OCksaWmOnc4JKrTc1cToXL1N0s3l/vwlxPtdElw==}
@@ -5133,6 +5163,10 @@ snapshots:
       - supports-color
       - typescript
 
+  '@capacitor/browser@7.0.0(@capacitor/core@7.0.1)':
+    dependencies:
+      '@capacitor/core': 7.0.1
+
   '@capacitor/cli@5.7.8':
     dependencies:
       '@ionic/cli-framework-output': 2.2.8
@@ -5180,6 +5214,10 @@ snapshots:
   '@capacitor/core@7.0.1':
     dependencies:
       tslib: 2.6.2
+
+  '@capacitor/inappbrowser@2.0.0(@capacitor/core@7.0.1)':
+    dependencies:
+      '@capacitor/core': 7.0.1
 
   '@capacitor/ios@7.0.1(@capacitor/core@7.0.1)':
     dependencies:
@@ -6298,6 +6336,10 @@ snapshots:
 
   '@tsconfig/node16@1.0.4': {}
 
+  '@types/cordova-plugin-inappbrowser@2.0.3':
+    dependencies:
+      cordova-plugin-inappbrowser: 6.0.0
+
   '@types/eslint-scope@3.7.7':
     dependencies:
       '@types/eslint': 9.6.1
@@ -6976,6 +7018,8 @@ snapshots:
   copy-to-clipboard@3.3.3:
     dependencies:
       toggle-selection: 1.0.6
+
+  cordova-plugin-inappbrowser@6.0.0: {}
 
   core-js-compat@3.36.0:
     dependencies:
