@@ -53,6 +53,7 @@ export function UIApp({
     const ITEMS_PER_BATCH = 20;
     const [visibleHistoryCount, setVisibleHistoryCount] = useState<number>(ITEMS_PER_BATCH);
     const historyEndRef = useRef<HTMLDivElement | null>(null);
+    const historyStartRef = useRef<HTMLDivElement | null>(null);
 
     const updateFriendsListenershipHistory = async () => {
         const d = await user.getFriendsListenershipHistory();
@@ -64,10 +65,11 @@ export function UIApp({
         setVisibleHistoryCount(ITEMS_PER_BATCH);
     }, [friendsListenershipData]);
 
-    // Intersection Observer to load more items as the sentinel comes into view
+    // Bottom sentinel observer to load more items as the sentinel comes into view
     useEffect(() => {
         if (!historyEndRef.current) return;
-        const observer = new IntersectionObserver(
+    
+        const bottomObserver = new IntersectionObserver(
             (entries) => {
                 if (entries[0].isIntersecting) {
                     setVisibleHistoryCount((prevCount) =>
@@ -77,13 +79,42 @@ export function UIApp({
             },
             {
                 root: null,
-                threshold: 1.0,
+                threshold: 0.1,
             }
         );
-        observer.observe(historyEndRef.current);
+    
+        bottomObserver.observe(historyEndRef.current);
+    
         return () => {
             if (historyEndRef.current) {
-                observer.unobserve(historyEndRef.current);
+                bottomObserver.unobserve(historyEndRef.current);
+            }
+        };
+    }, [friendsListenershipData]);
+
+    // Top sentinel observer to unload items when user scrolls back up
+    useEffect(() => {
+        if (!historyStartRef.current) return;
+    
+        const topObserver = new IntersectionObserver(
+            (entries) => {
+                if (entries[0].isIntersecting) {
+                    setVisibleHistoryCount((prevCount) =>
+                        Math.max(ITEMS_PER_BATCH, prevCount - ITEMS_PER_BATCH)
+                    );
+                }
+            },
+            {
+                root: null,
+                threshold: 0.1,
+            }
+        );
+    
+        topObserver.observe(historyStartRef.current);
+    
+        return () => {
+            if (historyStartRef.current) {
+                topObserver.unobserve(historyStartRef.current);
             }
         };
     }, [friendsListenershipData]);
@@ -98,13 +129,13 @@ export function UIApp({
 
     useEffect(() => {
         if (!user.isLoggedIn) return;
-
+    
         const newStreamer = new DataStreamer(user.storedToken);
         setStreamer(newStreamer);
-
+    
         newStreamer.on("update", (data: UpdateEvent) => {
             setActivityPageLoading(false);
-
+    
             updateMutex.runExclusive(() => {
                 setLivePlaybackStates((v) => {
                     const existing = v.find((a) => a.userId === data.userId);
@@ -121,7 +152,7 @@ export function UIApp({
                 });
             });
         });
-
+    
         newStreamer.on("remove", (userId) => {
             updateMutex.runExclusive(() => {
                 setLivePlaybackStates((v) => {
@@ -129,14 +160,14 @@ export function UIApp({
                 });
             });
         });
-
+    
         newStreamer.on("close", () => {
             // Connection lost, display loading screen and trust the connection strategy will reconnect
             setActivityPageLoading(true);
         });
-
+    
         newStreamer.init();
-
+    
         // Fetch user discovery page data
         fetch(API_URL + "/me/taste", {
             headers: {
@@ -157,22 +188,22 @@ export function UIApp({
                         likeness: number;
                     }[];
                 } = r;
-
+    
                 if (data.error) {
                     console.warn("Failed to fetch discovery data due to error response:", data);
                     return;
                 }
-
+    
                 console.log("Got discovery data:", data.data);
                 setDiscoveryData(data.data);
             })
             .catch((ex) => {
                 console.warn("Failed to fetch user discovery data due to request error:", ex);
             });
-
+    
         // Fetch friends listenership history
         updateFriendsListenershipHistory();
-
+    
         return () => {
             newStreamer.cleanup();
         };
@@ -187,7 +218,7 @@ export function UIApp({
             }
             updateFriendsListenershipHistory();
         };
-
+    
         window.addEventListener("focus", handleFocus);
         return () => {
             window.removeEventListener("focus", handleFocus);
@@ -228,7 +259,7 @@ export function UIApp({
     const pageChanger = (id: string, prevPage?: string) => {
         let exists = false;
         let title = "";
-
+    
         for (const page of pages) {
             if (page.id == id) {
                 exists = true;
@@ -236,14 +267,14 @@ export function UIApp({
                 break;
             }
         }
-
+    
         if (!exists)
             throw new Error(
                 "Attempted to switch to page with id \"" +
                     id +
                     "\", but a page cannot be found with that id!"
             );
-
+    
         setCurrentPage(id);
         setCurrentPageTitle(title);
         setPrevPage(prevPage ?? "");
@@ -382,7 +413,7 @@ export function UIApp({
                             .map((v, i) => {
                                 if (!v.indexed) return;
                                 return (
-                                    <>
+                                    <React.Fragment key={v.id}>
                                         <Text
                                             float="left"
                                             fontFamily="Inter"
@@ -394,7 +425,6 @@ export function UIApp({
                                             whiteSpace="nowrap"
                                             marginLeft={pageSwitcherActive ? "0" : "-75px"}
                                             opacity={pageSwitcherActive ? (currentPage == v.id ? "1" : "0.75") : "0"}
-                                            // Increase transition delay as we go further down the list
                                             transitionDelay={
                                                 pageSwitcherActive ? 0 + (i + 1) / 12 + "s" : "0"
                                             }
@@ -410,7 +440,7 @@ export function UIApp({
                                         >
                                             {v.name}
                                         </Text>
-                                    </>
+                                    </React.Fragment>
                                 );
                             })}
                     </VStack>
@@ -499,7 +529,7 @@ export function UIApp({
                                         {livePlaybackStates.map((v, i) => {
                                             const data = v.data;
                                             return (
-                                                <>
+                                                <React.Fragment key={"ps-" + v.userId + data.state?.songId + (data.state?.artists ? "AA" : "ANA")}>
                                                     {i !== 0 && (
                                                         <Box
                                                             width="100%"
@@ -508,17 +538,11 @@ export function UIApp({
                                                         />
                                                     )}
                                                     <PlaybackState
-                                                        key={
-                                                            "ps-" +
-                                                            v.userId +
-                                                            data.state?.songId +
-                                                            (data.state?.artists ? "AA" : "ANA")
-                                                        }
                                                         index={i}
                                                         stream={streamer}
                                                         userId={v.userId}
                                                     />
-                                                </>
+                                                </React.Fragment>
                                             );
                                         })}
                                     </Stack>
@@ -530,12 +554,13 @@ export function UIApp({
                                         >
                                             History
                                         </Text>
+                                        {/* Top sentinel for unloading items when scrolling up */}
+                                        <div ref={historyStartRef} />
                                         {friendsListenershipData
                                             .slice(0, visibleHistoryCount)
                                             .map((v, i) => {
-                                                const data = v;
                                                 return (
-                                                    <>
+                                                    <React.Fragment key={i}>
                                                         {i !== 0 && (
                                                             <Box
                                                                 width="100%"
@@ -543,11 +568,11 @@ export function UIApp({
                                                                 background="rgba(255, 255, 255, 0.2)"
                                                             />
                                                         )}
-                                                        <PlaybackHistoryItem data={data} />
-                                                    </>
+                                                        <PlaybackHistoryItem data={v} />
+                                                    </React.Fragment>
                                                 );
                                             })}
-                                        {/* Sentinel element for lazy loading */}
+                                        {/* Bottom sentinel for lazy loading */}
                                         <div ref={historyEndRef} />
                                     </Stack>
                                 </Stack>
