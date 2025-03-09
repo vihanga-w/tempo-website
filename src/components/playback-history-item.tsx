@@ -61,7 +61,7 @@ export function PlaybackHistoryItem({
           draggable={false}
         />
         <Stack spacing="0" flex="1">
-          <HStack pos="relative" gap="3px" justifyContent="space-between">
+          <HStack pos="relative" gap="5px" justifyContent="space-between">
                 <HStack width="100%" gap="5px">
                     {/* TODO: Make this text scroll with a fixed width */}
                     <Text maxWidth="175px" fontSize="14px" textOverflow="ellipsis" whiteSpace="nowrap" overflow="hidden">{data.item.track.name}</Text>
@@ -81,7 +81,7 @@ export function PlaybackHistoryItem({
                     </Box>
                 </HStack>
             </HStack>
-            <Text maxWidth="180px" fontSize="14px" textOverflow="ellipsis" whiteSpace="nowrap" overflow="hidden">{data.item.track.artists.map(v => {
+            <Text maxWidth="180px" fontSize="14px" textOverflow="ellipsis" whiteSpace="nowrap" overflow="hidden" marginTop="-2px">{data.item.track.artists.map(v => {
                 return v.name
             }).join(", ")}</Text>
           <Box mt="8px">
