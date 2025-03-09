@@ -204,8 +204,10 @@ export function PlaybackHistoryItem({
                     <Box marginTop="16px">
                         {data.item.replayed ? (
                             <Text>Replayed</Text>
-                        ) : (
+                        ) : data.item.sessionDuration !== 1 ? (
                             <Text>Listened for {formatTime(data.item.track.duration * data.item.sessionDuration)}</Text>
+                        ) : (
+                            <Text>Listened to song</Text>
                         )}
                     </Box>
                 </Stack>
