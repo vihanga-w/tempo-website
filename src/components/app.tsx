@@ -39,15 +39,18 @@ export function UIApp({
     }[]>([]);
     const [friendsListenershipData, setFriendsListenershipData] = useState<FriendListenershipItem[]>([]);
 
+    const updateFriendsListenershipHistory = async () => {
+        const d = await user.getFriendsListenershipHistory()
+        
+        setFriendsListenershipData(d);
+    };
+
     useEffect(() => {
         // Extra actions to perform when page switched
 
         if (currentPage == "activity") {
             // Refresh friends listenership history data
-            user.getFriendsListenershipHistory()
-            .then(d => {
-                setFriendsListenershipData(d);
-            });
+            updateFriendsListenershipHistory();
         }
     }, [currentPage]);
 
@@ -130,10 +133,7 @@ export function UIApp({
         });
 
         // Fetch friends listenership history
-        user.getFriendsListenershipHistory()
-        .then(d => {
-            setFriendsListenershipData(d);
-        });
+        updateFriendsListenershipHistory();
 
         return () => {
             newStreamer.cleanup();
@@ -147,6 +147,8 @@ export function UIApp({
                 setLivePlaybackStates([]);
                 setStreamerReset(true);
             }
+
+            updateFriendsListenershipHistory();
         };
 
         window.addEventListener("focus", handleFocus);
