@@ -552,7 +552,10 @@ export function UIApp({
                                                 );
                                             })}
                                         {/* Sentinel element for lazy loading */}
-                                        <div ref={historyEndRef} />
+                                        <div ref={historyEndRef} style={{
+                                            height: "2px",
+                                            width: "100%"
+                                        }} />
                                     </Stack>
                                 </Stack>
                             )}
