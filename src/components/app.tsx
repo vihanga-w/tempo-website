@@ -79,6 +79,9 @@ export function UIApp({
         const newStart = Math.max(0, Math.floor(scrollTop / ITEM_HEIGHT) - BUFFER);
         const visibleCount = Math.ceil(containerHeight / ITEM_HEIGHT) + 2 * BUFFER;
         const newEnd = Math.min(friendsListenershipData.length, newStart + visibleCount);
+
+        console.log(scrollTop, visibleCount, newStart, newEnd)
+
         setVisibleRange({ start: newStart, end: newEnd });
     };
 
