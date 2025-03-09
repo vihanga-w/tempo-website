@@ -166,6 +166,7 @@ export function PlaybackHistoryItem({
                                 </Text>
                             ) : (
                                 <Text>
+                                    {/* TODO: Match locale with spotify account */}
                                     {new Date(data.timestamp).toLocaleDateString("en-GB")} at {timestampToParsedTime(data.timestamp)}
                                 </Text>
                             )}
