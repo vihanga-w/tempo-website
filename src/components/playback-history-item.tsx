@@ -84,7 +84,7 @@ export function PlaybackHistoryItem({
             <Text maxWidth="180px" fontSize="14px" textOverflow="ellipsis" whiteSpace="nowrap" overflow="hidden">{data.item.track.artists.map(v => {
                 return v.name
             }).join(", ")}</Text>
-          <Box mt="10px">
+          <Box mt="8px">
             {data.item.replayed ? (
               <Text fontSize="12px">Replayed</Text>
             ) : data.item.sessionDuration !== 1 ? (
