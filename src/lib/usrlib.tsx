@@ -169,25 +169,31 @@ export default class User extends EventEmitter {
     }
 
     public async getFriendsListenershipHistory() {
-        const req = await fetch(API_URL + "/me/feed/history", {
-            headers: {
-                ...(this.getAuthHeaders())
-            },
-            credentials: "include"
-        });
-        const res = (await req.json()) as {
-            error: boolean;
-            message?: string;
-            data: FriendListenershipItem[];
-        };
+        try {
+            const req = await fetch(API_URL + "/me/feed/history", {
+                headers: {
+                    ...(this.getAuthHeaders())
+                },
+                credentials: "include"
+            });
+            const res = (await req.json()) as {
+                error: boolean;
+                message?: string;
+                data: FriendListenershipItem[];
+            };
 
-        if (res.error) {
-            console.warn("Failed to load friends listenership data, res:", res);
+            if (res.error) {
+                console.warn("Failed to load friends listenership data, res:", res);
+
+                return [];
+            }
+
+            return res.data;
+        } catch (ex) {
+            console.error("getFriendsListenershipHistory failed with error:", ex);
 
             return [];
         }
-
-        return res.data;
     }
 
     private async isUserAuthenticated() {
