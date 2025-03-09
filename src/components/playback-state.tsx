@@ -34,7 +34,7 @@ function formatTimeToMinAndHour(ms: number, fullText?: boolean) {
         return `${hours}${fullText ? " hour" : "hr"}${hours !== 1 ? "s" : ""} ${mins}${fullText ? " minute" : "min"}${mins !== 1 ? "s" : ""}`;
 }
 
-function getSpotifyDeeplink(trackId: string) {
+export function getSpotifyDeeplink(trackId: string) {
     return `spotify://track/${trackId}`;
 }
 
