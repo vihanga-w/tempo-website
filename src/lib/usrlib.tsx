@@ -172,7 +172,8 @@ export default class User extends EventEmitter {
         const req = await fetch(API_URL + "/me/feed/history", {
             headers: {
                 ...(this.getAuthHeaders())
-            }
+            },
+            credentials: "include"
         });
         const res = (await req.json()) as {
             error: boolean;
