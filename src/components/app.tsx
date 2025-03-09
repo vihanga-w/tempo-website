@@ -52,10 +52,11 @@ export function UIApp({
         likeness: number;
     }[]>([]);
     const [friendsListenershipData, setFriendsListenershipData] = useState<FriendListenershipItem[]>([]);
-    // Virtualization: visible range (start and end indices)
-    const [visibleRange, setVisibleRange] = useState<{ start: number; end: number }>({ start: 0, end: 20 });
 
-    const historyContainerRef = useRef<HTMLDivElement | null>(null);
+    // Lazy loading: how many history items to show at first
+    const ITEMS_PER_BATCH = 20;
+    const [visibleHistoryCount, setVisibleHistoryCount] = useState<number>(ITEMS_PER_BATCH);
+    const historyEndRef = useRef<HTMLDivElement | null>(null);
 
     const updateFriendsListenershipHistory = async () => {
         const d = await user.getFriendsListenershipHistory();
@@ -65,8 +66,38 @@ export function UIApp({
     };
 
     useEffect(() => {
-        // When switching to the Activity page, fetch fresh history data
-        if (currentPage === "activity") {
+        // When friendsListenershipData is refreshed, reset the visible count
+        setVisibleHistoryCount(ITEMS_PER_BATCH);
+    }, [friendsListenershipData]);
+
+    // Intersection Observer to load more items as the sentinel comes into view
+    useEffect(() => {
+        if (!historyEndRef.current) return;
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0].isIntersecting) {
+                    setVisibleHistoryCount((prevCount) =>
+                        Math.min(prevCount + ITEMS_PER_BATCH, friendsListenershipData.length)
+                    );
+                }
+            },
+            {
+                root: null,
+                threshold: 1.0,
+            }
+        );
+        observer.observe(historyEndRef.current);
+        return () => {
+            if (historyEndRef.current) {
+                observer.unobserve(historyEndRef.current);
+            }
+        };
+    }, [friendsListenershipData]);
+
+    useEffect(() => {
+        // Extra actions to perform when page switched
+        if (currentPage == "activity") {
+            // Refresh friends listenership history data
             updateFriendsListenershipHistory();
         }
     }, [currentPage]);
@@ -90,6 +121,7 @@ export function UIApp({
 
         newStreamer.on("update", (data: UpdateEvent) => {
             setActivityPageLoading(false);
+
             updateMutex.runExclusive(() => {
                 setLivePlaybackStates((v) => {
                     const existing = v.find((a) => a.userId === data.userId);
@@ -118,7 +150,7 @@ export function UIApp({
 
         newStreamer.init();
 
-        // Fetch discovery data
+        // Fetch user discovery page data
         fetch(API_URL + "/me/taste", {
             headers: {
                 ...user.getAuthHeaders(),
@@ -193,6 +225,7 @@ export function UIApp({
     const pageChanger = (id: string, prevPage?: string) => {
         let exists = false;
         let title = "";
+
         for (const page of pages) {
             if (page.id === id) {
                 exists = true;
@@ -200,12 +233,14 @@ export function UIApp({
                 break;
             }
         }
+
         if (!exists)
             throw new Error(
                 "Attempted to switch to page with id \"" +
                     id +
                     "\", but a page cannot be found with that id!"
             );
+
         setCurrentPage(id);
         setCurrentPageTitle(title);
         setPrevPage(prevPage ?? "");
@@ -336,35 +371,43 @@ export function UIApp({
                         pointerEvents={pageSwitcherActive ? "all" : "none"}
                     >
                         {pages
-                            .filter((v) => v.indexed)
-                            .map((v, i) => (
-                                <React.Fragment key={v.id}>
-                                    <Text
-                                        float="left"
-                                        fontFamily="Inter"
-                                        fontWeight={currentPage === v.id ? "bold" : "medium"}
-                                        fontSize="36px"
-                                        color="text.color"
-                                        zIndex="10"
-                                        transition="margin .25s ease-out, opacity .2s"
-                                        whiteSpace="nowrap"
-                                        marginLeft={pageSwitcherActive ? "0" : "-75px"}
-                                        opacity={pageSwitcherActive ? (currentPage === v.id ? "1" : "0.75") : "0"}
-                                        transitionDelay={pageSwitcherActive ? 0 + (i + 1) / 12 + "s" : "0"}
-                                        onClick={
-                                            currentPage === v.id
-                                                ? handlePageMenuClick
-                                                : () => {
-                                                      pageChanger(v.id);
-                                                      handlePageMenuClick();
-                                                  }
-                                        }
-                                        userSelect="none"
-                                    >
-                                        {v.name}
-                                    </Text>
-                                </React.Fragment>
-                            ))}
+                            .filter((v) => {
+                                return v.indexed;
+                            })
+                            .map((v, i) => {
+                                if (!v.indexed) return;
+                                return (
+                                    <>
+                                        <Text
+                                            float="left"
+                                            fontFamily="Inter"
+                                            fontWeight={currentPage == v.id ? "bold" : "medium"}
+                                            fontSize="36px"
+                                            color="text.color"
+                                            zIndex="10"
+                                            transition="margin .25s ease-out, opacity .2s"
+                                            whiteSpace="nowrap"
+                                            marginLeft={pageSwitcherActive ? "0" : "-75px"}
+                                            opacity={pageSwitcherActive ? (currentPage == v.id ? "1" : "0.75") : "0"}
+                                            // Increase transition delay as we go further down the list
+                                            transitionDelay={
+                                                pageSwitcherActive ? 0 + (i + 1) / 12 + "s" : "0"
+                                            }
+                                            onClick={
+                                                currentPage == v.id
+                                                    ? handlePageMenuClick
+                                                    : () => {
+                                                          pageChanger(v.id);
+                                                          handlePageMenuClick();
+                                                      }
+                                            }
+                                            userSelect="none"
+                                        >
+                                            {v.name}
+                                        </Text>
+                                    </>
+                                );
+                            })}
                     </VStack>
                     <SmallAddButton
                         onClick={() => {
@@ -456,14 +499,7 @@ export function UIApp({
                                         {livePlaybackStates.map((v, i) => {
                                             const data = v.data;
                                             return (
-                                                <React.Fragment
-                                                    key={
-                                                        "ps-" +
-                                                        v.userId +
-                                                        data.state?.songId +
-                                                        (data.state?.artists ? "AA" : "ANA")
-                                                    }
-                                                >
+                                                <>
                                                     {i !== 0 && (
                                                         <Box
                                                             width="100%"
@@ -472,11 +508,17 @@ export function UIApp({
                                                         />
                                                     )}
                                                     <PlaybackState
+                                                        key={
+                                                            "ps-" +
+                                                            v.userId +
+                                                            data.state?.songId +
+                                                            (data.state?.artists ? "AA" : "ANA")
+                                                        }
                                                         index={i}
                                                         stream={streamer}
                                                         userId={v.userId}
                                                     />
-                                                </React.Fragment>
+                                                </>
                                             );
                                         })}
                                     </Stack>
@@ -489,19 +531,24 @@ export function UIApp({
                                             History
                                         </Text>
                                         {friendsListenershipData
-                                            .slice(visibleRange.start, visibleRange.end)
-                                            .map((v, i) => (
-                                                <React.Fragment key={i}>
-                                                    {i !== 0 && (
-                                                        <Box
-                                                            width="100%"
-                                                            height="1px"
-                                                            background="rgba(255, 255, 255, 0.2)"
-                                                        />
-                                                    )}
-                                                    <PlaybackHistoryItem data={v} />
-                                                </React.Fragment>
-                                            ))}
+                                            .slice(0, visibleHistoryCount)
+                                            .map((v, i) => {
+                                                const data = v;
+                                                return (
+                                                    <>
+                                                        {i !== 0 && (
+                                                            <Box
+                                                                width="100%"
+                                                                height="1px"
+                                                                background="rgba(255, 255, 255, 0.2)"
+                                                            />
+                                                        )}
+                                                        <PlaybackHistoryItem data={data} />
+                                                    </>
+                                                );
+                                            })}
+                                        {/* Sentinel element for lazy loading */}
+                                        <div ref={historyEndRef} />
                                     </Stack>
                                 </Stack>
                             )}
