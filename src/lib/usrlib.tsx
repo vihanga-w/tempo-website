@@ -46,6 +46,41 @@ export type ClientUserAccount = {
     displayName: string
 }
 
+export interface songData {
+    id: string;
+    name: string;
+    artists: {
+        id: string;
+        name: string;
+        url: string;
+        uri: string;
+    }[];
+    duration: number;
+    explicit: boolean;
+    album: {
+        id: string;
+        name: string;
+        releaseDate: number;
+        artUrl: string;
+    }
+    meta: {
+        updatedAt: number;
+    }
+}
+
+export interface FriendListenershipItem {
+    userId: string;
+    username: string;
+    pfpUrl: string;
+    item: {
+        track: songData;
+        sessionDuration: number;
+        skipped: boolean;
+        replayed: boolean;
+    };
+    timestamp: number;
+};
+
 export type EncryptionAvailability = {
     configured: boolean;
     keyId: string;
@@ -131,6 +166,27 @@ export default class User extends EventEmitter {
             this.id = details!.id;
             this.email = details!.email;
         }
+    }
+
+    public async getFriendsListenershipHistory() {
+        const req = await fetch(API_URL + "/perf", {
+            headers: {
+                ...(this.getAuthHeaders())
+            }
+        });
+        const res = (await req.json()) as {
+            error: boolean;
+            message?: string;
+            data: FriendListenershipItem[];
+        };
+
+        if (res.error) {
+            console.warn("Failed to load friends listenership data, res:", res);
+
+            return [];
+        }
+
+        return res.data;
     }
 
     private async isUserAuthenticated() {

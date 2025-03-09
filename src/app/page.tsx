@@ -30,6 +30,11 @@ import { Modal } from "@/components/modal";
 import { SafeArea, initialize } from "@capacitor-community/safe-area";
 import { SplashScreen } from "@capacitor/splash-screen";
 
+import TimeAgo from "javascript-time-ago";
+import en from "javascript-time-ago/locale/en";
+
+TimeAgo.addDefaultLocale(en)
+
 export default function Home() {
   // Application states
   const [debugInjected, setDebugInjected] = useState<boolean>(false);

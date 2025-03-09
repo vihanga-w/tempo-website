@@ -1,5 +1,5 @@
 import PageRouter from "@/lib/page-router";
-import User from "@/lib/usrlib";
+import User, { FriendListenershipItem } from "@/lib/usrlib";
 import { Text, Image, Box, HStack, VStack, useDisclosure, Stack, Center, Spinner } from "@chakra-ui/react";
 import {  useEffect, useRef, useState } from "react";
 import React from "react";
@@ -9,8 +9,7 @@ import { PlaybackState } from "./playback-state";
 import { DataStreamer, UpdateEvent } from "@/lib/live-ingest";
 import { Mutex } from "async-mutex";
 import { API_URL } from "@/lib/const";
-
-import { SplashScreen } from "@capacitor/splash-screen";
+import { PlaybackHistoryItem } from "./playback-history-item";
 
 const updateMutex = new Mutex();
 
@@ -38,16 +37,18 @@ export function UIApp({
         album: string;
         likeness: number;
     }[]>([]);
+    const [friendsListenershipData, setFriendsListenershipData] = useState<FriendListenershipItem[]>([]);
 
     useEffect(() => {
         // Extra actions to perform when page switched
 
-        // if (currentPage == "circle") {
-        //     // Reset conversation states (since we are no longer in a conversation)
-        //     setConversationHeader(undefined);
-        //     setConversationUser(undefined);
-        //     setConversation(undefined);
-        // }
+        if (currentPage == "activity") {
+            // Refresh friends listenership history data
+            user.getFriendsListenershipHistory()
+            .then(d => {
+                setFriendsListenershipData(d);
+            });
+        }
     }, [currentPage]);
 
     useEffect(() => {
@@ -126,6 +127,12 @@ export function UIApp({
         })
         .catch(ex => {
             console.warn("Failed to fetch user discovery data due to request error:", ex);
+        });
+
+        // Fetch friends listenership history
+        user.getFriendsListenershipHistory()
+        .then(d => {
+            setFriendsListenershipData(d);
         });
 
         return () => {
@@ -430,24 +437,42 @@ export function UIApp({
                     >
                         <Spinner size="lg" />
                     </Center>) : (
-                        <Stack gap="18px" overflowY="auto" paddingBottom="18px" width="100%">
-                            <Text fontFamily="arial, helvetica" fontWeight="bold" fontSize="24px">Latest</Text>
-                            {livePlaybackStates.map((v, i) => {
-                                // const key = v.userId + v.data.state?.songId + v.data.interpolatedProgress;
-                                const data = v.data;
-                                
-                                return (<>
-                                    {i !== 0 && (
-                                        <Box width="100%" height="1px" background="rgba(255, 255, 255, 0.2)" />
-                                    )}
-                                    <PlaybackState
-                                        key={"ps-" + v.userId + data.state?.songId + (data.state?.artists ? "AA" : "ANA")}
-                                        index={i}
-                                        stream={streamer}
-                                        userId={v.userId}
-                                    />
-                                </>);
-                            })}
+                        <Stack gap="24px" overflowY="auto" paddingBottom="18px" width="100%">
+                            <Stack gap="18px" overflowY="auto" width="100%">
+                                <Text fontFamily="arial, helvetica" fontWeight="bold" fontSize="24px">Latest</Text>
+                                {livePlaybackStates.map((v, i) => {
+                                    // const key = v.userId + v.data.state?.songId + v.data.interpolatedProgress;
+                                    const data = v.data;
+                                    
+                                    return (<>
+                                        {i !== 0 && (
+                                            <Box width="100%" height="1px" background="rgba(255, 255, 255, 0.2)" />
+                                        )}
+                                        <PlaybackState
+                                            key={"ps-" + v.userId + data.state?.songId + (data.state?.artists ? "AA" : "ANA")}
+                                            index={i}
+                                            stream={streamer}
+                                            userId={v.userId}
+                                        />
+                                    </>);
+                                })}
+                            </Stack>
+                            <Stack gap="18px" overflowY="auto" width="100%">
+                                <Text fontFamily="arial, helvetica" fontWeight="bold" fontSize="24px">History</Text>
+                                {friendsListenershipData.map((v, i) => {
+                                    // const key = v.userId + v.data.state?.songId + v.data.interpolatedProgress;
+                                    const data = v;
+                                    
+                                    return (<>
+                                        {i !== 0 && (
+                                            <Box width="100%" height="1px" background="rgba(255, 255, 255, 0.2)" />
+                                        )}
+                                        <PlaybackHistoryItem
+                                            data={data}
+                                        />
+                                    </>);
+                                })}
+                            </Stack>
                         </Stack>
                     )}
                 </>)}
