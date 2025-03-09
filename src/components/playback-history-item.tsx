@@ -162,7 +162,7 @@ export function PlaybackHistoryItem({
                                 <ReactTimeAgo date={data.timestamp} locale="en-GB" />
                             ) : new Date().getTime() - data.timestamp <= 3600e3 * 24 ? (
                                 <Text>
-                                    At {timestampToParsedTime(data.timestamp)}
+                                    Today at {timestampToParsedTime(data.timestamp)}
                                 </Text>
                             ) : (
                                 <Text>
