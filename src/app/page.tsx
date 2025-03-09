@@ -23,7 +23,7 @@ import { AndroidViewStyle, DefaultAndroidSystemBrowserOptions, DefaultSystemBrow
 import { Preferences } from '@capacitor/preferences';
 
 import User from "@/lib/usrlib";
-import { API_URL } from "@/lib/const";
+import { API_URL, API_URL_SOCK } from "@/lib/const";
 import { registerServiceWorker, removeSubscription, useSubscribe } from "@/lib/notify";
 import { randomBytes } from "crypto";
 import { Modal } from "@/components/modal";
@@ -146,6 +146,7 @@ export default function Home() {
     // Check whether we are in a PWA standalone app
     if (window.navigator && !window.localStorage.getItem("tempo-override-pwa-detection") && !Capacitor.isNativePlatform()) setIsInMobileBrowser(!(("standalone" in window.navigator) && window.navigator.standalone));
     else if (window.localStorage.getItem("tempo-override-pwa-detection")) setIsInMobileBrowser(false);
+    else setIsInMobileBrowser(!Capacitor.isNativePlatform())
   }, []);
 
   useEffect(() => {
@@ -259,6 +260,10 @@ export default function Home() {
 
     prouter.on("page-navigate", (page: JSX.Element) => {
       console.log("New page navigation event!");
+
+      setTimeout(() => {
+        SplashScreen.hide();
+      }, 250);
       
       if (page) setPage(page);
     });
@@ -272,7 +277,6 @@ export default function Home() {
     user.on("user-init", async () => {
       console.log("User object has been updated! User object:", user);
 
-      SplashScreen.hide();
       setPerfMsg(undefined);
 
       // TODO: Re-enable this when singup flow has been made
@@ -293,6 +297,8 @@ export default function Home() {
             return;
           }
 
+          console.log(seshRes)
+
           const loadSwappedToken = async () => {
             const req = await fetch(API_URL + "/swapToken/" + seshRes.token);
             const res = await req.json() as {
@@ -303,6 +309,7 @@ export default function Home() {
 
             if (res.swap == "INIT") {
               console.warn("Attempted to get swapped token but it is still initialising server-side, res:", res);
+              return "INIT";
             } else if (res.swap == "ERR") {
               console.warn("Failed to swap auth token as server returned an error state, res:", res);
             } else if (res.error || !res.swap) {
@@ -314,31 +321,83 @@ export default function Home() {
                 key: "tempo.s.a",
                 value: res.swap,
               });
+
+              return res.swap;
             }
           }
 
-          InAppBrowser.addListener("browserClosed", async () => {
-            await loadSwappedToken();
+          const swapTokenSock = new WebSocket(API_URL_SOCK + "/awaitTokenSwapSession/" + seshRes.token);
 
-            // Reinitialise the user object
-            prepare();
-          });
+          swapTokenSock.onopen = () => {
+            swapTokenSock.send("READY");
+          }
 
-          InAppBrowser.openInSystemBrowser({
-            url: API_URL + "/auth/app/" + seshRes.token,
-            options: {
-              ...DefaultSystemBrowserOptions,
-              iOS: {
-                ...DefaultiOSSystemBrowserOptions,
-                closeButtonText: DismissStyle.CANCEL,
-                viewStyle: iOSViewStyle.FULL_SCREEN,
-              },
-              android: {
-                ...DefaultAndroidSystemBrowserOptions,
-                viewStyle: AndroidViewStyle.FULL_SCREEN,
-              },
+          swapTokenSock.onerror = e => {
+            console.error(e);
+          }
+
+          let checker: NodeJS.Timeout | undefined;
+
+          swapTokenSock.onmessage = async m => {
+            console.log(m.data);
+
+            const data = JSON.parse(m.data) as {
+              error: boolean;
+              message?: string;
+              flag: "CALLED" | "READY";
+            };
+
+            if (data.error) {
+              console.error("Unable to create swap token session complete callback, res:", data);
+
+              return;
             }
-          });
+
+            if (data.flag == "READY") {
+              InAppBrowser.openInSystemBrowser({
+                url: API_URL + "/auth/app/" + seshRes.token,
+                options: {
+                  ...DefaultSystemBrowserOptions,
+                  iOS: {
+                    ...DefaultiOSSystemBrowserOptions,
+                    closeButtonText: DismissStyle.DONE,
+                    viewStyle: iOSViewStyle.PAGE_SHEET,
+                  },
+                  android: {
+                    ...DefaultAndroidSystemBrowserOptions,
+                    viewStyle: AndroidViewStyle.BOTTOM_SHEET,
+                  },
+                }
+              });
+
+              checker = setInterval(async () => {
+                const tok = await loadSwappedToken();
+
+                console.log("POLL:", tok)
+      
+                if (tok && tok !== "INIT") {
+                  try {
+                    InAppBrowser.close();
+                  } catch { }
+
+                  clearInterval(checker);
+                  prepare(tok);
+                }
+              }, 2500);
+            } else if (data.flag == "CALLED") {
+              try {
+                InAppBrowser.close();
+              } catch { }
+
+              const tok = await loadSwappedToken();
+
+              prepare(tok);
+            }
+          }
+
+          swapTokenSock.onclose = () => {
+            console.log("Token swap socket has been closed");
+          }
         }
       } else if (user.authError) {
         Preferences.remove({
@@ -352,10 +411,19 @@ export default function Home() {
       }
     });
 
-    const prepare = async () => {
+    const prepare = async (stok?: string) => {
       let storedToken = undefined;
+
+      console.log("STOK:", stok);
     
       if (Capacitor.isNativePlatform()) {
+        if (stok) {
+          await Preferences.set({
+            key: "tempo.s.a",
+            value: stok
+          });
+        }
+
         try {
           const tok = await Preferences.get({
             key: "tempo.s.a",
@@ -367,7 +435,7 @@ export default function Home() {
       }
 
       // Wait for the user handler to finish initialising
-      user.init(storedToken)
+      user.init(stok ?? storedToken)
       .then(() => {
         console.log("User handler has been initialised!");
       });
@@ -385,7 +453,7 @@ export default function Home() {
     pointerEvents: displayUI ? "all" : "none",
     overflowY: displayUI ? "auto" : "hidden",
     height: "100%",
-    paddingTop: "env(safe-area-inset-top, 20px)"
+    width: "100%",
   }}>
     <Modal
         title={modalTitle}

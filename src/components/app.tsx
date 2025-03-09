@@ -240,7 +240,7 @@ export function UIApp({
         </Box>
 
         {/* The main user interface */}
-        <Box padding="20px">
+        <Box padding="20px" width="100%">
             <Image
                 src="/menu-bg.png"
                 position="absolute"
@@ -325,7 +325,8 @@ export function UIApp({
                 </Box>
                 <VStack
                     position="absolute"
-                    top="env(safe-area-inset-top, 75px)"
+                    top="75px"
+                    marginTop="env(safe-area-inset-top)"
                     alignItems="normal"
                     pointerEvents={pageSwitcherActive ? "all" : "none"}
                 >
@@ -379,7 +380,10 @@ export function UIApp({
                 zIndex="5"
                 overflow="hidden"
                 height="100%"
-                // paddingTop="env(safe-area-inset-top, 20px)"
+                width="100%"
+                display="fixed"
+                top="0"
+                left="0"
             >
                 {/* Discover page */}
                 {currentPage == "discover" && (<>
@@ -425,7 +429,7 @@ export function UIApp({
                     >
                         <Spinner size="lg" />
                     </Center>) : (
-                        <Stack gap="18px" overflowY="auto" paddingBottom="18px">
+                        <Stack gap="18px" overflowY="auto" paddingBottom="18px" width="100%">
                             <Text fontFamily="arial, helvetica" fontWeight="bold" fontSize="24px">Latest</Text>
                             {livePlaybackStates.map((v, i) => {
                                 // const key = v.userId + v.data.state?.songId + v.data.interpolatedProgress;
