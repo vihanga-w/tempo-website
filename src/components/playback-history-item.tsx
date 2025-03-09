@@ -61,7 +61,7 @@ export function PlaybackHistoryItem({
           draggable={false}
         />
         <Stack spacing="0" flex="1">
-          <HStack pos="relative" gap="5px" justifyContent="space-between">
+          <HStack pos="relative" gap="3px" justifyContent="space-between">
                 <HStack width="100%" gap="5px">
                     {/* TODO: Make this text scroll with a fixed width */}
                     <Text maxWidth="175px" fontSize="14px" textOverflow="ellipsis" whiteSpace="nowrap" overflow="hidden">{data.item.track.name}</Text>
