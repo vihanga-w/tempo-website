@@ -54,6 +54,8 @@ export function UIApp({
     const [visibleHistoryCount, setVisibleHistoryCount] = useState<number>(ITEMS_PER_BATCH);
     const historyEndRef = useRef<HTMLDivElement | null>(null);
     const historyStartRef = useRef<HTMLDivElement | null>(null);
+    // New ref for the scrollable container
+    const historyContainerRef = useRef<HTMLDivElement | null>(null);
 
     const updateFriendsListenershipHistory = async () => {
         const d = await user.getFriendsListenershipHistory();
@@ -67,7 +69,7 @@ export function UIApp({
 
     // Bottom sentinel observer to load more items as the sentinel comes into view
     useEffect(() => {
-        if (!historyEndRef.current) return;
+        if (!historyContainerRef.current || !historyEndRef.current) return;
     
         const bottomObserver = new IntersectionObserver(
             (entries) => {
@@ -78,7 +80,7 @@ export function UIApp({
                 }
             },
             {
-                root: null,
+                root: historyContainerRef.current,
                 threshold: 0.1,
             }
         );
@@ -94,7 +96,7 @@ export function UIApp({
 
     // Top sentinel observer to unload items when user scrolls back up
     useEffect(() => {
-        if (!historyStartRef.current) return;
+        if (!historyContainerRef.current || !historyStartRef.current) return;
     
         const topObserver = new IntersectionObserver(
             (entries) => {
@@ -105,7 +107,7 @@ export function UIApp({
                 }
             },
             {
-                root: null,
+                root: historyContainerRef.current,
                 threshold: 0.1,
             }
         );
@@ -517,7 +519,7 @@ export function UIApp({
                                     <Spinner size="lg" />
                                 </Center>
                             ) : (
-                                <Stack gap="28px" overflowY="auto" paddingBottom="18px" width="100%">
+                                <Stack gap="28px" overflowY="auto" paddingBottom="18px" width="100%" ref={historyContainerRef}>
                                     <Stack gap="18px" overflowY="auto" width="100%">
                                         <Text
                                             fontFamily="arial, helvetica"
