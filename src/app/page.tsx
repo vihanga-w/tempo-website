@@ -269,18 +269,24 @@ export default function Home() {
 
           const loadSwappedToken = async () => {
             const req = await fetch(API_URL + "/swapToken/" + seshRes.token);
-            const res = await req.text() as ("INIT" | "ERR" | string);
+            const res = await req.json() as {
+              error: boolean;
+              message: string;
+              swap?: ("INIT" | "ERR" | string);
+            };
 
-            if (res == "INIT") {
-              console.warn("Attempted to get swapped token but it is still initialising server-side");
-            } else if (res == "ERR") {
-              console.warn("Failed to swap auth token as server returned an error state");
-            } else {
-              console.log("Got swapped token:", res);
+            if (res.swap == "INIT") {
+              console.warn("Attempted to get swapped token but it is still initialising server-side, res:", res);
+            } else if (res.swap == "ERR") {
+              console.warn("Failed to swap auth token as server returned an error state, res:", res);
+            } else if (res.error || !res.swap) {
+              console.warn("Unknown error while swapping auth token, res:", res);
+            } else if (res.swap) {
+              console.log("Got swapped token:", res.swap);
 
               await Preferences.set({
                 key: "tempo.s.a",
-                value: res,
+                value: res.swap,
               });
             }
           }
@@ -309,6 +315,10 @@ export default function Home() {
           });
         }
       } else if (user.authError) {
+        Preferences.remove({
+          key: "tempo.s.a"
+        });
+
         setPerfMsg("Sorry, Tempo is not available right now, please try again later");
       } else {
         onSubmitSubscribe();
