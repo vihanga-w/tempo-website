@@ -67,6 +67,7 @@ export function UIApp({
     // Intersection Observer to load more items as the sentinel comes into view
     useEffect(() => {
         if (!historyEndRef.current) return;
+
         const observer = new IntersectionObserver(
             (entries) => {
                 if (entries[0].isIntersecting) {
@@ -80,7 +81,9 @@ export function UIApp({
                 threshold: 1.0,
             }
         );
+
         observer.observe(historyEndRef.current);
+        
         return () => {
             if (historyEndRef.current) {
                 observer.unobserve(historyEndRef.current);
