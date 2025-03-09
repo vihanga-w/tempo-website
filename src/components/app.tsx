@@ -64,6 +64,12 @@ export function UIApp({
         setVisibleHistoryCount(ITEMS_PER_BATCH);
     }, [friendsListenershipData]);
 
+    const incrementVisibleItems = () => {
+        setVisibleHistoryCount((prevCount) =>
+            Math.min(prevCount + ITEMS_PER_BATCH, friendsListenershipData.length)
+        );
+    }
+
     // Intersection Observer to load more items as the sentinel comes into view
     useEffect(() => {
         if (!historyEndRef.current) return;
@@ -71,11 +77,8 @@ export function UIApp({
         const observer = new IntersectionObserver(
             (entries) => {
                 console.log(entries, entries[0].isIntersecting)
-                if (entries[0].isIntersecting) {
-                    setVisibleHistoryCount((prevCount) =>
-                        Math.min(prevCount + ITEMS_PER_BATCH, friendsListenershipData.length)
-                    );
-                }
+                if (entries[0].isIntersecting)
+                    incrementVisibleItems();
             },
             {
                 root: null,
@@ -261,9 +264,7 @@ export function UIApp({
     const addNewItemPossiblePages = ["friends"];
 
     return (
-        <div onScroll={e => {
-            console.log("osh:", e);
-        }}>
+        <>
             <Box
                 position="fixed"
                 top="0"
@@ -554,10 +555,11 @@ export function UIApp({
                                                 );
                                             })}
                                         {/* Sentinel element for lazy loading */}
-                                        <div ref={historyEndRef} style={{
-                                            height: "2px",
-                                            width: "100%"
-                                        }} />
+                                        <div ref={historyEndRef}>
+                                            <Text marginBottom="4px" width="100%" opacity="0.45" textAlign="center" onClick={() => {
+                                                incrementVisibleItems();
+                                            }}>Load more</Text>
+                                        </div>
                                     </Stack>
                                 </Stack>
                             )}
@@ -639,6 +641,6 @@ export function UIApp({
                     )}
                 </Box>
             </Box>
-        </div>
+        </>
     );
 }
