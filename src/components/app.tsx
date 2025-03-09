@@ -261,7 +261,9 @@ export function UIApp({
     const addNewItemPossiblePages = ["friends"];
 
     return (
-        <>
+        <div onScroll={e => {
+            console.log("osh:", e);
+        }}>
             <Box
                 position="fixed"
                 top="0"
@@ -639,6 +641,6 @@ export function UIApp({
                     )}
                 </Box>
             </Box>
-        </>
+        </div>
     );
 }
