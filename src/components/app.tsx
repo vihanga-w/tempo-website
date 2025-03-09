@@ -66,7 +66,7 @@ export function UIApp({
 
     useEffect(() => {
         // When switching to the Activity page, fetch fresh history data
-        if (currentPage == "activity") {
+        if (currentPage === "activity") {
             updateFriendsListenershipHistory();
         }
     }, [currentPage]);
@@ -79,9 +79,6 @@ export function UIApp({
         const newStart = Math.max(0, Math.floor(scrollTop / ITEM_HEIGHT) - BUFFER);
         const visibleCount = Math.ceil(containerHeight / ITEM_HEIGHT) + 2 * BUFFER;
         const newEnd = Math.min(friendsListenershipData.length, newStart + visibleCount);
-
-        console.log(scrollTop, visibleCount, newStart, newEnd)
-
         setVisibleRange({ start: newStart, end: newEnd });
     };
 
@@ -96,7 +93,7 @@ export function UIApp({
             updateMutex.runExclusive(() => {
                 setLivePlaybackStates((v) => {
                     const existing = v.find((a) => a.userId === data.userId);
-                    if (existing && data.data.action.type == "STOPPED") {
+                    if (existing && data.data.action.type === "STOPPED") {
                         return v.filter((a) => a.userId !== data.userId);
                     } else if (!existing && data.data.action.type !== "STOPPED") {
                         return [...v, data].sort((a, b) =>
@@ -179,7 +176,7 @@ export function UIApp({
     }, [streamer]);
 
     useEffect(() => {
-        if (streamerReset && streamer && livePlaybackStates.length == 0) {
+        if (streamerReset && streamer && livePlaybackStates.length === 0) {
             streamer.cleanup();
             streamer.init();
             setStreamerReset(false);
@@ -197,7 +194,7 @@ export function UIApp({
         let exists = false;
         let title = "";
         for (const page of pages) {
-            if (page.id == id) {
+            if (page.id === id) {
                 exists = true;
                 title = page.name;
                 break;
@@ -280,7 +277,7 @@ export function UIApp({
                 <Box
                     width="100vw"
                     height="100px"
-                    pos="fixed"
+                    position="fixed"
                     top="0"
                     left="0"
                     background="linear-gradient(180deg, rgb(13,13,14) 10%, rgba(13,13,14,0) 100%)"
@@ -345,17 +342,17 @@ export function UIApp({
                                     <Text
                                         float="left"
                                         fontFamily="Inter"
-                                        fontWeight={currentPage == v.id ? "bold" : "medium"}
+                                        fontWeight={currentPage === v.id ? "bold" : "medium"}
                                         fontSize="36px"
                                         color="text.color"
                                         zIndex="10"
                                         transition="margin .25s ease-out, opacity .2s"
                                         whiteSpace="nowrap"
                                         marginLeft={pageSwitcherActive ? "0" : "-75px"}
-                                        opacity={pageSwitcherActive ? (currentPage == v.id ? "1" : "0.75") : "0"}
+                                        opacity={pageSwitcherActive ? (currentPage === v.id ? "1" : "0.75") : "0"}
                                         transitionDelay={pageSwitcherActive ? 0 + (i + 1) / 12 + "s" : "0"}
                                         onClick={
-                                            currentPage == v.id
+                                            currentPage === v.id
                                                 ? handlePageMenuClick
                                                 : () => {
                                                       pageChanger(v.id);
@@ -372,12 +369,12 @@ export function UIApp({
                     <SmallAddButton
                         onClick={() => {
                             if (pageSwitcherActive) return;
-                            if (currentPage == "friends") pageChanger("new-friend", "friends");
+                            if (currentPage === "friends") pageChanger("new-friend", "friends");
                         }}
                         isCross={false}
                         scale={prevPage || !addNewItemPossiblePages.includes(currentPage) ? 0.65 : 1}
                         opacity={prevPage || !addNewItemPossiblePages.includes(currentPage) ? "0" : "1"}
-                        active={prevPage == "" || !addNewItemPossiblePages.includes(currentPage)}
+                        active={prevPage === "" || !addNewItemPossiblePages.includes(currentPage)}
                         zIndex="9999999999"
                     />
                 </HStack>
@@ -388,12 +385,12 @@ export function UIApp({
                     overflow="hidden"
                     height="100%"
                     width="100%"
-                    display="fixed"
+                    position="fixed"
                     top="0"
                     left="0"
                 >
                     {/* Discover page */}
-                    {currentPage == "discover" && (
+                    {currentPage === "discover" && (
                         <>
                             {discoveryData.length === 0 ? (
                                 <Text
@@ -421,7 +418,8 @@ export function UIApp({
                                     {discoveryData.map((v) => (
                                         <Box key={v.title + v.likeness}>
                                             <Text>
-                                                {v.title} ({v.artists.join(", ")}) - {Math.ceil(v.likeness * 100)}%
+                                                {v.title} ({v.artists.join(", ")}) -{" "}
+                                                {Math.ceil(v.likeness * 100)}%
                                             </Text>
                                         </Box>
                                     ))}
@@ -431,7 +429,7 @@ export function UIApp({
                     )}
 
                     {/* Activity page */}
-                    {currentPage == "activity" && (
+                    {currentPage === "activity" && (
                         <>
                             {activityPageLoading ? (
                                 <Center pos="absolute" width="100vw" height="100vh" top="0" left="0">
@@ -445,6 +443,7 @@ export function UIApp({
                                     width="100%"
                                     ref={historyContainerRef}
                                     onScroll={handleScroll}
+                                    height="calc(100vh - 72px)"  // Explicit height for scrollability
                                 >
                                     <Stack gap="18px" width="100%">
                                         <Text
@@ -510,7 +509,7 @@ export function UIApp({
                     )}
 
                     {/* Friends page */}
-                    {currentPage == "friends" && (
+                    {currentPage === "friends" && (
                         <>
                             <Image
                                 src={`/add-new-case-indication-arrow.svg`}
@@ -543,7 +542,7 @@ export function UIApp({
                     )}
 
                     {/* Settings page */}
-                    {currentPage == "settings" && (
+                    {currentPage === "settings" && (
                         <>
                             <HStack gap="24px" marginTop="24px">
                                 <Image
