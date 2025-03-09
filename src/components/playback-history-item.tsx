@@ -28,38 +28,33 @@ export function PlaybackHistoryItem({
   return (
     <Stack gap="5px">
       {/* Header with username and timestamp */}
-      <HStack justifyContent="space-between">
-        <Stack spacing="0">
-          <Text fontSize="16px" fontWeight="bold" noOfLines={1}>
-            {data.username}
-          </Text>
-          <Text
-            fontSize="14px"
-            color="#b4b4b4"
-            whiteSpace="nowrap"
-            overflow="hidden"
-            textOverflow="ellipsis"
-          >
-            {new Date().getTime() - data.timestamp <= 3600e3 * 12 ? (
-              <ReactTimeAgo date={data.timestamp} locale="en-GB" />
-            ) : (
-              <>
-                {new Date(data.timestamp).toLocaleDateString("en-GB")} at{" "}
-                {timestampToParsedTime(data.timestamp)}
-              </>
-            )}
-          </Text>
-        </Stack>
-        <Box>
-          <MdAddReaction opacity="0.45" size="20px" />
-        </Box>
+      <HStack gap="5px" justifyContent="space-between">
+        <Text fontSize="16px" fontWeight="bold" noOfLines={1}>
+        {data.username}
+        </Text>
+        <Text
+        fontSize="14px"
+        color="#b4b4b4"
+        whiteSpace="nowrap"
+        overflow="hidden"
+        textOverflow="ellipsis"
+        >
+        {new Date().getTime() - data.timestamp <= 3600e3 * 12 ? (
+            <ReactTimeAgo date={data.timestamp} locale="en-GB" />
+        ) : (
+            <>
+            {new Date(data.timestamp).toLocaleDateString("en-GB")} at{" "}
+            {timestampToParsedTime(data.timestamp)}
+            </>
+        )}
+        </Text>
       </HStack>
 
       {/* Song details */}
       <HStack alignItems="flex-start" spacing="3">
         <Image
-          width="72px"
-          height="72px"
+          width="50px"
+          height="50px"
           objectFit="cover"
           borderRadius="6px"
           src={data.item.track.album.artUrl}
@@ -89,7 +84,7 @@ export function PlaybackHistoryItem({
             <Text maxWidth="180px" textOverflow="ellipsis" whiteSpace="nowrap" overflow="hidden">{data.item.track.artists.map(v => {
                 return v.name
             }).join(", ")}</Text>
-          <Box mt="2">
+          <Box mt="10px">
             {data.item.replayed ? (
               <Text fontSize="14px">Replayed</Text>
             ) : data.item.sessionDuration !== 1 ? (
