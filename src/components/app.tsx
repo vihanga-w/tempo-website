@@ -52,7 +52,7 @@ export function UIApp({
         if (!user.isLoggedIn)
             return;
 
-        const newStreamer = new DataStreamer();
+        const newStreamer = new DataStreamer(user.storedToken);
         
         setStreamer(newStreamer);
 
@@ -93,6 +93,9 @@ export function UIApp({
 
         // Fetch user discovery page data
         fetch(API_URL + "/me/taste", {
+            headers: {
+                ...(user.getAuthHeaders()),
+            },
             "credentials": "include"
         })
         .then(r => r.json())

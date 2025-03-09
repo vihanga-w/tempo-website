@@ -314,7 +314,7 @@ export class DataStreamer extends EventEmitter {
                     }
                 }
             } catch (ex) {
-                console.error("Failed to initialise DataStreamer, error:", ex);
+                console.error("Failed to initialise DataStreamer, error:", (ex as unknown as Error).toString());
                 if (attempts < maxRetries) {
                     attempts++;
                     console.log(`Retrying connection (${attempts}/${maxRetries})...`);
@@ -332,8 +332,20 @@ export class DataStreamer extends EventEmitter {
         return this.cache[userId];
     }
 
+    private getAuthHeaders() {
+        const headers: {[key: string]: string} = {};
+
+        if (this.storedToken)
+            headers["x-api-token"] = this.storedToken;
+        
+        return headers;
+    }
+
     private async fetchPublicStreams() {
         const req = await fetch(API_URL + "/spotify/public/sessions", {
+            headers: {
+                ...(this.getAuthHeaders())
+            },
             credentials: "include",
         });
         const res = await req.json() as PublicSessionResponse;

@@ -9,6 +9,8 @@ PODS:
     - OSInAppBrowserLib (~> 1.0)
   - CapacitorPreferences (7.0.0):
     - Capacitor
+  - CapacitorStatusBar (7.0.0):
+    - Capacitor
   - CordovaPlugins (7.0.1):
     - CapacitorCordova
   - OSInAppBrowserLib (1.0.0)
@@ -19,6 +21,7 @@ DEPENDENCIES:
   - "CapacitorCordova (from `../../node_modules/.pnpm/@capacitor+ios@7.0.1_@capacitor+core@7.0.1/node_modules/@capacitor/ios`)"
   - "CapacitorInappbrowser (from `../../node_modules/.pnpm/@capacitor+inappbrowser@2.0.0_@capacitor+core@7.0.1/node_modules/@capacitor/inappbrowser`)"
   - "CapacitorPreferences (from `../../node_modules/.pnpm/@capacitor+preferences@7.0.0_@capacitor+core@7.0.1/node_modules/@capacitor/preferences`)"
+  - "CapacitorStatusBar (from `../../node_modules/.pnpm/@capacitor+status-bar@7.0.0_@capacitor+core@7.0.1/node_modules/@capacitor/status-bar`)"
   - CordovaPlugins (from `../capacitor-cordova-ios-plugins`)
 
 SPEC REPOS:
@@ -36,6 +39,8 @@ EXTERNAL SOURCES:
     :path: "../../node_modules/.pnpm/@capacitor+inappbrowser@2.0.0_@capacitor+core@7.0.1/node_modules/@capacitor/inappbrowser"
   CapacitorPreferences:
     :path: "../../node_modules/.pnpm/@capacitor+preferences@7.0.0_@capacitor+core@7.0.1/node_modules/@capacitor/preferences"
+  CapacitorStatusBar:
+    :path: "../../node_modules/.pnpm/@capacitor+status-bar@7.0.0_@capacitor+core@7.0.1/node_modules/@capacitor/status-bar"
   CordovaPlugins:
     :path: "../capacitor-cordova-ios-plugins"
 
@@ -45,9 +50,10 @@ SPEC CHECKSUMS:
   CapacitorCordova: 63d476958d5022d76f197031e8b7ea3519988c64
   CapacitorInappbrowser: ac3d26121a7fe3ed1c189c78b6d80f41af7be077
   CapacitorPreferences: 8e4bef1f937fc991a19d7ea99330c36a62edd24b
+  CapacitorStatusBar: a8c4c83ed2e973bdafb979e80e4b00d027832cb7
   CordovaPlugins: c1b07aa5a30eeff293189f83d40c92b3d3e2c448
   OSInAppBrowserLib: c3d0b21a0c8b6d81e69117ad08bb6b8a4849c4e1
 
-PODFILE CHECKSUM: e733e99b4f1029b67d0ca0cc5dbb4b44d536ac2d
+PODFILE CHECKSUM: f21c9ecb0cca9e015c52fad63f3b65881030ab6a
 
 COCOAPODS: 1.16.2

@@ -57,7 +57,7 @@ export default class User extends EventEmitter {
     public id: string = "";
     public email: string = "";
     public object: ClientUserAccount | undefined;
-    private storedToken?: string;
+    public storedToken?: string;
 
     constructor() {
         super();
@@ -85,7 +85,7 @@ export default class User extends EventEmitter {
         this.emit("user-init");
     }
 
-    private getAuthHeaders() {
+    public getAuthHeaders() {
         const headers: {[key: string]: string} = {};
 
         if (this.storedToken)

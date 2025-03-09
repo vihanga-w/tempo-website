@@ -18,6 +18,7 @@ import {
 } from '@chakra-ui/react';
 import React, { useEffect, useRef, useState } from "react";
 import { Capacitor } from "@capacitor/core";
+import { StatusBar, Style } from '@capacitor/status-bar';
 import { AndroidViewStyle, DefaultAndroidSystemBrowserOptions, DefaultSystemBrowserOptions, DefaultiOSSystemBrowserOptions, DismissStyle, InAppBrowser, iOSViewStyle } from '@capacitor/inappbrowser';
 import { Preferences } from '@capacitor/preferences';
 
@@ -44,6 +45,8 @@ export default function Home() {
   const [modalSBtn, setModalSBtn] = useState<{ text: string; callback: () => void } | undefined>();
 
   const { isOpen: isModalOpen, onOpen: onModalOpen, onClose: onModalClose } = useDisclosure();
+
+  StatusBar.setOverlaysWebView({ overlay: false });
 
   // Element references
   const debuggerConsole = useRef<HTMLTextAreaElement>(null);
