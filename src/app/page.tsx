@@ -46,6 +46,9 @@ export default function Home() {
 
   const { isOpen: isModalOpen, onOpen: onModalOpen, onClose: onModalClose } = useDisclosure();
 
+  StatusBar.setBackgroundColor({
+    color: "#0D0D0E",
+  });
   StatusBar.setOverlaysWebView({ overlay: false });
 
   // Element references
