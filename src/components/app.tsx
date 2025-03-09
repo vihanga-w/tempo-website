@@ -558,7 +558,7 @@ export function UIApp({
                                         <div ref={historyEndRef}>
                                             <Text marginTop="8px" width="100%" opacity="0.45" textAlign="center" onClick={() => {
                                                 incrementVisibleItems();
-                                            }}>Load more?</Text>
+                                            }}>{visibleHistoryCount < friendsListenershipData.length ? "Load more?" : "You've seen it all! 😉"}</Text>
                                         </div>
                                     </Stack>
                                 </Stack>
