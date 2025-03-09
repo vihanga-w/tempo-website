@@ -110,6 +110,8 @@ export default function RootLayout({
         width: "100%",
         userSelect: "none",
         WebkitTouchCallout: "none",
+        background: "#0D0D0E",
+        backgroundColor: "#0D0D0E",
       }}>
         <Analytics />
         <ColorModeScript initialColorMode={theme.initialColorMode} />
