@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Providers } from './providers';
 import { ColorModeScript } from "@chakra-ui/react";
-import { Analytics } from "@vercel/analytics/react"
+import { Analytics } from "@vercel/analytics/react";
 
 import { theme } from './theme';
 
@@ -55,6 +55,8 @@ export default function RootLayout({
         <meta property="og:site_name" content="Tempo." />
         <meta property="og:url" content="https://tempo-music.co" />
         <meta property="og:image" content="https://tempo-music.co/icons/ios/192.png" />
+
+        <meta name="viewport" content="viewport-fit=cover, width=device-width, initial-scale=1" />
 
         {/* Splash Screens */}
         <link rel="apple-touch-startup-image" media="screen and (device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)" href="splash_screens/iPhone_16_Pro_Max_landscape.png" />
@@ -112,6 +114,7 @@ export default function RootLayout({
         WebkitTouchCallout: "none",
         background: "#0D0D0E",
         backgroundColor: "#0D0D0E",
+        paddingTop: "var(--safe-area-inset-top)",
       }}>
         <Analytics />
         <ColorModeScript initialColorMode={theme.initialColorMode} />

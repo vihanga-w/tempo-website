@@ -10,6 +10,8 @@ import { DataStreamer, UpdateEvent } from "@/lib/live-ingest";
 import { Mutex } from "async-mutex";
 import { API_URL } from "@/lib/const";
 
+import { SplashScreen } from "@capacitor/splash-screen";
+
 const updateMutex = new Mutex();
 
 export function UIApp({
@@ -291,7 +293,7 @@ export function UIApp({
                 marginRight="0"
                 marginTop="-15px"
             >
-                <Box position="fixed" overflow="hidden" zIndex="9999">
+                <Box position="fixed" overflow="hidden" zIndex="9999" top="env(safe-area-inset-top)">
                     <HStack
                         gap="10px"
                         onClick={handlePageMenuClick}
@@ -305,7 +307,7 @@ export function UIApp({
                                 setTimeout(() => {
                                     setIsFading(true);
                                     setIsLoading(false);
-                                }, 1500);
+                                }, 1250);
                             }}
                         />
                         <Text
@@ -323,7 +325,7 @@ export function UIApp({
                 </Box>
                 <VStack
                     position="absolute"
-                    top="75px"
+                    top="env(safe-area-inset-top, 75px)"
                     alignItems="normal"
                     pointerEvents={pageSwitcherActive ? "all" : "none"}
                 >
@@ -377,6 +379,7 @@ export function UIApp({
                 zIndex="5"
                 overflow="hidden"
                 height="100%"
+                // paddingTop="env(safe-area-inset-top, 20px)"
             >
                 {/* Discover page */}
                 {currentPage == "discover" && (<>

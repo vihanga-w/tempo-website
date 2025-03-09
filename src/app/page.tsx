@@ -27,6 +27,8 @@ import { API_URL } from "@/lib/const";
 import { registerServiceWorker, removeSubscription, useSubscribe } from "@/lib/notify";
 import { randomBytes } from "crypto";
 import { Modal } from "@/components/modal";
+import { SafeArea, initialize } from "@capacitor-community/safe-area";
+import { SplashScreen } from "@capacitor/splash-screen";
 
 export default function Home() {
   // Application states
@@ -46,10 +48,11 @@ export default function Home() {
 
   const { isOpen: isModalOpen, onOpen: onModalOpen, onClose: onModalClose } = useDisclosure();
 
-  StatusBar.setBackgroundColor({
-    color: "#0D0D0E",
-  });
-  StatusBar.setOverlaysWebView({ overlay: false });
+  if (Capacitor.isNativePlatform()) {
+    StatusBar.setBackgroundColor({
+      color: "#0D0D0E",
+    });
+  }
 
   // Element references
   const debuggerConsole = useRef<HTMLTextAreaElement>(null);
@@ -79,7 +82,8 @@ export default function Home() {
   useEffect(() => {
     if (!window) return;
 
-    document.body.style.background = "var(--chakra-colors-bg-dark)";
+    // if (Capacitor.isNativePlatform())
+    //   StatusBar.setOverlaysWebView({ overlay: false });
 
     if (window.localStorage.getItem("tempo-initial-visit")) setHasPreviouslyBeenOpened(true);
     else window.localStorage.setItem("tempo-initial-visit", "false");
@@ -127,6 +131,17 @@ export default function Home() {
 
       setDebugInjected(true);
     }
+
+    initialize();
+    SafeArea.enable({
+      config: {
+        customColorsForSystemBars: true,
+        statusBarColor: '#0D0D0E',
+        statusBarContent: 'dark',
+        navigationBarColor: '#0D0D0E',
+        navigationBarContent: 'dark',
+      },
+    });
 
     // Check whether we are in a PWA standalone app
     if (window.navigator && !window.localStorage.getItem("tempo-override-pwa-detection") && !Capacitor.isNativePlatform()) setIsInMobileBrowser(!(("standalone" in window.navigator) && window.navigator.standalone));
@@ -257,6 +272,7 @@ export default function Home() {
     user.on("user-init", async () => {
       console.log("User object has been updated! User object:", user);
 
+      SplashScreen.hide();
       setPerfMsg(undefined);
 
       // TODO: Re-enable this when singup flow has been made
@@ -369,6 +385,7 @@ export default function Home() {
     pointerEvents: displayUI ? "all" : "none",
     overflowY: displayUI ? "auto" : "hidden",
     height: "100%",
+    paddingTop: "env(safe-area-inset-top, 20px)"
   }}>
     <Modal
         title={modalTitle}
@@ -380,7 +397,7 @@ export default function Home() {
     >
         {modalContent}
     </Modal>
-    <Box background={bgColour} height="100%" width="100%" overflow="auto">
+    <Box background="#0D0D0E" height="100%" width="100%" overflow="auto">
       {isInMobileBrowser ? (
         <>
           <Box

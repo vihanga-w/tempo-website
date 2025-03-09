@@ -1,3 +1,4 @@
+import { Capacitor } from "@capacitor/core";
 import { Box, Center, Image, Stack } from "@chakra-ui/react";
 
 export function Loader() {
@@ -14,7 +15,7 @@ export function Loader() {
                 100% {background-position:right}
             }`}
         </style>
-        <Box background="#0D0D0E">
+        <Box background="#0D0D0E" display={Capacitor.isNativePlatform() ? "none" : "block"}>
             <Center width="100vw" height="100vh">
                 <Image width="100px" src="/icons/ui/logo-clear.svg" />
             </Center>

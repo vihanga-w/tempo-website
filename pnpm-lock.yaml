@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@capacitor-community/safe-area':
+        specifier: 7.0.0-alpha.1
+        version: 7.0.0-alpha.1(@capacitor/core@7.0.1)
       '@capacitor/android':
         specifier: ^7.0.1
         version: 7.0.1(@capacitor/core@7.0.1)
@@ -24,6 +27,9 @@ importers:
         specifier: ^7.0.1
         version: 7.0.1(@capacitor/core@7.0.1)
       '@capacitor/preferences':
+        specifier: ^7.0.0
+        version: 7.0.0(@capacitor/core@7.0.1)
+      '@capacitor/splash-screen':
         specifier: ^7.0.0
         version: 7.0.0(@capacitor/core@7.0.1)
       '@capacitor/status-bar':
@@ -735,6 +741,11 @@ packages:
     resolution: {integrity: sha512-+j7a5c253RfKh8iABBhywc8NSfP5LURe7Uh4qpsh6jc+aLJguvmIUBdjSdEMQv2bENrCR5MfRdjGo7vzS/ob7w==}
     engines: {node: '>=6.9.0'}
 
+  '@capacitor-community/safe-area@7.0.0-alpha.1':
+    resolution: {integrity: sha512-N6ktkRiofqrt+N/vQzh4jcWY8IzJ4TVw1tKAPssvbddWFTyZzXzSdBeX/l/nracJF0PZqmLdA7JYTBfnOxXQYw==}
+    peerDependencies:
+      '@capacitor/core': '>=7.0.0'
+
   '@capacitor/android@7.0.1':
     resolution: {integrity: sha512-jukJJHfkcyEBOkFBJRD3EwXMIIQo7lSv0ExPWgsIliPdGXLAj6ElvK2JaYEzec3vKyLc4RTNFVv0PMEU0vnImg==}
     peerDependencies:
@@ -775,6 +786,11 @@ packages:
 
   '@capacitor/preferences@7.0.0':
     resolution: {integrity: sha512-crlTtTIWcdlLfQULJ9ZiCPpvpm51WoZ8CIVG3+XSJGyavjD4bscHP15U24ya5SjpYmI44bGY9lvhvcSCfB5+AA==}
+    peerDependencies:
+      '@capacitor/core': '>=7.0.0'
+
+  '@capacitor/splash-screen@7.0.0':
+    resolution: {integrity: sha512-y25WNRcl+MY/ltb3OZPZPpNmhVFW9270QneJY8tjY7FJc78zWEszj1cX84LJS4LeTHfHi4NcNW4y0/oewWG88A==}
     peerDependencies:
       '@capacitor/core': '>=7.0.0'
 
@@ -5152,6 +5168,10 @@ snapshots:
       '@babel/helper-validator-identifier': 7.22.20
       to-fast-properties: 2.0.0
 
+  '@capacitor-community/safe-area@7.0.0-alpha.1(@capacitor/core@7.0.1)':
+    dependencies:
+      '@capacitor/core': 7.0.1
+
   '@capacitor/android@7.0.1(@capacitor/core@7.0.1)':
     dependencies:
       '@capacitor/core': 7.0.1
@@ -5240,6 +5260,10 @@ snapshots:
       '@capacitor/core': 7.0.1
 
   '@capacitor/preferences@7.0.0(@capacitor/core@7.0.1)':
+    dependencies:
+      '@capacitor/core': 7.0.1
+
+  '@capacitor/splash-screen@7.0.0(@capacitor/core@7.0.1)':
     dependencies:
       '@capacitor/core': 7.0.1
 
