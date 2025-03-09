@@ -487,9 +487,7 @@ export function UIApp({
 
                     {/* Activity page */}
                     {currentPage == "activity" && (
-                        <div onScroll={e => {
-                            console.log(e)
-                        }}>
+                        <>
                             {activityPageLoading ? (
                                 <Center pos="absolute" width="100vw" height="100vh" top="0" left="0">
                                     <Spinner size="lg" />
@@ -563,7 +561,7 @@ export function UIApp({
                                     </Stack>
                                 </Stack>
                             )}
-                        </div>
+                        </>
                     )}
 
                     {/* Friends page */}
