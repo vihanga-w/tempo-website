@@ -201,12 +201,13 @@ export function PlaybackHistoryItem({
                     <Text maxWidth="180px" textOverflow="ellipsis" whiteSpace="nowrap" overflow="hidden">{data.item.track.artists.map(v => {
                         return v.name
                     }).join(", ")}</Text>
-                    {/* {data?.state && (
-                        <HStack justifyContent="space-between" marginTop="16px">
-                            <Text>{progress < 1 && data ? formatTime(data.state.duration * progress) : formatTime(data?.state.duration ?? 0)}</Text>
-                            <Text>{progress < 1 && data ? formatTime(data.state.duration) : formatTime(data?.state.duration ?? 0)}</Text>
-                        </HStack>
-                    )} */}
+                    <Box marginTop="16px">
+                        {data.item.replayed ? (
+                            <Text>Replayed</Text>
+                        ) : (
+                            <Text>Listened for {formatTime(data.item.track.duration * data.item.sessionDuration)}</Text>
+                        )}
+                    </Box>
                 </Stack>
             </HStack>
             {/* <Box
