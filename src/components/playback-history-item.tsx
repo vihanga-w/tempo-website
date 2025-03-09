@@ -166,7 +166,7 @@ export function PlaybackHistoryItem({
                                 </Text>
                             ) : (
                                 <Text>
-                                    {new Date(data.timestamp).toLocaleDateString()} at {timestampToParsedTime(data.timestamp)}
+                                    {new Date(data.timestamp).toLocaleDateString("en-GB")} at {timestampToParsedTime(data.timestamp)}
                                 </Text>
                             )}
                         </Text>
