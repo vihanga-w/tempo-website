@@ -39,6 +39,15 @@ function getSpotifyDeeplink(trackId: string) {
     return `spotify://track/${trackId}`;
 }
 
+function timestampToParsedTime(timestamp: number) {
+    const d = new Date(timestamp).toLocaleTimeString().slice(0, 5);
+
+    if (d.endsWith(":"))
+        return `0${d.slice(0, 4)}`;
+    else
+        return d;
+}
+
 export function PlaybackHistoryItem({
     data,
 }: {
@@ -153,11 +162,11 @@ export function PlaybackHistoryItem({
                                 <ReactTimeAgo date={data.timestamp} locale="en-GB" />
                             ) : new Date().getTime() - data.timestamp <= 3600e3 * 24 ? (
                                 <Text>
-                                    At {new Date(data.timestamp).toLocaleTimeString().slice(0, 5)}
+                                    At {timestampToParsedTime(data.timestamp)}
                                 </Text>
                             ) : (
                                 <Text>
-                                    {new Date(data.timestamp).toLocaleDateString()} at {new Date(data.timestamp).toLocaleTimeString().slice(0, 5)}
+                                    {new Date(data.timestamp).toLocaleDateString()} at {timestampToParsedTime(data.timestamp)}
                                 </Text>
                             )}
                         </Text>
