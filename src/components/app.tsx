@@ -6,12 +6,11 @@ import {
     Box,
     HStack,
     VStack,
-    useDisclosure,
     Stack,
     Center,
     Spinner
 } from "@chakra-ui/react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, UIEvent } from "react";
 import React from "react";
 import { SmallAddButton } from "./small-add-btn";
 import { Loader } from "./loader";
@@ -22,6 +21,11 @@ import { API_URL } from "@/lib/const";
 import { PlaybackHistoryItem } from "./playback-history-item";
 
 const updateMutex = new Mutex();
+
+// Estimated height of one history item (adjust as needed)
+const ITEM_HEIGHT = 80;
+// Buffer items rendered above and below the visible area
+const BUFFER = 5;
 
 export function UIApp({
     prouter,
@@ -48,129 +52,73 @@ export function UIApp({
         likeness: number;
     }[]>([]);
     const [friendsListenershipData, setFriendsListenershipData] = useState<FriendListenershipItem[]>([]);
+    // Virtualization: visible range (start and end indices)
+    const [visibleRange, setVisibleRange] = useState<{ start: number; end: number }>({ start: 0, end: 20 });
 
-    // Lazy loading: how many history items to show at first
-    const ITEMS_PER_BATCH = 20;
-    const [visibleHistoryCount, setVisibleHistoryCount] = useState<number>(ITEMS_PER_BATCH);
-    const historyEndRef = useRef<HTMLDivElement | null>(null);
-    const historyStartRef = useRef<HTMLDivElement | null>(null);
-    // New ref for the scrollable container
     const historyContainerRef = useRef<HTMLDivElement | null>(null);
 
     const updateFriendsListenershipHistory = async () => {
         const d = await user.getFriendsListenershipHistory();
         setFriendsListenershipData(d);
+        // Reset visible range when new data arrives
+        setVisibleRange({ start: 0, end: Math.min(20, d.length) });
     };
 
     useEffect(() => {
-        // When friendsListenershipData is refreshed, reset the visible count
-        setVisibleHistoryCount(ITEMS_PER_BATCH);
-    }, [friendsListenershipData]);
-
-    // Bottom sentinel observer to load more items as the sentinel comes into view
-    useEffect(() => {
-        if (!historyContainerRef.current || !historyEndRef.current) return;
-    
-        const bottomObserver = new IntersectionObserver(
-            (entries) => {
-                if (entries[0].isIntersecting) {
-                    setVisibleHistoryCount((prevCount) =>
-                        Math.min(prevCount + ITEMS_PER_BATCH, friendsListenershipData.length)
-                    );
-                }
-            },
-            {
-                root: historyContainerRef.current,
-                threshold: 0.1,
-            }
-        );
-    
-        bottomObserver.observe(historyEndRef.current);
-    
-        return () => {
-            if (historyEndRef.current) {
-                bottomObserver.unobserve(historyEndRef.current);
-            }
-        };
-    }, [friendsListenershipData]);
-
-    // Top sentinel observer to unload items when user scrolls back up
-    useEffect(() => {
-        if (!historyContainerRef.current || !historyStartRef.current) return;
-    
-        const topObserver = new IntersectionObserver(
-            (entries) => {
-                if (entries[0].isIntersecting) {
-                    setVisibleHistoryCount((prevCount) =>
-                        Math.max(ITEMS_PER_BATCH, prevCount - ITEMS_PER_BATCH)
-                    );
-                }
-            },
-            {
-                root: historyContainerRef.current,
-                threshold: 0.1,
-            }
-        );
-    
-        topObserver.observe(historyStartRef.current);
-    
-        return () => {
-            if (historyStartRef.current) {
-                topObserver.unobserve(historyStartRef.current);
-            }
-        };
-    }, [friendsListenershipData]);
-
-    useEffect(() => {
-        // Extra actions to perform when page switched
+        // When switching to the Activity page, fetch fresh history data
         if (currentPage == "activity") {
-            // Refresh friends listenership history data
             updateFriendsListenershipHistory();
         }
     }, [currentPage]);
 
+    // Virtualized onScroll handler for the history list container
+    const handleScroll = (e: UIEvent<HTMLDivElement>) => {
+        const container = e.currentTarget;
+        const scrollTop = container.scrollTop;
+        const containerHeight = container.clientHeight;
+        const newStart = Math.max(0, Math.floor(scrollTop / ITEM_HEIGHT) - BUFFER);
+        const visibleCount = Math.ceil(containerHeight / ITEM_HEIGHT) + 2 * BUFFER;
+        const newEnd = Math.min(friendsListenershipData.length, newStart + visibleCount);
+        setVisibleRange({ start: newStart, end: newEnd });
+    };
+
     useEffect(() => {
         if (!user.isLoggedIn) return;
-    
+
         const newStreamer = new DataStreamer(user.storedToken);
         setStreamer(newStreamer);
-    
+
         newStreamer.on("update", (data: UpdateEvent) => {
             setActivityPageLoading(false);
-    
             updateMutex.runExclusive(() => {
                 setLivePlaybackStates((v) => {
                     const existing = v.find((a) => a.userId === data.userId);
                     if (existing && data.data.action.type == "STOPPED") {
                         return v.filter((a) => a.userId !== data.userId);
                     } else if (!existing && data.data.action.type !== "STOPPED") {
-                        return [...v, data].sort((a, b) => {
-                            return (a.data.state?.username ?? "").localeCompare(
-                                b.data.state?.username ?? ""
-                            );
-                        });
+                        return [...v, data].sort((a, b) =>
+                            (a.data.state?.username ?? "").localeCompare(b.data.state?.username ?? "")
+                        );
                     }
                     return v;
                 });
             });
         });
-    
+
         newStreamer.on("remove", (userId) => {
             updateMutex.runExclusive(() => {
-                setLivePlaybackStates((v) => {
-                    return v.filter((a) => a.userId !== userId);
-                });
+                setLivePlaybackStates((v) => v.filter((a) => a.userId !== userId));
             });
         });
-    
+
         newStreamer.on("close", () => {
-            // Connection lost, display loading screen and trust the connection strategy will reconnect
+            // Connection lost, display loading screen until reconnect
             setActivityPageLoading(true);
         });
-    
+
         newStreamer.init();
-    
-        // Fetch user discovery page data
+
+        // Fetch discovery data
         fetch(API_URL + "/me/taste", {
             headers: {
                 ...user.getAuthHeaders(),
@@ -190,22 +138,22 @@ export function UIApp({
                         likeness: number;
                     }[];
                 } = r;
-    
+
                 if (data.error) {
                     console.warn("Failed to fetch discovery data due to error response:", data);
                     return;
                 }
-    
+
                 console.log("Got discovery data:", data.data);
                 setDiscoveryData(data.data);
             })
             .catch((ex) => {
                 console.warn("Failed to fetch user discovery data due to request error:", ex);
             });
-    
+
         // Fetch friends listenership history
         updateFriendsListenershipHistory();
-    
+
         return () => {
             newStreamer.cleanup();
         };
@@ -220,7 +168,7 @@ export function UIApp({
             }
             updateFriendsListenershipHistory();
         };
-    
+
         window.addEventListener("focus", handleFocus);
         return () => {
             window.removeEventListener("focus", handleFocus);
@@ -236,32 +184,15 @@ export function UIApp({
     }, [livePlaybackStates, streamer, streamerReset]);
 
     const pages: { name: string; id: string; indexed: boolean }[] = [
-        {
-            name: "Discover",
-            id: "discover",
-            indexed: true,
-        },
-        {
-            name: "Activity",
-            id: "activity",
-            indexed: true,
-        },
-        {
-            name: "Friends",
-            id: "friends",
-            indexed: true,
-        },
-        {
-            name: "Profile",
-            id: "settings",
-            indexed: true,
-        },
+        { name: "Discover", id: "discover", indexed: true },
+        { name: "Activity", id: "activity", indexed: true },
+        { name: "Friends", id: "friends", indexed: true },
+        { name: "Profile", id: "settings", indexed: true },
     ];
 
     const pageChanger = (id: string, prevPage?: string) => {
         let exists = false;
         let title = "";
-    
         for (const page of pages) {
             if (page.id == id) {
                 exists = true;
@@ -269,14 +200,12 @@ export function UIApp({
                 break;
             }
         }
-    
         if (!exists)
             throw new Error(
                 "Attempted to switch to page with id \"" +
                     id +
                     "\", but a page cannot be found with that id!"
             );
-    
         setCurrentPage(id);
         setCurrentPageTitle(title);
         setPrevPage(prevPage ?? "");
@@ -311,7 +240,7 @@ export function UIApp({
                 <Loader />
             </Box>
 
-            {/* The main user interface */}
+            {/* Main UI */}
             <Box padding="20px" width="100%">
                 <Image
                     src="/menu-bg.png"
@@ -325,9 +254,7 @@ export function UIApp({
                     transition=".3s"
                     userSelect="none"
                     opacity={pageSwitcherActive ? "1" : "0"}
-                    style={{
-                        WebkitTouchCallout: "none",
-                    }}
+                    style={{ WebkitTouchCallout: "none" }}
                     backdropFilter="blur(2px)"
                     draggable={false}
                     pointerEvents="none"
@@ -409,42 +336,35 @@ export function UIApp({
                         pointerEvents={pageSwitcherActive ? "all" : "none"}
                     >
                         {pages
-                            .filter((v) => {
-                                return v.indexed;
-                            })
-                            .map((v, i) => {
-                                if (!v.indexed) return;
-                                return (
-                                    <React.Fragment key={v.id}>
-                                        <Text
-                                            float="left"
-                                            fontFamily="Inter"
-                                            fontWeight={currentPage == v.id ? "bold" : "medium"}
-                                            fontSize="36px"
-                                            color="text.color"
-                                            zIndex="10"
-                                            transition="margin .25s ease-out, opacity .2s"
-                                            whiteSpace="nowrap"
-                                            marginLeft={pageSwitcherActive ? "0" : "-75px"}
-                                            opacity={pageSwitcherActive ? (currentPage == v.id ? "1" : "0.75") : "0"}
-                                            transitionDelay={
-                                                pageSwitcherActive ? 0 + (i + 1) / 12 + "s" : "0"
-                                            }
-                                            onClick={
-                                                currentPage == v.id
-                                                    ? handlePageMenuClick
-                                                    : () => {
-                                                          pageChanger(v.id);
-                                                          handlePageMenuClick();
-                                                      }
-                                            }
-                                            userSelect="none"
-                                        >
-                                            {v.name}
-                                        </Text>
-                                    </React.Fragment>
-                                );
-                            })}
+                            .filter((v) => v.indexed)
+                            .map((v, i) => (
+                                <React.Fragment key={v.id}>
+                                    <Text
+                                        float="left"
+                                        fontFamily="Inter"
+                                        fontWeight={currentPage == v.id ? "bold" : "medium"}
+                                        fontSize="36px"
+                                        color="text.color"
+                                        zIndex="10"
+                                        transition="margin .25s ease-out, opacity .2s"
+                                        whiteSpace="nowrap"
+                                        marginLeft={pageSwitcherActive ? "0" : "-75px"}
+                                        opacity={pageSwitcherActive ? (currentPage == v.id ? "1" : "0.75") : "0"}
+                                        transitionDelay={pageSwitcherActive ? 0 + (i + 1) / 12 + "s" : "0"}
+                                        onClick={
+                                            currentPage == v.id
+                                                ? handlePageMenuClick
+                                                : () => {
+                                                      pageChanger(v.id);
+                                                      handlePageMenuClick();
+                                                  }
+                                        }
+                                        userSelect="none"
+                                    >
+                                        {v.name}
+                                    </Text>
+                                </React.Fragment>
+                            ))}
                     </VStack>
                     <SmallAddButton
                         onClick={() => {
@@ -472,18 +392,17 @@ export function UIApp({
                     {/* Discover page */}
                     {currentPage == "discover" && (
                         <>
-                            {discoveryData.length == 0 ? (
+                            {discoveryData.length === 0 ? (
                                 <Text
                                     position="absolute"
                                     top="0"
                                     left="0"
+                                    display="flex"
                                     justifyContent="center"
                                     alignItems="center"
-                                    display="flex"
                                     height="calc(100vh - 72px)"
                                     width="100vw"
                                     color="text.dark"
-                                    margin="auto"
                                     textAlign="center"
                                     fontFamily="Inter"
                                     fontSize="16px"
@@ -496,16 +415,13 @@ export function UIApp({
                                 </Text>
                             ) : (
                                 <Stack gap="10px">
-                                    {discoveryData.map((v) => {
-                                        return (
-                                            <Box key={v.title + v.likeness}>
-                                                <Text>
-                                                    {v.title} ({v.artists.join(", ")}) -{" "}
-                                                    {Math.ceil(v.likeness * 100)}%
-                                                </Text>
-                                            </Box>
-                                        );
-                                    })}
+                                    {discoveryData.map((v) => (
+                                        <Box key={v.title + v.likeness}>
+                                            <Text>
+                                                {v.title} ({v.artists.join(", ")}) - {Math.ceil(v.likeness * 100)}%
+                                            </Text>
+                                        </Box>
+                                    ))}
                                 </Stack>
                             )}
                         </>
@@ -519,8 +435,15 @@ export function UIApp({
                                     <Spinner size="lg" />
                                 </Center>
                             ) : (
-                                <Stack gap="28px" overflowY="auto" paddingBottom="18px" width="100%" ref={historyContainerRef}>
-                                    <Stack gap="18px" overflowY="auto" width="100%">
+                                <Stack
+                                    gap="28px"
+                                    overflowY="auto"
+                                    paddingBottom="18px"
+                                    width="100%"
+                                    ref={historyContainerRef}
+                                    onScroll={handleScroll}
+                                >
+                                    <Stack gap="18px" width="100%">
                                         <Text
                                             fontFamily="arial, helvetica"
                                             fontWeight="bold"
@@ -531,7 +454,14 @@ export function UIApp({
                                         {livePlaybackStates.map((v, i) => {
                                             const data = v.data;
                                             return (
-                                                <React.Fragment key={"ps-" + v.userId + data.state?.songId + (data.state?.artists ? "AA" : "ANA")}>
+                                                <React.Fragment
+                                                    key={
+                                                        "ps-" +
+                                                        v.userId +
+                                                        data.state?.songId +
+                                                        (data.state?.artists ? "AA" : "ANA")
+                                                    }
+                                                >
                                                     {i !== 0 && (
                                                         <Box
                                                             width="100%"
@@ -548,7 +478,7 @@ export function UIApp({
                                             );
                                         })}
                                     </Stack>
-                                    <Stack gap="12px" overflowY="auto" width="100%">
+                                    <Stack gap="12px" width="100%">
                                         <Text
                                             fontFamily="arial, helvetica"
                                             fontWeight="bold"
@@ -556,26 +486,20 @@ export function UIApp({
                                         >
                                             History
                                         </Text>
-                                        {/* Top sentinel for unloading items when scrolling up */}
-                                        <div ref={historyStartRef} />
                                         {friendsListenershipData
-                                            .slice(0, visibleHistoryCount)
-                                            .map((v, i) => {
-                                                return (
-                                                    <React.Fragment key={i}>
-                                                        {i !== 0 && (
-                                                            <Box
-                                                                width="100%"
-                                                                height="1px"
-                                                                background="rgba(255, 255, 255, 0.2)"
-                                                            />
-                                                        )}
-                                                        <PlaybackHistoryItem data={v} />
-                                                    </React.Fragment>
-                                                );
-                                            })}
-                                        {/* Bottom sentinel for lazy loading */}
-                                        <div ref={historyEndRef} />
+                                            .slice(visibleRange.start, visibleRange.end)
+                                            .map((v, i) => (
+                                                <React.Fragment key={i}>
+                                                    {i !== 0 && (
+                                                        <Box
+                                                            width="100%"
+                                                            height="1px"
+                                                            background="rgba(255, 255, 255, 0.2)"
+                                                        />
+                                                    )}
+                                                    <PlaybackHistoryItem data={v} />
+                                                </React.Fragment>
+                                            ))}
                                     </Stack>
                                 </Stack>
                             )}
@@ -596,13 +520,12 @@ export function UIApp({
                                 position="absolute"
                                 top="0"
                                 left="0"
+                                display="flex"
                                 justifyContent="center"
                                 alignItems="center"
-                                display="flex"
                                 height="calc(100vh - 72px)"
                                 width="100vw"
                                 color="text.dark"
-                                margin="auto"
                                 textAlign="center"
                                 fontFamily="Inter"
                                 fontSize="16px"
