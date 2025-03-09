@@ -57,6 +57,7 @@ export default class User extends EventEmitter {
     public id: string = "";
     public email: string = "";
     public object: ClientUserAccount | undefined;
+    private storedToken?: string;
 
     constructor() {
         super();
@@ -67,7 +68,9 @@ export default class User extends EventEmitter {
             document.cookie = "tempo.a=" + storedToken;
     }
 
-    async init(): Promise<void> {
+    async init(storedToken?: string): Promise<void> {
+        this.storedToken = storedToken;
+
         let perfMsg = await this.getPerfMessage();
 
         while (perfMsg) {
@@ -82,10 +85,22 @@ export default class User extends EventEmitter {
         this.emit("user-init");
     }
 
+    private getAuthHeaders() {
+        const headers: {[key: string]: string} = {};
+
+        if (this.storedToken)
+            headers["x-api-token"] = this.storedToken;
+        
+        return headers;
+    }
+
     public async getPerfMessage() {
         try {
-            console.log(API_URL + "/perf")
-            const req = await fetch(API_URL + "/perf");
+            const req = await fetch(API_URL + "/perf", {
+                headers: {
+                    ...(this.getAuthHeaders())
+                }
+            });
             const res = await req.json() as {
                 active: boolean;
                 message: string;
@@ -127,6 +142,9 @@ export default class User extends EventEmitter {
     async getDetails(): Promise<undefined | ClientUserAccount> {
         try {
             const req = await fetch(API_URL + "/me", {
+                headers: {
+                    ...(this.getAuthHeaders())
+                },
                 credentials: "include"
             });
             const res = await req.json() as {

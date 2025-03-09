@@ -18,7 +18,8 @@ import {
 } from '@chakra-ui/react';
 import React, { useEffect, useRef, useState } from "react";
 import { Capacitor } from "@capacitor/core";
-import { AndroidViewStyle, DefaultAndroidSystemBrowserOptions, DefaultSystemBrowserOptions, DefaultWebViewOptions, DefaultiOSSystemBrowserOptions, DismissStyle, InAppBrowser, iOSViewStyle } from '@capacitor/inappbrowser';
+import { AndroidViewStyle, DefaultAndroidSystemBrowserOptions, DefaultSystemBrowserOptions, DefaultiOSSystemBrowserOptions, DismissStyle, InAppBrowser, iOSViewStyle } from '@capacitor/inappbrowser';
+import { Preferences } from '@capacitor/preferences';
 
 import User from "@/lib/usrlib";
 import { API_URL } from "@/lib/const";
@@ -266,7 +267,7 @@ export default function Home() {
             return;
           }
 
-          const getSwappedToken = async () => {
+          const loadSwappedToken = async () => {
             const req = await fetch(API_URL + "/swapToken/" + seshRes.token);
             const res = await req.text() as ("INIT" | "ERR" | string);
 
@@ -276,12 +277,19 @@ export default function Home() {
               console.warn("Failed to swap auth token as server returned an error state");
             } else {
               console.log("Got swapped token:", res);
+
+              await Preferences.set({
+                key: "tempo.s.a",
+                value: res,
+              });
             }
           }
 
           InAppBrowser.addListener("browserClosed", async () => {
-            await getSwappedToken();
-            alert("bc");
+            await loadSwappedToken();
+
+            // Reinitialise the user object
+            prepare();
           });
 
           InAppBrowser.openInSystemBrowser({
@@ -308,11 +316,28 @@ export default function Home() {
       }
     });
 
-    // Wait for the user handler to finish initialising
-    user.init()
-    .then(() => {
-      console.log("User handler has been initialised!");
-    });
+    const prepare = async () => {
+      let storedToken = undefined;
+    
+      if (Capacitor.isNativePlatform()) {
+        try {
+          const tok = await Preferences.get({
+            key: "tempo.s.a",
+          });
+
+          if (tok)
+            storedToken = tok.value ?? undefined;
+        } catch { /* no-op */ }
+      }
+
+      // Wait for the user handler to finish initialising
+      user.init(storedToken)
+      .then(() => {
+        console.log("User handler has been initialised!");
+      });
+    }
+
+    prepare();
   }, [isInMobileBrowser]);
 
   function triggerInstallPWA() {

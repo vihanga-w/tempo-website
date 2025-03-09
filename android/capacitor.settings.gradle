@@ -7,3 +7,6 @@ project(':capacitor-browser').projectDir = new File('../node_modules/.pnpm/@capa
 
 include ':capacitor-inappbrowser'
 project(':capacitor-inappbrowser').projectDir = new File('../node_modules/@capacitor/inappbrowser/android')
+
+include ':capacitor-secure-storage-plugin'
+project(':capacitor-secure-storage-plugin').projectDir = new File('../node_modules/.pnpm/capacitor-secure-storage-plugin@0.11.0_@capacitor+core@7.0.1/node_modules/capacitor-secure-storage-plugin/android')

@@ -68,12 +68,14 @@ export class DataStreamer extends EventEmitter {
     private interval?: NodeJS.Timeout;
     private cache: {[key: string]: UpdateEvent};
     private sockCallbacks: {[key: string]: (data: {[key: string]: any}) => void}
+    private storedToken?: string;
 
-    constructor() {
+    constructor(storedToken?: string) {
         super();
         
         this.cache = {};
         this.sockCallbacks = {};
+        this.storedToken = storedToken;
     }
 
     isReady() {
@@ -144,10 +146,12 @@ export class DataStreamer extends EventEmitter {
                         this.emit("remove", userId);
                 }
 
-                this.sock = new WebSocket(API_URL_SOCK + "/stream/sessions");
+                let sessionReadyCb: (() => void) | undefined;
+
+                this.sock = new WebSocket(API_URL_SOCK + "/stream/sessions" + (this.storedToken ? "/lazy" : ""));
 
                 this.interval = setInterval(async () => {
-                    if (!this.sock || !this.sock.OPEN)
+                    if (sessionReadyCb || !this.sock || !this.sock.OPEN)
                         return;
 
                     const newSessions = await this.fetchPublicStreams();
@@ -178,6 +182,17 @@ export class DataStreamer extends EventEmitter {
 
                 this.sock.onmessage = (m) => {
                     try {
+                        if (sessionReadyCb) {
+                            const data = JSON.parse(m.data) as {
+                                error: boolean;
+                                message: string;
+                                flag?: string;
+                            }
+
+                            if (data.flag == "TOK_ACCEPT")
+                                sessionReadyCb();
+                        }
+
                         const data = JSON.parse(m.data) as StateUpdateEvent;
 
                         if (data.id && this.sockCallbacks[data.id]) {
@@ -283,8 +298,20 @@ export class DataStreamer extends EventEmitter {
                 }
 
                 this.sock.onopen = () => {
-                    if (this.sock)
-                        this.sock.send(JSON.stringify(sessions));
+                    sessionReadyCb = () => {
+                        if (this.sock && this.sock.OPEN) {
+                            this.sock.send(JSON.stringify(sessions));
+                            sessionReadyCb = undefined;
+                        }
+                    }
+                    
+                    if (this.storedToken) {
+                        this.sock?.send(JSON.stringify({
+                            overrideToken: this.storedToken,
+                        }));
+                    } else {
+                        sessionReadyCb();
+                    }
                 }
             } catch (ex) {
                 console.error("Failed to initialise DataStreamer, error:", ex);
