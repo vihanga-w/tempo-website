@@ -26,7 +26,7 @@ export function PlaybackHistoryItem({
   data: FriendListenershipItem;
 }) {
   return (
-    <Stack gap="5px">
+    <Stack gap="5px" marginTop="-3px">
       {/* Header with username and timestamp */}
       <HStack gap="5px" justifyContent="space-between">
         <Text fontSize="16px" fontWeight="bold" noOfLines={1}>
