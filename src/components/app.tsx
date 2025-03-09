@@ -439,7 +439,7 @@ export function UIApp({
                     >
                         <Spinner size="lg" />
                     </Center>) : (
-                        <Stack gap="24px" overflowY="auto" paddingBottom="18px" width="100%">
+                        <Stack gap="28px" overflowY="auto" paddingBottom="18px" width="100%">
                             <Stack gap="18px" overflowY="auto" width="100%">
                                 <Text fontFamily="arial, helvetica" fontWeight="bold" fontSize="24px">Latest</Text>
                                 {livePlaybackStates.map((v, i) => {
