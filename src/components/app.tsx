@@ -284,6 +284,7 @@ export function UIApp({
                 background="linear-gradient(180deg, rgb(13,13,14) 10%, rgba(13,13,14,0) 100%)"
                 zIndex="999"
                 pointerEvents="none"
+                marginTop="env(safe-area-inset-top)"
             />
 
             <HStack
