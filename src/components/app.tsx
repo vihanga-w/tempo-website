@@ -556,9 +556,9 @@ export function UIApp({
                                             })}
                                         {/* Sentinel element for lazy loading */}
                                         <div ref={historyEndRef}>
-                                            <Text marginBottom="4px" width="100%" opacity="0.45" textAlign="center" onClick={() => {
+                                            <Text marginTop="8px" width="100%" opacity="0.45" textAlign="center" onClick={() => {
                                                 incrementVisibleItems();
-                                            }}>Load more</Text>
+                                            }}>Load more?</Text>
                                         </div>
                                     </Stack>
                                 </Stack>
