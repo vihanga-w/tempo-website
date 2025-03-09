@@ -169,7 +169,7 @@ export default class User extends EventEmitter {
     }
 
     public async getFriendsListenershipHistory() {
-        const req = await fetch(API_URL + "/perf", {
+        const req = await fetch(API_URL + "/me/feed/history", {
             headers: {
                 ...(this.getAuthHeaders())
             }
