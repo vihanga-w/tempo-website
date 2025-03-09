@@ -70,6 +70,7 @@ export function UIApp({
 
         const observer = new IntersectionObserver(
             (entries) => {
+                console.log(entries, entries[0].isIntersecting)
                 if (entries[0].isIntersecting) {
                     setVisibleHistoryCount((prevCount) =>
                         Math.min(prevCount + ITEMS_PER_BATCH, friendsListenershipData.length)
