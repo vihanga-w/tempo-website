@@ -1,3 +1,5 @@
+workspace 'App.xcworkspace'
+
 require_relative '../../node_modules/.pnpm/@capacitor+ios@7.0.1_@capacitor+core@7.0.1/node_modules/@capacitor/ios/scripts/pods_helpers'
 
 platform :ios, '14.0'
@@ -11,4 +13,17 @@ install! 'cocoapods', :disable_input_output_paths => true
 def capacitor_pods
   pod 'Capacitor', :path => '../../node_modules/.pnpm/@capacitor+ios@7.0.1_@capacitor+core@7.0.1/node_modules/@capacitor/ios'
   pod 'CapacitorCordova', :path => '../../node_modules/.pnpm/@capacitor+ios@7.0.1_@capacitor+core@7.0.1/node_modules/@capacitor/ios'
-  pod 'CapacitorBrowser', :path => '../../node_modules/.pnpm/@capacitor+browser@7.0.0_@capacitor+core@7.0.1/node_modules/@capacitor/bro
+  pod 'CapacitorBrowser', :path => '../../node_modules/.pnpm/@capacitor+browser@7.0.0_@capacitor+core@7.0.1/node_modules/@capacitor/browser'
+  pod 'CapacitorInappbrowser', :path => '../../node_modules/.pnpm/@capacitor+inappbrowser@2.0.0_@capacitor+core@7.0.1/node_modules/@capacitor/inappbrowser'
+  pod 'CapacitorPreferences', :path => '../../node_modules/.pnpm/@capacitor+preferences@7.0.0_@capacitor+core@7.0.1/node_modules/@capacitor/preferences'
+  pod 'CordovaPlugins', :path => '../capacitor-cordova-ios-plugins'
+end
+
+target 'App' do
+  capacitor_pods
+  # Add your Pods here
+end
+
+post_install do |installer|
+  assertDeploymentTarget(installer)
+end
