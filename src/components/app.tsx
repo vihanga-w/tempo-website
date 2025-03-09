@@ -459,7 +459,7 @@ export function UIApp({
                                     </>);
                                 })}
                             </Stack>
-                            <Stack gap="18px" overflowY="auto" width="100%">
+                            <Stack gap="12px" overflowY="auto" width="100%">
                                 <Text fontFamily="arial, helvetica" fontWeight="bold" fontSize="24px">History</Text>
                                 {friendsListenershipData.map((v, i) => {
                                     // const key = v.userId + v.data.state?.songId + v.data.interpolatedProgress;
