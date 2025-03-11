@@ -290,7 +290,7 @@ export function UIApp({
                 <Image
                     src="/menu-bg.png"
                     position="absolute"
-                    zIndex="9"
+                    zIndex="99999999999"
                     width={pageSwitcherActive ? "100%" : "75%"}
                     height={pageSwitcherActive ? "100%" : "75%"}
                     top={pageSwitcherActive ? "0px" : "-15px"}
@@ -430,7 +430,7 @@ export function UIApp({
                         scale={prevPage || !addNewItemPossiblePages.includes(currentPage) ? 0.65 : 1}
                         opacity={prevPage || !addNewItemPossiblePages.includes(currentPage) ? "0" : "1"}
                         active={prevPage == "" || !addNewItemPossiblePages.includes(currentPage)}
-                        zIndex="9999999999"
+                        zIndex="9999999"
                     />
                 </HStack>
 
@@ -575,7 +575,7 @@ export function UIApp({
                                 right="46px"
                                 top="48px"
                                 marginTop="env(safe-area-inset-top)"
-                                zIndex="999999999"
+                                zIndex="9999999"
                             />
                             <Text
                                 position="absolute"
