@@ -338,7 +338,7 @@ export default function Home() {
           }
 
           swapTokenSock.onerror = e => {
-            console.error(e);
+            console.error("Token swap socket error:", e.toString());
           }
 
           let checker: NodeJS.Timeout | undefined;
