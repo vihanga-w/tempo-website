@@ -574,6 +574,7 @@ export function UIApp({
                                 position="absolute"
                                 right="46px"
                                 top="48px"
+                                marginTop="env(safe-area-inset-top)"
                                 zIndex="999999999"
                             />
                             <Text
