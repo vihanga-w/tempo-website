@@ -147,7 +147,7 @@ export function PlaybackState({
             <Stack gap="8px">
                 <HStack justifyContent="space-between">
                     <HStack>
-                        {(data.state.pfpUrl !== "" && !pfpLoadFailed) ? (
+                        {(data?.state?.pfpUrl !== "" && !pfpLoadFailed) ? (
                             <Image
                                 width="36px"
                                 height="36px"
