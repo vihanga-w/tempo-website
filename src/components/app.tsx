@@ -272,7 +272,7 @@ export function UIApp({
                 width="100%"
                 height="100%"
                 background="white"
-                zIndex="999999999999s"
+                zIndex="999999999999"
                 display={isLoading || isFading ? "flex" : "none"}
                 alignItems="center"
                 justifyContent="center"
