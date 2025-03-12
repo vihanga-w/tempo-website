@@ -20,6 +20,7 @@ import { DataStreamer, UpdateEvent } from "@/lib/live-ingest";
 import { Mutex } from "async-mutex";
 import { API_URL } from "@/lib/const";
 import { PlaybackHistoryItem } from "./playback-history-item";
+import { AddFriendsPage } from "./add-friends-page";
 
 const updateMutex = new Mutex();
 
@@ -230,6 +231,11 @@ export function UIApp({
             id: "settings",
             indexed: true,
         },
+        {
+            name: "Add Friends",
+            id: "add-friends",
+            indexed: false,
+        }
     ];
 
     const pageChanger = (id: string, prevPage?: string) => {
@@ -600,6 +606,13 @@ export function UIApp({
                             </Text>
                         </>
                     )}
+
+                    {/* Add friends page */}
+                    {currentPage == "add-friends" && (<>
+                        <AddFriendsPage onComplete={id => {
+                            console.log("Added new friend:", id);
+                        }} />
+                    </>)}
 
                     {/* Settings page */}
                     {currentPage == "settings" && (
