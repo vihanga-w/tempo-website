@@ -290,7 +290,7 @@ export function UIApp({
                 <Image
                     src="/menu-bg.png"
                     position="absolute"
-                    zIndex="9999999999"
+                    zIndex="9999999998"
                     width={pageSwitcherActive ? "100%" : "75%"}
                     height={pageSwitcherActive ? "100%" : "75%"}
                     top={pageSwitcherActive ? "0px" : "-15px"}
@@ -340,7 +340,7 @@ export function UIApp({
                     marginRight="0"
                     marginTop="-15px"
                 >
-                    <Box position="fixed" overflow="hidden" zIndex="99999999999" top="env(safe-area-inset-top)">
+                    <Box position="fixed" overflow="hidden" zIndex="9999999999" top="env(safe-area-inset-top)">
                         <HStack gap="10px" onClick={handlePageMenuClick}>
                             <Image
                                 src="/icons/ui/chevron.svg"
@@ -396,7 +396,7 @@ export function UIApp({
                                             fontWeight={currentPage == v.id ? "bold" : "medium"}
                                             fontSize="36px"
                                             color="text.color"
-                                            zIndex="99999999999"
+                                            zIndex="9999999999"
                                             transition="margin .25s ease-out, opacity .2s"
                                             whiteSpace="nowrap"
                                             marginLeft={pageSwitcherActive ? "0" : "-75px"}
