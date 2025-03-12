@@ -272,7 +272,7 @@ export function UIApp({
                 width="100%"
                 height="100%"
                 background="white"
-                zIndex="999999999999"
+                zIndex="999999999999s"
                 display={isLoading || isFading ? "flex" : "none"}
                 alignItems="center"
                 justifyContent="center"
@@ -290,7 +290,7 @@ export function UIApp({
                 <Image
                     src="/menu-bg.png"
                     position="absolute"
-                    zIndex="9999999998"
+                    zIndex="999999998"
                     width={pageSwitcherActive ? "100%" : "75%"}
                     height={pageSwitcherActive ? "100%" : "75%"}
                     top={pageSwitcherActive ? "0px" : "-15px"}
@@ -396,7 +396,7 @@ export function UIApp({
                                             fontWeight={currentPage == v.id ? "bold" : "medium"}
                                             fontSize="36px"
                                             color="text.color"
-                                            zIndex="9999999999"
+                                            zIndex="999999998"
                                             transition="margin .25s ease-out, opacity .2s"
                                             whiteSpace="nowrap"
                                             marginLeft={pageSwitcherActive ? "0" : "-75px"}
