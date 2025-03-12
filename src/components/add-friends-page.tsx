@@ -152,7 +152,7 @@ export function AddFriendsPage({
                 marginTop="24px"
                 fontFamily="Inter"
                 fontWeight="regular"
-                fontSize="18px"
+                fontSize="16px"
                 opacity="0.75"
             >
                 Everything's better with friends—Tempo too! Add friends to share Spotify activity and explore each other's music tastes.
