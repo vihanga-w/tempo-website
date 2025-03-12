@@ -155,13 +155,13 @@ export function AddFriendsPage({
                 fontSize="18px"
                 opacity="0.75"
             >
-                Collaborate on cases and join teams with people in your circle.
+                Most things are better with friends! Tempo is no different, add your friends to share your Spotify activity and discover each other's music tastes.
             </Text>
             <Box>
                 <Stack gap="20px">
                     <Input
-                        label="Search for someone"
-                        placeholder="John Doe, john@example.com, 07911123456"
+                        // label="Search for someone"
+                        placeholder="Search for someone"
                         valid={1}
                         onChange={onSearchFieldChange}
                     />
