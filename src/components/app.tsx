@@ -340,7 +340,7 @@ export function UIApp({
                     marginRight="0"
                     marginTop="-15px"
                 >
-                    <Box position="fixed" overflow="hidden" zIndex="9999999999" top="env(safe-area-inset-top)">
+                    <Box position="fixed" overflow="hidden" zIndex="999999999" top="env(safe-area-inset-top)">
                         <HStack gap="10px" onClick={handlePageMenuClick}>
                             <Image
                                 src="/icons/ui/chevron.svg"
