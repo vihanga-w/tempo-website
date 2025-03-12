@@ -61,6 +61,7 @@ export function PlaybackState({
         sid: "",
         text: "",
     });
+    const [pfpLoadFailed, setPfpLoadFailed] = useState<boolean>(false);
     const [userListenershipFactVisible, setUserListenershipFactVisible] = useState<boolean>(false);
 
     const calculateContainerWidth = (username: string) => {
@@ -146,8 +147,18 @@ export function PlaybackState({
             <Stack gap="8px">
                 <HStack justifyContent="space-between">
                     <HStack>
-                        {data?.state?.pfpUrl !== "" ? (
-                            <Image width="36px" height="36px" objectFit="cover" borderRadius="6px" src={data?.state?.pfpUrl} draggable={false} />
+                        {(data?.state?.pfpUrl !== "" && !pfpLoadFailed) ? (
+                            <Image
+                                width="36px"
+                                height="36px"
+                                objectFit="cover"
+                                borderRadius="6px"
+                                src={data?.state?.pfpUrl}
+                                draggable={false}
+                                onError={() => {
+                                    setPfpLoadFailed(true);
+                                }}
+                            />
                         ) : (
                             <Avatar
                                 // Append user id so that different users potentially with same name has different bg colours
