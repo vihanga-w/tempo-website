@@ -430,7 +430,7 @@ export function UIApp({
                     <SmallAddButton
                         onClick={() => {
                             if (pageSwitcherActive) return;
-                            if (currentPage == "friends") pageChanger("new-friend", "friends");
+                            if (currentPage == "friends") pageChanger("add-friends", "friends");
                         }}
                         isCross={false}
                         scale={prevPage || !addNewItemPossiblePages.includes(currentPage) ? 0.65 : 1}
