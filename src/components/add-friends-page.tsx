@@ -155,7 +155,7 @@ export function AddFriendsPage({
                 fontSize="18px"
                 opacity="0.75"
             >
-                Most things are better with friends! Tempo is no different, add your friends to share your Spotify activity and discover each other's music tastes.
+                Everything's better with friends—Tempo too! Add friends to share Spotify activity and explore each other's music tastes.
             </Text>
             <Box>
                 <Stack gap="20px">
