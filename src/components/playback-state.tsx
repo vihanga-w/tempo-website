@@ -162,7 +162,7 @@ export function PlaybackState({
                         ) : (
                             <Avatar
                                 // Append user id so that different users potentially with same name has different bg colours
-                                name={data?.state.username + data?.state.userId}
+                                name={data?.state?.username + data?.state?.userId}
                                 borderRadius="6px"
                                 width="36px"
                                 height="36px"
