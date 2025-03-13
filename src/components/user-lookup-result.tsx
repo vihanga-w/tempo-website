@@ -4,7 +4,7 @@ import { useState } from "react";
 export type UserLookupResultType = {
     id: string;
     username: string;
-    pfpUrl: string;
+    pfpUrl?: string;
 };
 
 export function UserLookupResult({

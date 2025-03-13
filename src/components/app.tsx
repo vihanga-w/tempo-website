@@ -609,9 +609,12 @@ export function UIApp({
 
                     {/* Add friends page */}
                     {currentPage == "add-friends" && (<>
-                        <AddFriendsPage onComplete={id => {
-                            console.log("Added new friend:", id);
-                        }} />
+                        <AddFriendsPage
+                            user={user}
+                            onComplete={id => {
+                                console.log("Added new friend:", id);
+                            }}
+                        />
                     </>)}
 
                     {/* Settings page */}

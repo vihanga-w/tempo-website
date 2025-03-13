@@ -129,6 +129,28 @@ export default class User extends EventEmitter {
         return headers;
     }
 
+    public async searchUsers(query: string) {
+        const req = await fetch(API_URL + "/searchUsers", {
+            method: "POST",
+            headers: {
+                ...(this.getAuthHeaders())
+            },
+            body: JSON.stringify({
+                query,
+            }),
+        });
+        const res = await req.json() as {
+            error: boolean;
+            message?: string;
+            results: ClientUserAccount[];
+        };
+
+        if (res.error)
+            throw new Error("Failed to fetch query response, raw response: " + JSON.stringify(res));
+
+        return res.results;
+    }
+
     public async getPerfMessage() {
         try {
             const req = await fetch(API_URL + "/perf", {

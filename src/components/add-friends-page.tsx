@@ -6,14 +6,13 @@ import { ChakraStylesConfig, Select } from "chakra-react-select";
 import { StyledBtn } from "./button";
 import { InteractiveButtonBox } from "./interactive-btn-box";
 import { UserLookupResult, UserLookupResultType } from "@/components/user-lookup-result";
+import User from "@/lib/usrlib";
 
 export function AddFriendsPage({
-    // uplink,
-    // messageAuthority,
+    user,
     onComplete,
 }: {
-    // uplink: Uplink;
-    // messageAuthority: MessageAuthority;
+    user: User;
     onComplete: (userId: string) => void;
 }) {
     // State to switch components to their ready state once init is complete
@@ -115,36 +114,47 @@ export function AddFriendsPage({
     //     })
     // };
 
-    const bgColour = useColorModeValue("bg.light", "bg.dark");
+    // const bgColour = useColorModeValue("bg.light", "bg.dark");
 
-    const onSearchFieldChange = (e: ChangeEvent<HTMLInputElement>) => {
-        if (lookupTimeout) clearTimeout(lookupTimeout);
+    let onSearchFieldChange: (e: ChangeEvent<HTMLInputElement>) => void;
 
-        setLookupTimeout(setTimeout(() => {
-            if (e.target.value.trim() == "") {
-                setLookupResults([]);
-                
-                return;
-            }
+    const handler = async (e: ChangeEvent<HTMLInputElement>) => {
+        if (e.target.value.trim() == "") {
+            setLookupResults([]);
+            
+            return;
+        }
 
-            // uplink.pushFrameSync({
-            //     type: "lookup-user",
-            //     payload: e.target.value,
-            // }, (data, cb) => {
-            //     if (data.type == "error") return;
+        console.log("Querying server for user with query:", e.target.value);
 
-            //     const results = JSON.parse(data.payload as string) as UserLookupResultType[];
+        try {
+            const results = await user.searchUsers(e.target.value);
 
-            //     for (const res of results) {
-            //         console.log(res);
-            //     }
+            const processed: UserLookupResultType[] = results.map(v => {
+                const idealImage = v.images.filter(v => v.url.startsWith("https://i.scdn."));
 
-            //     setLookupResults(results);
-    
-            //     cb();
-            // });
-        }, 320));
+                return {
+                    id: v.id,
+                    pfpUrl: (idealImage ?? v.images.length > 0 ? v.images[0].url : undefined),
+                    username: v.displayName,
+                };
+            });
+
+            setLookupResults(processed);
+        } catch (ex) {
+            console.warn("User lookup query failed, error:", ex);
+        }
     }
+
+    useEffect(() => {
+        onSearchFieldChange = (e: ChangeEvent<HTMLInputElement>) => {
+            if (lookupTimeout) clearTimeout(lookupTimeout);
+    
+            setLookupTimeout(setTimeout(async () => {
+                await handler(e);
+            }, lookupResults ? 0 : 320));
+        }
+    }, [lookupResults]);
 
     return (<>
         <Stack gap="34px">
@@ -163,7 +173,12 @@ export function AddFriendsPage({
                         // label="Search for someone"
                         placeholder="Search for someone"
                         valid={1}
-                        onChange={onSearchFieldChange}
+                        onChange={e => {
+                            if (onSearchFieldChange)
+                                onSearchFieldChange(e);
+                            else
+                                handler(e);
+                        }}
                     />
                     <Box>
                         {lookupResults.map((v, i) => {
