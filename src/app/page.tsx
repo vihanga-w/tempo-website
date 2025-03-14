@@ -427,12 +427,14 @@ export default function Home() {
               </Text>
             </>), {
               text: "Got it!",
-              callback() { },
+              callback() {
+                window.localStorage.setItem("tempo-dev-warning", "true");
+                onModalClose();
+              },
             })
           };
-    
-          window.localStorage.setItem("tempo-dev-warning", "true");
-          onModalClose();
+
+          showMsg();
         });
         prouter.setPage("app");
       }
