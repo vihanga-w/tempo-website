@@ -411,7 +411,34 @@ export default function Home() {
 
         setPerfMsg("Sorry, Tempo is not available right now, please try again later");
       } else {
-        onSubmitSubscribe();
+        onSubmitSubscribe()
+        .then(() => {
+          if (window.localStorage.getItem("tempo-dev-warning"))
+            return;
+    
+          const showMsg = () => {
+            triggerModal("Active Development", (<>
+              <Text>
+                Hi there! 👋
+              </Text>
+              <br />
+              <Text>
+                Thank you for supporting Tempo. We are currently undergoing rapid application development and as such, the application may not be entirely stable. You may experience unexpected behavious and weird bugs as development progresses.
+                <br />
+                Please report any bugs as you encounter them (and feature requests) to help build Tempo.
+                <br />
+                <br />
+                Thank you for your understanding!
+              </Text>
+            </>), {
+              text: "Got it!",
+              callback() { },
+            })
+          };
+    
+          window.localStorage.setItem("tempo-dev-warning", "true");
+          onModalClose();
+        });
         prouter.setPage("app");
       }
     });
