@@ -195,8 +195,8 @@ export function PlaybackState({
                                 width="24px"
                                 height="24px"
                                 pos="absolute"
-                                top="-12px"
-                                left="-12"
+                                top="4px"
+                                left="4px"
                                 src="/podcast-icon.svg"
                             />
                         )}
