@@ -189,7 +189,7 @@ export function PlaybackState({
                     <MdAddReaction opacity="0.45" size="22px" />
                 </HStack>
                 <HStack alignItems="self-start" width="100%">
-                    <Box width="72px" height="72px" pos="relative">
+                    <Box pos="relative">
                         {data?.state?.mediaType == "episode" && (
                             <Image
                                 width="24px"
