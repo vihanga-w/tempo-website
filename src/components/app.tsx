@@ -152,31 +152,31 @@ export function UIApp({
             },
             credentials: "include",
         })
-            .then((r) => r.json())
-            .then((r) => {
-                const data: {
-                    error: boolean;
-                    message?: string;
-                    data: {
-                        id: string;
-                        title: string;
-                        artists: string[];
-                        album: string;
-                        likeness: number;
-                    }[];
-                } = r;
+        .then((r) => r.json())
+        .then((r) => {
+            const data: {
+                error: boolean;
+                message?: string;
+                data: {
+                    id: string;
+                    title: string;
+                    artists: string[];
+                    album: string;
+                    likeness: number;
+                }[];
+            } = r;
 
-                if (data.error) {
-                    console.warn("Failed to fetch discovery data due to error response:", data);
-                    return;
-                }
+            if (data.error) {
+                console.warn("Failed to fetch discovery data due to error response:", data);
+                return;
+            }
 
-                console.log("Got discovery data:", data.data);
-                setDiscoveryData(data.data);
-            })
-            .catch((ex) => {
-                console.warn("Failed to fetch user discovery data due to request error:", ex);
-            });
+            console.log("Got discovery data:", data.data);
+            setDiscoveryData(data.data);
+        })
+        .catch((ex) => {
+            console.warn("Failed to fetch user discovery data due to request error:", ex);
+        });
 
         // Fetch friends listenership history
         updateFriendsListenershipHistory();
