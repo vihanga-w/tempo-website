@@ -419,9 +419,14 @@ export default function Home() {
           const showMsg = () => {
             triggerModal("Hi there! 👋", (<>
               <Text>
-                Thank you for supporting Tempo. We are currently undergoing rapid application development and as such, the application may not be entirely stable. You may experience unexpected behavious and weird bugs as development progresses.
+                Thank you for supporting Tempo.
+                <br />
+                <br />
+                We are currently undergoing rapid application development and as such, the application may not be entirely stable. You may experience unexpected behavious and weird bugs as development progresses.
+                <br />
                 <br />
                 Please report any bugs as you encounter them (and feature requests) to help build Tempo.
+                <br />
                 <br />
                 Thank you for your understanding!
               </Text>
