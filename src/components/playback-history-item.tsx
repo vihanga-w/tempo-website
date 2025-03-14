@@ -92,7 +92,7 @@ export function PlaybackHistoryItem({
                 Listened for {formatTime(data.item.track.duration * data.item.sessionDuration)}
               </Text>
             ) : (
-              <Text fontSize="12px">Listened to song</Text>
+              <Text fontSize="12px">Listened to {data.item.track.type == "episode" ? "episode" : "song"}</Text>
             )}
           </Box>
         </Stack>

@@ -63,6 +63,7 @@ export interface songData {
         releaseDate: number;
         artUrl: string;
     }
+    type: "episode" | "track",
     meta: {
         updatedAt: number;
     }

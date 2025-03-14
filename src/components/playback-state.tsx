@@ -189,7 +189,17 @@ export function PlaybackState({
                     <MdAddReaction opacity="0.45" size="22px" />
                 </HStack>
                 <HStack alignItems="self-start" width="100%">
-                    <Image width="72px" height="72px" background="rgba(255, 255, 255, 0.2)" borderRadius="6px" src={data?.state?.imageUrl} draggable={false} />
+                    <Box width="72px" height="72px" pos="relative">
+                        <Image
+                            width="24px"
+                            height="24px"
+                            pos="absolute"
+                            top="-12px"
+                            left="-12"
+                            src="/podcast-icon.svg"
+                        />
+                        <Image background="rgba(255, 255, 255, 0.2)" borderRadius="6px" src={data?.state?.imageUrl} draggable={false} />
+                    </Box>
                     <Stack height="100%" width="100%" gap="0" fontFamily="arial, helvetica" lineHeight="18px">
                         <HStack pos="relative" gap="5px" justifyContent="space-between">
                             <HStack width="100%" gap="5px">

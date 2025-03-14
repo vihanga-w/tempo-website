@@ -40,6 +40,7 @@ interface PlaybackState {
     updatedAt: number;
     lastEventSentAt: number;
     todayStats: SongStatistic;
+    mediaType: "track" | "episode" | "ad" | "unknown";
 };
 interface StateUpdateEvent {
     id?: string;
