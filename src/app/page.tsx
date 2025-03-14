@@ -413,7 +413,7 @@ export default function Home() {
       } else {
         onSubmitSubscribe()
         .then(() => {
-          if (window.localStorage.getItem("tempo-dev-warning"))
+          if (window.localStorage.getItem("tempo-dev-warning-msg"))
             return;
     
           const showMsg = () => {
@@ -433,7 +433,7 @@ export default function Home() {
             </>), {
               text: "Got it!",
               callback() {
-                window.localStorage.setItem("tempo-dev-warning", "true");
+                window.localStorage.setItem("tempo-dev-warning-msg", "true");
                 onModalClose();
               },
             })
