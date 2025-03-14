@@ -422,7 +422,7 @@ export default function Home() {
                 Thank you for supporting Tempo.
                 <br />
                 <br />
-                We are currently undergoing rapid application development and as such, the application may not be entirely stable. You may experience unexpected behavious and weird bugs as development progresses.
+                We are currently undergoing rapid application development and as such, the application may not be entirely stable. You may experience unexpected behaviours and weird bugs as development progresses.
                 <br />
                 <br />
                 Please report any bugs as you encounter them (and feature requests) to help build Tempo.
