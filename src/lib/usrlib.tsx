@@ -98,10 +98,10 @@ export default class User extends EventEmitter {
     constructor() {
         super();
 
-        const storedToken = window.localStorage.getItem("tempo.a");
+        // const storedToken = window.localStorage.getItem("tempo.a");
 
-        if (storedToken)
-            document.cookie = "tempo.a=" + storedToken;
+        // if (storedToken)
+        //     document.cookie = "tempo.a=" + storedToken;
     }
 
     async init(storedToken?: string): Promise<void> {
