@@ -240,8 +240,6 @@ export default class User extends EventEmitter {
                 message?: string;
             }
 
-            alert(JSON.stringify(res));
-
             if (res.error) {
                 // The server has stated that there was an error
                 console.warn("Server responded with an error state while fetching user authentication status, error:", res.message ?? "Unspecified server error");
