@@ -88,7 +88,7 @@ export function UIApp({
         setVisibleHistoryCount(friendsListenershipPage == 0 ? ITEMS_PER_BATCH : (prevCount) =>
             Math.min(prevCount + ITEMS_PER_BATCH, friendsListenershipData.length)
         );
-    }, [friendsListenershipData]);
+    }, [friendsListenershipData, friendsListenershipPage]);
 
     useEffect(() => {
         updateFriendsListenershipHistory();
