@@ -67,15 +67,19 @@ export function UIApp({
         setFriendsListenershipIsError(res.e);
 
         setFriendsListenershipData(prev => {
-            // Check if same data
-            // TODO: Need to implement a hash as this check isnt foolproof
-            if (prev[0].timestamp + prev[0].item.sessionDuration == d[0].timestamp + d[0].item.sessionDuration)
+            if (prev.length >= 1) {
+                // Check if same data
+                // TODO: Need to implement a hash as this check isnt foolproof
+                if (prev[0].timestamp + prev[0].item.sessionDuration == d[0].timestamp + d[0].item.sessionDuration)
+                    return prev;
+
+                if (prev[prev.length - 1].timestamp <= d[0].timestamp)
+                    return [...prev, ...d];
+
                 return prev;
+            }
 
-            if (prev[prev.length - 1].timestamp <= d[0].timestamp)
-                return [...prev, ...d];
-
-            return prev;
+            return d;
         });
     };
 
