@@ -59,12 +59,12 @@ export function UIApp({
     const [endOfHistoryMessage, setEndOfHistoryMessage] = useState<string>("You've seen it all! 😉");
 
     // Lazy loading: how many history items to show at first
-    const ITEMS_PER_BATCH = 20;
+    const ITEMS_PER_BATCH = 100;
     const [visibleHistoryCount, setVisibleHistoryCount] = useState<number>(ITEMS_PER_BATCH);
     const historyEndRef = useRef<HTMLDivElement | null>(null);
 
-    const updateFriendsListenershipHistory = async () => {
-        const res = await user.getFriendsListenershipHistory(friendsListenershipPage);
+    const updateFriendsListenershipHistory = async (index?: number) => {
+        const res = await user.getFriendsListenershipHistory(index ?? friendsListenershipPage);
 
         const d = res.d;
 
@@ -97,7 +97,7 @@ export function UIApp({
     }, [friendsListenershipData, friendsListenershipPage]);
 
     useEffect(() => {
-        updateFriendsListenershipHistory();
+        updateFriendsListenershipHistory(friendsListenershipPage);
     }, [friendsListenershipPage]);
 
     const incrementVisibleItems = () => {
