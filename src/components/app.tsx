@@ -6,6 +6,7 @@ import {
     Box,
     HStack,
     VStack,
+    useDisclosure,
     Stack,
     Center,
     Spinner
@@ -24,15 +25,15 @@ import { AddFriendsPage } from "./add-friends-page";
 const updateMutex = new Mutex();
 
 const generateEndOfHistoryMessage = () => {
-    return Math.random() <= 0.1 ? "~ End of historussy ~" : "You've seen it all! 😉";
+    return (Math.random() <= 0.1 ? "~ End of historussy ~" : "You've seen it all! 😉");
 };
 
 export function UIApp({
     prouter,
     user,
 }: Readonly<{
-    prouter: PageRouter;
-    user: User;
+    prouter: PageRouter,
+    user: User,
 }>) {
     const [currentPage, setCurrentPage] = useState<string>("activity");
     const [currentPageTitle, setCurrentPageTitle] = useState<string>("Activity");
@@ -51,191 +52,267 @@ export function UIApp({
         album: string;
         likeness: number;
     }[]>([]);
-    // This array holds all history items loaded so far.
     const [friendsListenershipData, setFriendsListenershipData] = useState<FriendListenershipItem[]>([]);
     const [friendsListenershipPage, setFriendsListenershipPage] = useState<number>(0);
     const [friendsListenershipIsLastPage, setFriendsListenershipIsLastPage] = useState<boolean>(false);
     const [friendsListenershipIsError, setFriendsListenershipIsError] = useState<boolean>(false);
     const [endOfHistoryMessage, setEndOfHistoryMessage] = useState<string>("You've seen it all! 😉");
 
-    const ITEMS_PER_BATCH = 25;
+    // Lazy loading: how many history items to show at first
+    const ITEMS_PER_BATCH = 100;
     const [visibleHistoryCount, setVisibleHistoryCount] = useState<number>(ITEMS_PER_BATCH);
     const historyEndRef = useRef<HTMLDivElement | null>(null);
 
     async function updateFriendsListenershipHistory(index?: number) {
+        // Use passed index or fallback to state
         const pageIndex = index ?? friendsListenershipPage;
-        try {
-            const res = await user.getFriendsListenershipHistory(pageIndex);
-            setEndOfHistoryMessage(generateEndOfHistoryMessage());
-            setFriendsListenershipIsLastPage(res.l);
-            setFriendsListenershipIsError(res.e);
-            // Append new items if there is already data, otherwise replace.
-            setFriendsListenershipData(prev => {
-                if (prev.length > 0) {
-                    // Basic check to avoid duplicate loads.
-                    if (
-                        prev[0].timestamp + prev[0].item.sessionDuration ===
-                        res.d[0].timestamp + res.d[0].item.sessionDuration
-                    )
-                        return prev;
-                    if (prev[prev.length - 1].timestamp <= res.d[0].timestamp)
-                        return [...prev, ...res.d];
+        const res = await user.getFriendsListenershipHistory(pageIndex);
+
+        const d = res.d;
+
+        setEndOfHistoryMessage(generateEndOfHistoryMessage());
+        setFriendsListenershipIsLastPage(res.l);
+        setFriendsListenershipIsError(res.e);
+
+        setFriendsListenershipData(prev => {
+            if (prev.length >= 1) {
+                // Check if same data
+                // TODO: Need to implement a hash as this check isn't foolproof
+                if (prev[0].timestamp + prev[0].item.sessionDuration == d[0].timestamp + d[0].item.sessionDuration)
                     return prev;
-                }
-                return res.d;
-            });
-        } catch (err) {
-            console.warn("Error loading history:", err);
-            setFriendsListenershipIsError(true);
-        }
-    }
 
-    useEffect(() => {
-        if (friendsListenershipPage === 0) {
-            setVisibleHistoryCount(ITEMS_PER_BATCH);
-        } else {
-            setVisibleHistoryCount(prevCount =>
-                Math.min(prevCount + ITEMS_PER_BATCH, friendsListenershipData.length)
-            );
-        }
-    }, [friendsListenershipData, friendsListenershipPage]);
+                console.log(prev[prev.length - 1].timestamp, d[0].timestamp, prev[prev.length - 1].timestamp <= d[0].timestamp);
 
-    useEffect(() => {
-        if (friendsListenershipPage === 0) {
-            setVisibleHistoryCount(ITEMS_PER_BATCH);
-        } else {
-            setVisibleHistoryCount(prev =>
-                Math.min(prev + ITEMS_PER_BATCH, friendsListenershipData.length)
-            );
-        }
-    }, [friendsListenershipData]);
+                if (prev[prev.length - 1].timestamp <= d[0].timestamp)
+                    return [...prev, ...d];
 
-    const incrementVisibleItems = () => {
-        if (visibleHistoryCount < friendsListenershipData.length) {
-            setVisibleHistoryCount(Math.min(visibleHistoryCount + ITEMS_PER_BATCH, friendsListenershipData.length));
-        } else if (!friendsListenershipIsLastPage) {
-            setFriendsListenershipPage(prev => prev + 1);
-        }
+                return prev;
+            }
+
+            return d;
+        });
     };
 
     useEffect(() => {
+        // When friendsListenershipData is refreshed, reset the visible count
+        setVisibleHistoryCount(
+            friendsListenershipPage === 0
+                ? ITEMS_PER_BATCH
+                : (prevCount) => Math.min(prevCount + ITEMS_PER_BATCH, friendsListenershipData.length)
+        );
+    }, [friendsListenershipData, friendsListenershipPage]);
+
+    const incrementVisibleItems = () => {
+        // Only paginate if we reach end of array
+        if (visibleHistoryCount + ITEMS_PER_BATCH > friendsListenershipData.length && !friendsListenershipIsLastPage) {
+            setFriendsListenershipPage(p => {
+                const newPage = p + 1;
+                updateFriendsListenershipHistory(newPage);
+                return newPage;
+            });
+        } else {
+            setVisibleHistoryCount((prevCount) =>
+                Math.min(prevCount + ITEMS_PER_BATCH, friendsListenershipData.length)
+            );
+        }
+    };
+
+    // Intersection Observer to load more items as the sentinel comes into view
+    useEffect(() => {
         if (!historyEndRef.current) return;
+
         const observer = new IntersectionObserver(
             (entries) => {
-                if (entries[0].isIntersecting) {
+                console.log(entries, entries[0].isIntersecting);
+                if (entries[0].isIntersecting)
                     incrementVisibleItems();
-                }
             },
-            { threshold: 0.1 }
+            {
+                root: null,
+                threshold: 0.1,
+            }
         );
+
         observer.observe(historyEndRef.current);
+        
         return () => {
-            if (historyEndRef.current) observer.unobserve(historyEndRef.current);
+            if (historyEndRef.current) {
+                observer.unobserve(historyEndRef.current);
+            }
         };
-    }, [friendsListenershipData, visibleHistoryCount, friendsListenershipIsLastPage]);
+    }, [friendsListenershipData, historyEndRef]);
 
     useEffect(() => {
-        if (currentPage === "activity") {
-            // Refresh history data when switching to the activity page.
+        // Extra actions to perform when page switched
+        if (currentPage == "activity") {
+            // Refresh friends listenership history data
             updateFriendsListenershipHistory();
         }
     }, [currentPage]);
 
     useEffect(() => {
         if (!user.isLoggedIn) return;
+
         const newStreamer = new DataStreamer(user.storedToken);
         setStreamer(newStreamer);
+
         newStreamer.on("update", (data: UpdateEvent) => {
-            // Once we get any update, we consider activity loaded.
             setActivityPageLoading(false);
+
             updateMutex.runExclusive(() => {
-                setLivePlaybackStates(v => {
-                    const existing = v.find(a => a.userId === data.userId);
-                    if (existing && data.data.action.type === "STOPPED") {
-                        return v.filter(a => a.userId !== data.userId);
+                setLivePlaybackStates((v) => {
+                    const existing = v.find((a) => a.userId === data.userId);
+                    if (existing && data.data.action.type == "STOPPED") {
+                        return v.filter((a) => a.userId !== data.userId);
                     } else if (!existing && data.data.action.type !== "STOPPED") {
-                        return [...v, data].sort((a, b) =>
-                            (a.data.state?.username ?? "").localeCompare(b.data.state?.username ?? "")
-                        );
+                        return [...v, data].sort((a, b) => {
+                            return (a.data.state?.username ?? "").localeCompare(
+                                b.data.state?.username ?? ""
+                            );
+                        });
                     }
                     return v;
                 });
             });
         });
-        newStreamer.on("remove", userId => {
+
+        newStreamer.on("remove", (userId) => {
             updateMutex.runExclusive(() => {
-                setLivePlaybackStates(v => v.filter(a => a.userId !== userId));
+                setLivePlaybackStates((v) => {
+                    return v.filter((a) => a.userId !== userId);
+                });
             });
         });
+
         newStreamer.on("close", () => {
+            // Connection lost, display loading screen and trust the connection strategy will reconnect
             setActivityPageLoading(true);
         });
+
         newStreamer.init();
 
+        // Fetch user discovery page data
         fetch(API_URL + "/me/taste", {
-            headers: { ...user.getAuthHeaders() },
+            headers: {
+                ...user.getAuthHeaders(),
+            },
             credentials: "include",
         })
-            .then(r => r.json())
-            .then(r => {
-                if (r.error) {
-                    console.warn("Failed to fetch discovery data:", r);
+            .then((r) => r.json())
+            .then((r) => {
+                const data: {
+                    error: boolean;
+                    message?: string;
+                    data: {
+                        id: string;
+                        title: string;
+                        artists: string[];
+                        album: string;
+                        likeness: number;
+                    }[];
+                } = r;
+
+                if (data.error) {
+                    console.warn("Failed to fetch discovery data due to error response:", data);
                     return;
                 }
-                setDiscoveryData(r.data);
+
+                console.log("Got discovery data:", data.data);
+                setDiscoveryData(data.data);
             })
-            .catch(ex => {
-                console.warn("Failed to fetch discovery data:", ex);
+            .catch((ex) => {
+                console.warn("Failed to fetch user discovery data due to request error:", ex);
             });
+
+        // Fetch friends listenership history
+        updateFriendsListenershipHistory();
 
         return () => {
             newStreamer.cleanup();
         };
     }, [user.isLoggedIn]);
 
+    // Update the window focus handler to use the current friendsListenershipPage
     useEffect(() => {
         const handleFocus = async () => {
-            setFriendsListenershipPage(0);
-            await updateFriendsListenershipHistory(0);
+            if (streamer && !streamer.isReady()) {
+                setActivityPageLoading(true);
+                setLivePlaybackStates([]);
+                setStreamerReset(true);
+            }
+            // Pass the current friendsListenershipPage explicitly
+            updateFriendsListenershipHistory(friendsListenershipPage);
         };
+
         window.addEventListener("focus", handleFocus);
         return () => {
             window.removeEventListener("focus", handleFocus);
         };
-    }, []);
+    }, [streamer, friendsListenershipPage]);
 
-    // New effect to hide the loading screen once activity data is loaded.
     useEffect(() => {
-        if (!activityPageLoading) {
-            setTimeout(() => {
-                setIsFading(true);
-                setIsLoading(false);
-            }, 1250);
+        if (streamerReset && streamer && livePlaybackStates.length == 0) {
+            streamer.cleanup();
+            streamer.init();
+            setStreamerReset(false);
         }
-    }, [activityPageLoading]);
+    }, [livePlaybackStates, streamer, streamerReset]);
 
-    const pages = [
-        { name: "Discover", id: "discover", indexed: true },
-        { name: "Activity", id: "activity", indexed: true },
-        { name: "Friends", id: "friends", indexed: true },
-        { name: "Profile", id: "settings", indexed: true },
-        { name: "Add Friends", id: "add-friends", indexed: false },
+    const pages: { name: string; id: string; indexed: boolean }[] = [
+        {
+            name: "Discover",
+            id: "discover",
+            indexed: true,
+        },
+        {
+            name: "Activity",
+            id: "activity",
+            indexed: true,
+        },
+        {
+            name: "Friends",
+            id: "friends",
+            indexed: true,
+        },
+        {
+            name: "Profile",
+            id: "settings",
+            indexed: true,
+        },
+        {
+            name: "Add Friends",
+            id: "add-friends",
+            indexed: false,
+        }
     ];
 
     const pageChanger = (id: string, prevPage?: string) => {
-        const page = pages.find(p => p.id === id);
-        if (!page) throw new Error(`Attempted to switch to page with id "${id}" but no page was found!`);
+        let exists = false;
+        let title = "";
+
+        for (const page of pages) {
+            if (page.id == id) {
+                exists = true;
+                title = page.name;
+                break;
+            }
+        }
+
+        if (!exists)
+            throw new Error(
+                "Attempted to switch to page with id \"" +
+                    id +
+                    "\", but a page cannot be found with that id!"
+            );
+
         setCurrentPage(id);
-        setCurrentPageTitle(page.name);
+        setCurrentPageTitle(title);
         setPrevPage(prevPage ?? "");
     };
 
     const handlePageMenuClick = () => {
-        if (prevPage !== "") {
-            pageChanger(prevPage);
-        } else {
-            setPageSwitcherActive(!pageSwitcherActive);
-        }
+        if (prevPage !== "") return pageChanger(prevPage);
+        setPageSwitcherActive(!pageSwitcherActive);
     };
 
     const addNewItemPossiblePages = ["friends"];
@@ -262,8 +339,8 @@ export function UIApp({
                 <Loader />
             </Box>
 
+            {/* The main user interface */}
             <Box padding="20px" width="100%">
-                {/* Header and Menu Elements */}
                 <Image
                     src="/menu-bg.png"
                     position="absolute"
@@ -276,11 +353,14 @@ export function UIApp({
                     transition=".3s"
                     userSelect="none"
                     opacity={pageSwitcherActive ? "1" : "0"}
-                    style={{ WebkitTouchCallout: "none" }}
+                    style={{
+                        WebkitTouchCallout: "none",
+                    }}
                     backdropFilter="blur(2px)"
                     draggable={false}
                     pointerEvents="none"
                 />
+
                 <Box
                     position="fixed"
                     width="100vw"
@@ -294,6 +374,7 @@ export function UIApp({
                     pointerEvents="none"
                     overflow="hidden"
                 />
+
                 <Box
                     width="100vw"
                     height="100px"
@@ -305,7 +386,14 @@ export function UIApp({
                     pointerEvents="none"
                     marginTop="env(safe-area-inset-top)"
                 />
-                <HStack width="100%" height="100%" marginLeft="0" marginRight="0" marginTop="-15px">
+
+                <HStack
+                    width="100%"
+                    height="100%"
+                    marginLeft="0"
+                    marginRight="0"
+                    marginTop="-15px"
+                >
                     <Box position="fixed" overflow="hidden" zIndex="999999999" top="env(safe-area-inset-top)">
                         <HStack gap="10px" onClick={handlePageMenuClick}>
                             <Image
@@ -348,240 +436,287 @@ export function UIApp({
                         alignItems="normal"
                         pointerEvents={pageSwitcherActive ? "all" : "none"}
                     >
-                        {pages.filter(v => v.indexed).map((v, i) => (
-                            <React.Fragment key={v.id}>
-                                <Text
-                                    float="left"
-                                    fontFamily="Inter"
-                                    fontWeight={currentPage === v.id ? "bold" : "medium"}
-                                    fontSize="36px"
-                                    color="text.color"
-                                    zIndex="999999998"
-                                    transition="margin .25s ease-out, opacity .2s"
-                                    whiteSpace="nowrap"
-                                    marginLeft={pageSwitcherActive ? "0" : "-75px"}
-                                    opacity={pageSwitcherActive ? (currentPage === v.id ? "1" : "0.75") : "0"}
-                                    transitionDelay={pageSwitcherActive ? (i + 1) / 12 + "s" : "0"}
-                                    onClick={
-                                        currentPage === v.id
-                                            ? handlePageMenuClick
-                                            : () => {
-                                                  pageChanger(v.id);
-                                                  handlePageMenuClick();
-                                              }
-                                    }
-                                    userSelect="none"
-                                >
-                                    {v.name}
-                                </Text>
-                            </React.Fragment>
-                        ))}
+                        {pages
+                            .filter((v) => {
+                                return v.indexed;
+                            })
+                            .map((v, i) => {
+                                if (!v.indexed) return;
+                                return (
+                                    <>
+                                        <Text
+                                            float="left"
+                                            fontFamily="Inter"
+                                            fontWeight={currentPage == v.id ? "bold" : "medium"}
+                                            fontSize="36px"
+                                            color="text.color"
+                                            zIndex="999999998"
+                                            transition="margin .25s ease-out, opacity .2s"
+                                            whiteSpace="nowrap"
+                                            marginLeft={pageSwitcherActive ? "0" : "-75px"}
+                                            opacity={pageSwitcherActive ? (currentPage == v.id ? "1" : "0.75") : "0"}
+                                            // Increase transition delay as we go further down the list
+                                            transitionDelay={
+                                                pageSwitcherActive ? 0 + (i + 1) / 12 + "s" : "0"
+                                            }
+                                            onClick={
+                                                currentPage == v.id
+                                                    ? handlePageMenuClick
+                                                    : () => {
+                                                          pageChanger(v.id);
+                                                          handlePageMenuClick();
+                                                      }
+                                            }
+                                            userSelect="none"
+                                        >
+                                            {v.name}
+                                        </Text>
+                                    </>
+                                );
+                            })}
                     </VStack>
                     <SmallAddButton
                         onClick={() => {
                             if (pageSwitcherActive) return;
-                            if (currentPage === "friends")
-                                pageChanger("add-friends", "friends");
+                            if (currentPage == "friends") pageChanger("add-friends", "friends");
                         }}
                         isCross={false}
                         scale={prevPage || !addNewItemPossiblePages.includes(currentPage) ? 0.65 : 1}
                         opacity={prevPage || !addNewItemPossiblePages.includes(currentPage) ? "0" : "1"}
-                        active={prevPage === "" || !addNewItemPossiblePages.includes(currentPage)}
+                        active={prevPage == "" || !addNewItemPossiblePages.includes(currentPage)}
                         zIndex="9999999"
                     />
                 </HStack>
 
-                {/* Main Content */}
-                {currentPage === "activity" && (
-                    <>
-                        {activityPageLoading ? (
-                            <Center pos="absolute" width="100vw" height="100vh" top="0" left="0">
-                                <Spinner size="lg" />
-                            </Center>
-                        ) : (
-                            <Stack gap="28px" overflowY="auto" paddingBottom="18px" width="100%">
-                                <Stack gap="18px" overflowY="auto" width="100%">
-                                    <Text fontFamily="arial, helvetica" fontWeight="bold" fontSize="24px">
-                                        Latest
-                                    </Text>
-                                    {livePlaybackStates.map((v, i) => (
-                                        <React.Fragment key={i}>
-                                            {i !== 0 && (
-                                                <Box
-                                                    width="100%"
-                                                    height="1px"
-                                                    background="rgba(255, 255, 255, 0.2)"
-                                                />
-                                            )}
-                                            <PlaybackState index={i} stream={streamer} userId={v.userId} />
-                                        </React.Fragment>
-                                    ))}
-                                </Stack>
-                                <Stack gap="12px" overflowY="auto" width="100%">
-                                    <Text fontFamily="arial, helvetica" fontWeight="bold" fontSize="24px">
-                                        History
-                                    </Text>
-                                    {friendsListenershipIsError ? (
-                                        <Text
-                                            marginTop="14px"
-                                            width="100%"
-                                            opacity="0.45"
-                                            textAlign="center"
-                                            onClick={() => setFriendsListenershipPage(0)}
-                                        >
-                                            Failed to load history, try again?
-                                        </Text>
-                                    ) : (
-                                        <>
-                                            {friendsListenershipData
-                                                .slice(0, visibleHistoryCount)
-                                                .map((item, index) => (
-                                                    <React.Fragment key={index}>
-                                                        {index !== 0 && (
-                                                            <Box
-                                                                width="100%"
-                                                                height="1px"
-                                                                background="rgba(255, 255, 255, 0.2)"
-                                                            />
-                                                        )}
-                                                        <PlaybackHistoryItem data={item} />
-                                                    </React.Fragment>
-                                                ))}
-                                            <div ref={historyEndRef}>
-                                                <Text
-                                                    marginTop="8px"
-                                                    width="100%"
-                                                    opacity="0.45"
-                                                    textAlign="center"
-                                                    onClick={incrementVisibleItems}
-                                                >
-                                                    {visibleHistoryCount < friendsListenershipData.length ||
-                                                    !friendsListenershipIsLastPage
-                                                        ? "Load more?"
-                                                        : friendsListenershipData.length > 15
-                                                        ? endOfHistoryMessage
-                                                        : ""}
+                <Box
+                    pointerEvents={pageSwitcherActive ? "none" : "all"}
+                    zIndex="5"
+                    overflow="hidden"
+                    height="100%"
+                    width="100%"
+                    display="fixed"
+                    top="0"
+                    left="0"
+                >
+                    {/* Discover page */}
+                    {currentPage == "discover" && (
+                        <>
+                            {discoveryData.length == 0 ? (
+                                <Text
+                                    position="absolute"
+                                    top="0"
+                                    left="0"
+                                    justifyContent="center"
+                                    alignItems="center"
+                                    display="flex"
+                                    height="calc(100vh - 72px)"
+                                    width="100vw"
+                                    color="text.dark"
+                                    margin="auto"
+                                    textAlign="center"
+                                    fontFamily="Inter"
+                                    fontSize="16px"
+                                    fontWeight="regular"
+                                    zIndex="1"
+                                >
+                                    Tempo is learning your music taste.
+                                    <br />
+                                    We'll let you know when Discover is ready!
+                                </Text>
+                            ) : (
+                                <Stack gap="10px">
+                                    {discoveryData.map((v) => {
+                                        return (
+                                            <Box key={v.title + v.likeness}>
+                                                <Text>
+                                                    {v.title} ({v.artists.join(", ")}) -{" "}
+                                                    {Math.ceil(v.likeness * 100)}%
                                                 </Text>
-                                            </div>
-                                        </>
-                                    )}
+                                            </Box>
+                                        );
+                                    })}
                                 </Stack>
-                            </Stack>
-                        )}
-                    </>
-                )}
-                {currentPage === "discover" && (
-                    <>
-                        {discoveryData.length === 0 ? (
+                            )}
+                        </>
+                    )}
+
+                    {/* Activity page */}
+                    {currentPage == "activity" && (
+                        <>
+                            {activityPageLoading ? (
+                                <Center pos="absolute" width="100vw" height="100vh" top="0" left="0">
+                                    <Spinner size="lg" />
+                                </Center>
+                            ) : (
+                                <Stack gap="28px" overflowY="auto" paddingBottom="18px" width="100%">
+                                    <Stack gap="18px" overflowY="auto" width="100%">
+                                        <Text
+                                            fontFamily="arial, helvetica"
+                                            fontWeight="bold"
+                                            fontSize="24px"
+                                        >
+                                            Latest
+                                        </Text>
+                                        {livePlaybackStates.map((v, i) => {
+                                            const data = v.data;
+                                            return (
+                                                <>
+                                                    {i !== 0 && (
+                                                        <Box
+                                                            width="100%"
+                                                            height="1px"
+                                                            background="rgba(255, 255, 255, 0.2)"
+                                                        />
+                                                    )}
+                                                    <PlaybackState
+                                                        key={
+                                                            "ps-" +
+                                                            v.userId +
+                                                            data.state?.songId +
+                                                            (data.state?.artists ? "AA" : "ANA")
+                                                        }
+                                                        index={i}
+                                                        stream={streamer}
+                                                        userId={v.userId}
+                                                    />
+                                                </>
+                                            );
+                                        })}
+                                    </Stack>
+                                    <Stack gap="12px" overflowY="auto" width="100%">
+                                        <Text
+                                            fontFamily="arial, helvetica"
+                                            fontWeight="bold"
+                                            fontSize="24px"
+                                        >
+                                            History
+                                        </Text>
+                                        {friendsListenershipIsError ? (
+                                            <>
+                                                <Text marginTop="14px" width="100%" opacity="0.45" textAlign="center" onClick={() => {
+                                                    setFriendsListenershipPage(0);
+                                                }}>{"Failed to load history, try again?"}</Text>
+                                            </>
+                                        ) : (
+                                            <>
+                                                {friendsListenershipData
+                                                    .slice(0, visibleHistoryCount)
+                                                    .map((v, i) => {
+                                                        const data = v;
+                                                        return (
+                                                            <>
+                                                                {i !== 0 && (
+                                                                    <Box
+                                                                        width="100%"
+                                                                        height="1px"
+                                                                        background="rgba(255, 255, 255, 0.2)"
+                                                                    />
+                                                                )}
+                                                                <PlaybackHistoryItem data={data} />
+                                                            </>
+                                                        );
+                                                    })}
+                                                {/* Sentinel element for lazy loading */}
+                                                <div ref={historyEndRef}>
+                                                    <Text marginTop="8px" width="100%" opacity="0.45" textAlign="center" onClick={() => {
+                                                        incrementVisibleItems();
+                                                    }}>{visibleHistoryCount < friendsListenershipData.length || !friendsListenershipIsLastPage ? "Load more?" : friendsListenershipData.length > 15 ? endOfHistoryMessage : ""}</Text>
+                                                </div>
+                                            </>
+                                        )}
+                                    </Stack>
+                                </Stack>
+                            )}
+                        </>
+                    )}
+
+                    {/* Friends page */}
+                    {currentPage == "friends" && (
+                        <>
+                            <Image
+                                src={`/add-new-case-indication-arrow.svg`}
+                                position="absolute"
+                                right="46px"
+                                top="48px"
+                                marginTop="env(safe-area-inset-top)"
+                                zIndex="9999999"
+                            />
                             <Text
                                 position="absolute"
                                 top="0"
                                 left="0"
-                                display="flex"
                                 justifyContent="center"
                                 alignItems="center"
+                                display="flex"
                                 height="calc(100vh - 72px)"
                                 width="100vw"
                                 color="text.dark"
+                                margin="auto"
                                 textAlign="center"
                                 fontFamily="Inter"
                                 fontSize="16px"
+                                fontWeight="regular"
                                 zIndex="1"
                             >
-                                Tempo is learning your music taste.
+                                Tempo is better with friends!
                                 <br />
-                                We'll let you know when Discover is ready!
+                                Why not try adding someone?
                             </Text>
-                        ) : (
-                            <Stack gap="10px">
-                                {discoveryData.map((v) => (
-                                    <Box key={v.title + v.likeness}>
-                                        <Text>
-                                            {v.title} ({v.artists.join(", ")}) - {Math.ceil(v.likeness * 100)}%
-                                        </Text>
-                                    </Box>
-                                ))}
-                            </Stack>
-                        )}
-                    </>
-                )}
-                {currentPage === "friends" && (
-                    <>
-                        <Image
-                            src={`/add-new-case-indication-arrow.svg`}
-                            position="absolute"
-                            right="46px"
-                            top="48px"
-                            marginTop="env(safe-area-inset-top)"
-                            zIndex="9999999"
-                        />
-                        <Text
-                            position="absolute"
-                            top="0"
-                            left="0"
-                            display="flex"
-                            justifyContent="center"
-                            alignItems="center"
-                            height="calc(100vh - 72px)"
-                            width="100vw"
-                            color="text.dark"
-                            textAlign="center"
-                            fontFamily="Inter"
-                            fontSize="16px"
-                            zIndex="1"
-                        >
-                            Tempo is better with friends!
-                            <br />
-                            Why not try adding someone?
-                        </Text>
-                    </>
-                )}
-                {currentPage === "add-friends" && (
-                    <AddFriendsPage
-                        user={user}
-                        onComplete={id => {
-                            console.log("Added new friend:", id);
-                        }}
-                    />
-                )}
-                {currentPage === "settings" && (
-                    <>
-                        <HStack gap="24px" marginTop="24px">
-                            <Image
-                                src={`https://gravatar.com/avatar/${"gravatarHash"}?d=identicon&t=${"pfpCacheBuster"}&s=80`}
-                                width="80px"
-                                height="80px"
-                                borderRadius="50%"
-                                background="rgba(255, 255, 255, 0.05)"
-                                draggable={false}
+                        </>
+                    )}
+
+                    {/* Add friends page */}
+                    {currentPage == "add-friends" && (
+                        <>
+                            <AddFriendsPage
+                                user={user}
+                                onComplete={id => {
+                                    console.log("Added new friend:", id);
+                                }}
                             />
-                            <Stack gap="0">
-                                <Text
-                                    fontFamily="Inter"
-                                    fontWeight="regular"
-                                    fontSize="14px"
-                                    color="skyblue"
-                                    opacity="0.75"
-                                    onClick={() => {
-                                        pageChanger("edit-profile", "settings");
-                                    }}
-                                >
-                                    Edit Profile
-                                </Text>
-                            </Stack>
-                        </HStack>
-                        <Box
-                            width="100%"
-                            height="1px"
-                            marginTop="24px"
-                            marginBottom="24px"
-                            background="rgba(255, 255, 255, 0.05)"
-                        />
-                        <Text fontFamily="Inter" fontWeight="bold" fontSize="24px" marginTop="-12px">
-                            Invite Colleagues
-                        </Text>
-                    </>
-                )}
+                        </>
+                    )}
+
+                    {/* Settings page */}
+                    {currentPage == "settings" && (
+                        <>
+                            <HStack gap="24px" marginTop="24px">
+                                <Image
+                                    src={`https://gravatar.com/avatar/${"gravatarHash"}?d=identicon&t=${"pfpCacheBuster"}&s=80`}
+                                    width="80px"
+                                    height="80px"
+                                    borderRadius="50%"
+                                    background="rgba(255, 255, 255, 0.05)"
+                                    draggable={false}
+                                />
+                                <Stack gap="0">
+                                    <Text
+                                        fontFamily="Inter"
+                                        fontWeight="regular"
+                                        fontSize="14px"
+                                        color="skyblue"
+                                        opacity="0.75"
+                                        onClick={() => {
+                                            pageChanger("edit-profile", "settings");
+                                        }}
+                                    >
+                                        Edit Profile
+                                    </Text>
+                                </Stack>
+                            </HStack>
+                            <Box
+                                width="100%"
+                                height="1px"
+                                marginTop="24px"
+                                marginBottom="24px"
+                                background="rgba(255, 255, 255, 0.05)"
+                            />
+                            <Text fontFamily="Inter" fontWeight="bold" fontSize="24px" marginTop="-12px">
+                                Invite Colleagues
+                            </Text>
+                        </>
+                    )}
+                </Box>
             </Box>
         </>
     );
