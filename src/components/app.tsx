@@ -47,19 +47,16 @@ export function UIApp({
         album: string;
         likeness: number;
     }[]>([]);
-    // State for listenership history
     const [friendsListenershipData, setFriendsListenershipData] = useState<FriendListenershipItem[]>([]);
     const [friendsListenershipPage, setFriendsListenershipPage] = useState<number>(0);
     const [friendsListenershipIsLastPage, setFriendsListenershipIsLastPage] = useState<boolean>(false);
     const [friendsListenershipIsError, setFriendsListenershipIsError] = useState<boolean>(false);
     const [endOfHistoryMessage, setEndOfHistoryMessage] = useState<string>("You've seen it all! 😉");
 
-    // Lazy loading: how many history items to show at first
     const ITEMS_PER_BATCH = 100;
     const [visibleHistoryCount, setVisibleHistoryCount] = useState<number>(ITEMS_PER_BATCH);
     const historyEndRef = useRef<HTMLDivElement | null>(null);
 
-    // Function to load history for a given page.
     async function loadFriendsHistory(page: number) {
         try {
             const res = await user.getFriendsListenershipHistory(page);
@@ -68,7 +65,6 @@ export function UIApp({
             );
             setFriendsListenershipIsLastPage(res.l);
             setFriendsListenershipIsError(res.e);
-            // Replace data if loading the first page; otherwise append.
             if (page === 0) {
                 setFriendsListenershipData(res.d);
             } else {
@@ -80,12 +76,10 @@ export function UIApp({
         }
     }
 
-    // Whenever the page changes, load new history items.
     useEffect(() => {
         loadFriendsHistory(friendsListenershipPage);
     }, [friendsListenershipPage]);
 
-    // Update the visible count when new data arrives.
     useEffect(() => {
         if (friendsListenershipPage === 0) {
             setVisibleHistoryCount(ITEMS_PER_BATCH);
@@ -100,12 +94,10 @@ export function UIApp({
         if (visibleHistoryCount < friendsListenershipData.length) {
             setVisibleHistoryCount(Math.min(visibleHistoryCount + ITEMS_PER_BATCH, friendsListenershipData.length));
         } else if (!friendsListenershipIsLastPage) {
-            // Trigger load of next page.
             setFriendsListenershipPage(prev => prev + 1);
         }
     };
 
-    // Use IntersectionObserver to load more items when the sentinel is visible.
     useEffect(() => {
         if (!historyEndRef.current) return;
         const observer = new IntersectionObserver(
@@ -122,20 +114,13 @@ export function UIApp({
         };
     }, [friendsListenershipData, visibleHistoryCount, friendsListenershipIsLastPage]);
 
-    // Other effects for page switching and data streaming.
-    useEffect(() => {
-        if (currentPage === "activity") {
-            // Optionally, you might want to refresh history here.
-            // For now, we leave the pagination state intact.
-        }
-    }, [currentPage]);
-
     useEffect(() => {
         if (!user.isLoggedIn) return;
         const newStreamer = new DataStreamer(user.storedToken);
         setStreamer(newStreamer);
 
         newStreamer.on("update", (data: UpdateEvent) => {
+            // Once we get any update, we consider activity loaded.
             setActivityPageLoading(false);
             updateMutex.runExclusive(() => {
                 setLivePlaybackStates((v) => {
@@ -189,10 +174,8 @@ export function UIApp({
         };
     }, [user.isLoggedIn]);
 
-    // Refresh history when window is focused.
     useEffect(() => {
         const handleFocus = async () => {
-            // Optionally, reset history completely.
             setFriendsListenershipPage(0);
             await loadFriendsHistory(0);
         };
@@ -201,6 +184,16 @@ export function UIApp({
             window.removeEventListener("focus", handleFocus);
         };
     }, []);
+
+    // New effect to hide the loading screen once activity data is loaded.
+    useEffect(() => {
+        if (!activityPageLoading) {
+            setTimeout(() => {
+                setIsFading(true);
+                setIsLoading(false);
+            }, 1250);
+        }
+    }, [activityPageLoading]);
 
     const pages: { name: string; id: string; indexed: boolean }[] = [
         { name: "Discover", id: "discover", indexed: true },
@@ -212,8 +205,9 @@ export function UIApp({
 
     const pageChanger = (id: string, prevPage?: string) => {
         const page = pages.find((p) => p.id === id);
-        if (!page)
+        if (!page) {
             throw new Error(`Attempted to switch to page with id "${id}" but no page was found!`);
+        }
         setCurrentPage(id);
         setCurrentPageTitle(page.name);
         setPrevPage(prevPage ?? "");
@@ -251,9 +245,8 @@ export function UIApp({
                 <Loader />
             </Box>
 
-            {/* Main UI */}
             <Box padding="20px" width="100%">
-                {/* (Menu & page switching UI omitted for brevity) */}
+                {/* Menu and header elements omitted for brevity */}
                 {currentPage === "activity" && (
                     <>
                         {activityPageLoading ? (
@@ -275,11 +268,7 @@ export function UIApp({
                                                     background="rgba(255, 255, 255, 0.2)"
                                                 />
                                             )}
-                                            <PlaybackState
-                                                index={i}
-                                                stream={streamer}
-                                                userId={v.userId}
-                                            />
+                                            <PlaybackState index={i} stream={streamer} userId={v.userId} />
                                         </React.Fragment>
                                     ))}
                                 </Stack>
@@ -299,20 +288,18 @@ export function UIApp({
                                         </Text>
                                     ) : (
                                         <>
-                                            {friendsListenershipData
-                                                .slice(0, visibleHistoryCount)
-                                                .map((item, index) => (
-                                                    <React.Fragment key={index}>
-                                                        {index !== 0 && (
-                                                            <Box
-                                                                width="100%"
-                                                                height="1px"
-                                                                background="rgba(255, 255, 255, 0.2)"
-                                                            />
-                                                        )}
-                                                        <PlaybackHistoryItem data={item} />
-                                                    </React.Fragment>
-                                                ))}
+                                            {friendsListenershipData.slice(0, visibleHistoryCount).map((item, index) => (
+                                                <React.Fragment key={index}>
+                                                    {index !== 0 && (
+                                                        <Box
+                                                            width="100%"
+                                                            height="1px"
+                                                            background="rgba(255, 255, 255, 0.2)"
+                                                        />
+                                                    )}
+                                                    <PlaybackHistoryItem data={item} />
+                                                </React.Fragment>
+                                            ))}
                                             <div ref={historyEndRef}>
                                                 <Text
                                                     marginTop="8px"
@@ -336,7 +323,7 @@ export function UIApp({
                         )}
                     </>
                 )}
-                {/* Render other pages similarly */}
+                {/* Other pages rendered similarly */}
             </Box>
         </>
     );
