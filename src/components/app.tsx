@@ -96,14 +96,14 @@ export function UIApp({
         );
     }, [friendsListenershipData, friendsListenershipPage]);
 
-    useEffect(() => {
-        updateFriendsListenershipHistory(friendsListenershipPage);
-    }, [friendsListenershipPage]);
-
     const incrementVisibleItems = () => {
         // Only paginate if we reach end of array
         if (visibleHistoryCount + ITEMS_PER_BATCH > friendsListenershipData.length && !friendsListenershipIsLastPage) {
-            setFriendsListenershipPage(p => p + 1);
+            setFriendsListenershipPage(p => {
+                updateFriendsListenershipHistory(p + 1);
+                
+                return p + 1;
+            });
         } else {
             setVisibleHistoryCount((prevCount) =>
                 Math.min(prevCount + ITEMS_PER_BATCH, friendsListenershipData.length)
