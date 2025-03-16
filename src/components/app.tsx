@@ -26,7 +26,7 @@ const updateMutex = new Mutex();
 
 const generateEndOfHistoryMessage = () => {
     return (Math.random() <= 0.1 ? "~ End of historussy ~" : "You've seen it all! 😉");
-}
+};
 
 export function UIApp({
     prouter,
@@ -64,7 +64,9 @@ export function UIApp({
     const historyEndRef = useRef<HTMLDivElement | null>(null);
 
     async function updateFriendsListenershipHistory(index?: number) {
-        const res = await user.getFriendsListenershipHistory(index ?? friendsListenershipPage);
+        // Use passed index or fallback to state
+        const pageIndex = index ?? friendsListenershipPage;
+        const res = await user.getFriendsListenershipHistory(pageIndex);
 
         const d = res.d;
 
@@ -75,11 +77,11 @@ export function UIApp({
         setFriendsListenershipData(prev => {
             if (prev.length >= 1) {
                 // Check if same data
-                // TODO: Need to implement a hash as this check isnt foolproof
+                // TODO: Need to implement a hash as this check isn't foolproof
                 if (prev[0].timestamp + prev[0].item.sessionDuration == d[0].timestamp + d[0].item.sessionDuration)
                     return prev;
 
-                console.log(prev[prev.length - 1].timestamp, d[0].timestamp, prev[prev.length - 1].timestamp <= d[0].timestamp)
+                console.log(prev[prev.length - 1].timestamp, d[0].timestamp, prev[prev.length - 1].timestamp <= d[0].timestamp);
 
                 if (prev[prev.length - 1].timestamp <= d[0].timestamp)
                     return [...prev, ...d];
@@ -93,8 +95,10 @@ export function UIApp({
 
     useEffect(() => {
         // When friendsListenershipData is refreshed, reset the visible count
-        setVisibleHistoryCount(friendsListenershipPage == 0 ? ITEMS_PER_BATCH : (prevCount) =>
-            Math.min(prevCount + ITEMS_PER_BATCH, friendsListenershipData.length)
+        setVisibleHistoryCount(
+            friendsListenershipPage === 0
+                ? ITEMS_PER_BATCH
+                : (prevCount) => Math.min(prevCount + ITEMS_PER_BATCH, friendsListenershipData.length)
         );
     }, [friendsListenershipData, friendsListenershipPage]);
 
@@ -102,16 +106,16 @@ export function UIApp({
         // Only paginate if we reach end of array
         if (visibleHistoryCount + ITEMS_PER_BATCH > friendsListenershipData.length && !friendsListenershipIsLastPage) {
             setFriendsListenershipPage(p => {
-                updateFriendsListenershipHistory(p + 1);
-                
-                return p + 1;
+                const newPage = p + 1;
+                updateFriendsListenershipHistory(newPage);
+                return newPage;
             });
         } else {
             setVisibleHistoryCount((prevCount) =>
                 Math.min(prevCount + ITEMS_PER_BATCH, friendsListenershipData.length)
             );
         }
-    }
+    };
 
     // Intersection Observer to load more items as the sentinel comes into view
     useEffect(() => {
@@ -119,7 +123,7 @@ export function UIApp({
 
         const observer = new IntersectionObserver(
             (entries) => {
-                console.log(entries, entries[0].isIntersecting)
+                console.log(entries, entries[0].isIntersecting);
                 if (entries[0].isIntersecting)
                     incrementVisibleItems();
             },
@@ -194,31 +198,31 @@ export function UIApp({
             },
             credentials: "include",
         })
-        .then((r) => r.json())
-        .then((r) => {
-            const data: {
-                error: boolean;
-                message?: string;
-                data: {
-                    id: string;
-                    title: string;
-                    artists: string[];
-                    album: string;
-                    likeness: number;
-                }[];
-            } = r;
+            .then((r) => r.json())
+            .then((r) => {
+                const data: {
+                    error: boolean;
+                    message?: string;
+                    data: {
+                        id: string;
+                        title: string;
+                        artists: string[];
+                        album: string;
+                        likeness: number;
+                    }[];
+                } = r;
 
-            if (data.error) {
-                console.warn("Failed to fetch discovery data due to error response:", data);
-                return;
-            }
+                if (data.error) {
+                    console.warn("Failed to fetch discovery data due to error response:", data);
+                    return;
+                }
 
-            console.log("Got discovery data:", data.data);
-            setDiscoveryData(data.data);
-        })
-        .catch((ex) => {
-            console.warn("Failed to fetch user discovery data due to request error:", ex);
-        });
+                console.log("Got discovery data:", data.data);
+                setDiscoveryData(data.data);
+            })
+            .catch((ex) => {
+                console.warn("Failed to fetch user discovery data due to request error:", ex);
+            });
 
         // Fetch friends listenership history
         updateFriendsListenershipHistory();
@@ -228,6 +232,7 @@ export function UIApp({
         };
     }, [user.isLoggedIn]);
 
+    // Update the window focus handler to use the current friendsListenershipPage
     useEffect(() => {
         const handleFocus = async () => {
             if (streamer && !streamer.isReady()) {
@@ -235,14 +240,15 @@ export function UIApp({
                 setLivePlaybackStates([]);
                 setStreamerReset(true);
             }
-            updateFriendsListenershipHistory();
+            // Pass the current friendsListenershipPage explicitly
+            updateFriendsListenershipHistory(friendsListenershipPage);
         };
 
         window.addEventListener("focus", handleFocus);
         return () => {
             window.removeEventListener("focus", handleFocus);
         };
-    }, [streamer]);
+    }, [streamer, friendsListenershipPage]);
 
     useEffect(() => {
         if (streamerReset && streamer && livePlaybackStates.length == 0) {
@@ -585,37 +591,39 @@ export function UIApp({
                                         >
                                             History
                                         </Text>
-                                        {friendsListenershipIsError ? (<>
-                                            <Text marginTop="14px" width="100%" opacity="0.45" textAlign="center" onClick={() => {
-                                                setFriendsListenershipPage(0);
-                                            }}>{"Failed to load history, try again?"}</Text>
-                                        </>) : (<>
-                                            {
-                                                friendsListenershipData
-                                                .slice(0, visibleHistoryCount)
-                                                .map((v, i) => {
-                                                    const data = v;
-                                                    return (
-                                                        <>
-                                                            {i !== 0 && (
-                                                                <Box
-                                                                    width="100%"
-                                                                    height="1px"
-                                                                    background="rgba(255, 255, 255, 0.2)"
-                                                                />
-                                                            )}
-                                                            <PlaybackHistoryItem data={data} />
-                                                        </>
-                                                    );
-                                                })
-                                            }
-                                            {/* Sentinel element for lazy loading */}
-                                            <div ref={historyEndRef}>
-                                                <Text marginTop="8px" width="100%" opacity="0.45" textAlign="center" onClick={() => {
-                                                    incrementVisibleItems();
-                                                }}>{visibleHistoryCount < friendsListenershipData.length || !friendsListenershipIsLastPage ? "Load more?" : friendsListenershipData.length > 15 ? endOfHistoryMessage : ""}</Text>
-                                            </div>
-                                        </>)}
+                                        {friendsListenershipIsError ? (
+                                            <>
+                                                <Text marginTop="14px" width="100%" opacity="0.45" textAlign="center" onClick={() => {
+                                                    setFriendsListenershipPage(0);
+                                                }}>{"Failed to load history, try again?"}</Text>
+                                            </>
+                                        ) : (
+                                            <>
+                                                {friendsListenershipData
+                                                    .slice(0, visibleHistoryCount)
+                                                    .map((v, i) => {
+                                                        const data = v;
+                                                        return (
+                                                            <>
+                                                                {i !== 0 && (
+                                                                    <Box
+                                                                        width="100%"
+                                                                        height="1px"
+                                                                        background="rgba(255, 255, 255, 0.2)"
+                                                                    />
+                                                                )}
+                                                                <PlaybackHistoryItem data={data} />
+                                                            </>
+                                                        );
+                                                    })}
+                                                {/* Sentinel element for lazy loading */}
+                                                <div ref={historyEndRef}>
+                                                    <Text marginTop="8px" width="100%" opacity="0.45" textAlign="center" onClick={() => {
+                                                        incrementVisibleItems();
+                                                    }}>{visibleHistoryCount < friendsListenershipData.length || !friendsListenershipIsLastPage ? "Load more?" : friendsListenershipData.length > 15 ? endOfHistoryMessage : ""}</Text>
+                                                </div>
+                                            </>
+                                        )}
                                     </Stack>
                                 </Stack>
                             )}
@@ -658,14 +666,16 @@ export function UIApp({
                     )}
 
                     {/* Add friends page */}
-                    {currentPage == "add-friends" && (<>
-                        <AddFriendsPage
-                            user={user}
-                            onComplete={id => {
-                                console.log("Added new friend:", id);
-                            }}
-                        />
-                    </>)}
+                    {currentPage == "add-friends" && (
+                        <>
+                            <AddFriendsPage
+                                user={user}
+                                onComplete={id => {
+                                    console.log("Added new friend:", id);
+                                }}
+                            />
+                        </>
+                    )}
 
                     {/* Settings page */}
                     {currentPage == "settings" && (
