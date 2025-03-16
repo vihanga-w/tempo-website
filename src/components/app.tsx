@@ -58,8 +58,7 @@ export function UIApp({
     const [friendsListenershipIsError, setFriendsListenershipIsError] = useState<boolean>(false);
     const [endOfHistoryMessage, setEndOfHistoryMessage] = useState<string>("You've seen it all! 😉");
 
-    // We display 100 items at a time.
-    const ITEMS_PER_BATCH = 100;
+    const ITEMS_PER_BATCH = 25;
     const [visibleHistoryCount, setVisibleHistoryCount] = useState<number>(ITEMS_PER_BATCH);
     const historyEndRef = useRef<HTMLDivElement | null>(null);
 
@@ -91,7 +90,6 @@ export function UIApp({
         }
     }
 
-    // When new data arrives, update how many items are visible.
     useEffect(() => {
         if (friendsListenershipPage === 0) {
             setVisibleHistoryCount(ITEMS_PER_BATCH);
@@ -102,27 +100,28 @@ export function UIApp({
         }
     }, [friendsListenershipData, friendsListenershipPage]);
 
-    // Function to increment visible items.
-    const incrementVisibleItems = () => {
-        if (visibleHistoryCount + ITEMS_PER_BATCH > friendsListenershipData.length && !friendsListenershipIsLastPage) {
-            // If we don't have enough items loaded, trigger the next page.
-            setFriendsListenershipPage(p => {
-                updateFriendsListenershipHistory(p + 1);
-                return p + 1;
-            });
+    useEffect(() => {
+        if (friendsListenershipPage === 0) {
+            setVisibleHistoryCount(ITEMS_PER_BATCH);
         } else {
-            // Otherwise, show the next batch.
-            setVisibleHistoryCount(prevCount =>
-                Math.min(prevCount + ITEMS_PER_BATCH, friendsListenershipData.length)
+            setVisibleHistoryCount(prev =>
+                Math.min(prev + ITEMS_PER_BATCH, friendsListenershipData.length)
             );
+        }
+    }, [friendsListenershipData]);
+
+    const incrementVisibleItems = () => {
+        if (visibleHistoryCount < friendsListenershipData.length) {
+            setVisibleHistoryCount(Math.min(visibleHistoryCount + ITEMS_PER_BATCH, friendsListenershipData.length));
+        } else if (!friendsListenershipIsLastPage) {
+            setFriendsListenershipPage(prev => prev + 1);
         }
     };
 
-    // IntersectionObserver to auto-trigger pagination when the sentinel is visible.
     useEffect(() => {
         if (!historyEndRef.current) return;
         const observer = new IntersectionObserver(
-            entries => {
+            (entries) => {
                 if (entries[0].isIntersecting) {
                     incrementVisibleItems();
                 }
@@ -147,6 +146,7 @@ export function UIApp({
         const newStreamer = new DataStreamer(user.storedToken);
         setStreamer(newStreamer);
         newStreamer.on("update", (data: UpdateEvent) => {
+            // Once we get any update, we consider activity loaded.
             setActivityPageLoading(false);
             updateMutex.runExclusive(() => {
                 setLivePlaybackStates(v => {
@@ -204,7 +204,7 @@ export function UIApp({
         };
     }, []);
 
-    // Hide the loading screen once activity data is loaded.
+    // New effect to hide the loading screen once activity data is loaded.
     useEffect(() => {
         if (!activityPageLoading) {
             setTimeout(() => {
