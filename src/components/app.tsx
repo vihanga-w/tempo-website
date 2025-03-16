@@ -47,6 +47,7 @@ export function UIApp({
         album: string;
         likeness: number;
     }[]>([]);
+    // Each page represents a day's worth of history data.
     const [friendsListenershipData, setFriendsListenershipData] = useState<FriendListenershipItem[]>([]);
     const [friendsListenershipPage, setFriendsListenershipPage] = useState<number>(0);
     const [friendsListenershipIsLastPage, setFriendsListenershipIsLastPage] = useState<boolean>(false);
@@ -423,6 +424,16 @@ export function UIApp({
                                                 </React.Fragment>
                                             ))}
                                             <div ref={historyEndRef} />
+                                            {friendsListenershipIsLastPage && friendsListenershipData.length > 0 && (
+                                                <Text
+                                                    marginTop="8px"
+                                                    width="100%"
+                                                    opacity="0.45"
+                                                    textAlign="center"
+                                                >
+                                                    {endOfHistoryMessage}
+                                                </Text>
+                                            )}
                                         </>
                                     )}
                                 </Stack>
