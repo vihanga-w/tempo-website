@@ -79,6 +79,8 @@ export function UIApp({
                 if (prev[0].timestamp + prev[0].item.sessionDuration == d[0].timestamp + d[0].item.sessionDuration)
                     return prev;
 
+                console.log(prev[prev.length - 1].timestamp, d[0].timestamp, prev[prev.length - 1].timestamp <= d[0].timestamp)
+
                 if (prev[prev.length - 1].timestamp <= d[0].timestamp)
                     return [...prev, ...d];
 
