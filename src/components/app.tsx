@@ -101,7 +101,14 @@ export function UIApp({
     }, [friendsListenershipPage]);
 
     const incrementVisibleItems = () => {
-        setFriendsListenershipPage(p => p + 1);
+        // Only paginate if we reach end of array
+        if (visibleHistoryCount + ITEMS_PER_BATCH > friendsListenershipData.length && !friendsListenershipIsLastPage) {
+            setFriendsListenershipPage(p => p + 1);
+        } else {
+            setVisibleHistoryCount((prevCount) =>
+                Math.min(prevCount + ITEMS_PER_BATCH, friendsListenershipData.length)
+            );
+        }
     }
 
     // Intersection Observer to load more items as the sentinel comes into view
