@@ -63,7 +63,7 @@ export function UIApp({
     const [visibleHistoryCount, setVisibleHistoryCount] = useState<number>(ITEMS_PER_BATCH);
     const historyEndRef = useRef<HTMLDivElement | null>(null);
 
-    const updateFriendsListenershipHistory = async (index?: number) => {
+    async function updateFriendsListenershipHistory(index?: number) {
         const res = await user.getFriendsListenershipHistory(index ?? friendsListenershipPage);
 
         const d = res.d;
