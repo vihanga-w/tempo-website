@@ -59,7 +59,7 @@ export function UIApp({
     const historyEndRef = useRef<HTMLDivElement | null>(null);
 
     const updateFriendsListenershipHistory = async () => {
-        const res = await user.getFriendsListenershipHistory(friendsListenershipPage + 1);
+        const res = await user.getFriendsListenershipHistory(friendsListenershipPage);
 
         const d = res.d;
 
