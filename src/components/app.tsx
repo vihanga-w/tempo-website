@@ -24,6 +24,10 @@ import { AddFriendsPage } from "./add-friends-page";
 
 const updateMutex = new Mutex();
 
+const generateEndOfHistoryMessage = () => {
+    return (Math.random() <= 0.1 ? "~ End of historussy ~" : "You've seen it all! 😉");
+}
+
 export function UIApp({
     prouter,
     user,
@@ -52,6 +56,7 @@ export function UIApp({
     const [friendsListenershipPage, setFriendsListenershipPage] = useState<number>(0);
     const [friendsListenershipIsLastPage, setFriendsListenershipIsLastPage] = useState<boolean>(false);
     const [friendsListenershipIsError, setFriendsListenershipIsError] = useState<boolean>(false);
+    const [endOfHistoryMessage, setEndOfHistoryMessage] = useState<string>("You've seen it all! 😉");
 
     // Lazy loading: how many history items to show at first
     const ITEMS_PER_BATCH = 20;
@@ -63,6 +68,7 @@ export function UIApp({
 
         const d = res.d;
 
+        setEndOfHistoryMessage(generateEndOfHistoryMessage());
         setFriendsListenershipIsLastPage(res.l);
         setFriendsListenershipIsError(res.e);
 
@@ -598,7 +604,7 @@ export function UIApp({
                                             <div ref={historyEndRef}>
                                                 <Text marginTop="8px" width="100%" opacity="0.45" textAlign="center" onClick={() => {
                                                     incrementVisibleItems();
-                                                }}>{visibleHistoryCount < friendsListenershipData.length || !friendsListenershipIsLastPage ? "Load more?" : friendsListenershipData.length > 15 ? "You've seen it all! 😉" : ""}</Text>
+                                                }}>{visibleHistoryCount < friendsListenershipData.length || !friendsListenershipIsLastPage ? "Load more?" : friendsListenershipData.length > 15 ? endOfHistoryMessage : ""}</Text>
                                             </div>
                                         </>)}
                                     </Stack>
