@@ -134,7 +134,7 @@ export function UIApp({
                 observer.unobserve(historyEndRef.current);
             }
         };
-    }, [friendsListenershipData]);
+    }, [friendsListenershipData, historyEndRef]);
 
     useEffect(() => {
         // Extra actions to perform when page switched
