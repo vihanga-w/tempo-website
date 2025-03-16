@@ -192,9 +192,9 @@ export default class User extends EventEmitter {
         }
     }
 
-    public async getFriendsListenershipHistory() {
+    public async getFriendsListenershipHistory(page: number) {
         try {
-            const req = await fetch(API_URL + "/me/feed/history", {
+            const req = await fetch(API_URL + "/me/feed/history/" + page, {
                 headers: {
                     ...(this.getAuthHeaders())
                 },
@@ -204,19 +204,32 @@ export default class User extends EventEmitter {
                 error: boolean;
                 message?: string;
                 data: FriendListenershipItem[];
+                isFinalPage: boolean;
             };
 
             if (res.error) {
                 console.warn("Failed to load friends listenership data, res:", res);
 
-                return [];
+                return {
+                    d: [],
+                    l: false,
+                    e: true,
+                };
             }
 
-            return res.data;
+            return {
+                d: res.data,
+                l: res.isFinalPage,
+                e: false,
+            };
         } catch (ex) {
             console.error("getFriendsListenershipHistory failed with error:", ex);
 
-            return [];
+            return {
+                d: [],
+                l: false,
+                e: true,
+            };
         }
     }
 

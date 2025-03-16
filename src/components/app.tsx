@@ -49,6 +49,9 @@ export function UIApp({
         likeness: number;
     }[]>([]);
     const [friendsListenershipData, setFriendsListenershipData] = useState<FriendListenershipItem[]>([]);
+    const [friendsListenershipPage, setFriendsListenershipPage] = useState<number>(0);
+    const [friendsListenershipIsLastPage, setFriendsListenershipIsLastPage] = useState<boolean>(false);
+    const [friendsListenershipIsError, setFriendsListenershipIsError] = useState<boolean>(false);
 
     // Lazy loading: how many history items to show at first
     const ITEMS_PER_BATCH = 20;
@@ -56,19 +59,39 @@ export function UIApp({
     const historyEndRef = useRef<HTMLDivElement | null>(null);
 
     const updateFriendsListenershipHistory = async () => {
-        const d = await user.getFriendsListenershipHistory();
-        setFriendsListenershipData(d);
+        const res = await user.getFriendsListenershipHistory(friendsListenershipPage + 1);
+
+        const d = res.d;
+
+        setFriendsListenershipIsLastPage(res.l);
+        setFriendsListenershipIsError(res.e);
+
+        setFriendsListenershipData(prev => {
+            // Check if same data
+            // TODO: Need to implement a hash as this check isnt foolproof
+            if (prev[0].timestamp + prev[0].item.sessionDuration == d[0].timestamp + d[0].item.sessionDuration)
+                return prev;
+
+            if (prev[prev.length - 1].timestamp <= d[0].timestamp)
+                return [...prev, ...d];
+
+            return prev;
+        });
     };
 
     useEffect(() => {
         // When friendsListenershipData is refreshed, reset the visible count
-        setVisibleHistoryCount(ITEMS_PER_BATCH);
-    }, [friendsListenershipData]);
-
-    const incrementVisibleItems = () => {
-        setVisibleHistoryCount((prevCount) =>
+        setVisibleHistoryCount(friendsListenershipPage == 0 ? ITEMS_PER_BATCH : (prevCount) =>
             Math.min(prevCount + ITEMS_PER_BATCH, friendsListenershipData.length)
         );
+    }, [friendsListenershipData]);
+
+    useEffect(() => {
+        updateFriendsListenershipHistory();
+    }, [friendsListenershipPage]);
+
+    const incrementVisibleItems = () => {
+        setFriendsListenershipPage(p => p + 1);
     }
 
     // Intersection Observer to load more items as the sentinel comes into view
@@ -543,29 +566,37 @@ export function UIApp({
                                         >
                                             History
                                         </Text>
-                                        {friendsListenershipData
-                                            .slice(0, visibleHistoryCount)
-                                            .map((v, i) => {
-                                                const data = v;
-                                                return (
-                                                    <>
-                                                        {i !== 0 && (
-                                                            <Box
-                                                                width="100%"
-                                                                height="1px"
-                                                                background="rgba(255, 255, 255, 0.2)"
-                                                            />
-                                                        )}
-                                                        <PlaybackHistoryItem data={data} />
-                                                    </>
-                                                );
-                                            })}
-                                        {/* Sentinel element for lazy loading */}
-                                        <div ref={historyEndRef}>
-                                            <Text marginTop="8px" width="100%" opacity="0.45" textAlign="center" onClick={() => {
-                                                incrementVisibleItems();
-                                            }}>{visibleHistoryCount < friendsListenershipData.length ? "Load more?" : friendsListenershipData.length > 15 ? "You've seen it all! 😉" : ""}</Text>
-                                        </div>
+                                        {friendsListenershipIsError ? (<>
+                                            <Text marginTop="14px" width="100%" opacity="0.45" textAlign="center" onClick={() => {
+                                                setFriendsListenershipPage(0);
+                                            }}>{"Failed to load history, try again?"}</Text>
+                                        </>) : (<>
+                                            {
+                                                friendsListenershipData
+                                                .slice(0, visibleHistoryCount)
+                                                .map((v, i) => {
+                                                    const data = v;
+                                                    return (
+                                                        <>
+                                                            {i !== 0 && (
+                                                                <Box
+                                                                    width="100%"
+                                                                    height="1px"
+                                                                    background="rgba(255, 255, 255, 0.2)"
+                                                                />
+                                                            )}
+                                                            <PlaybackHistoryItem data={data} />
+                                                        </>
+                                                    );
+                                                })
+                                            }
+                                            {/* Sentinel element for lazy loading */}
+                                            <div ref={historyEndRef}>
+                                                <Text marginTop="8px" width="100%" opacity="0.45" textAlign="center" onClick={() => {
+                                                    incrementVisibleItems();
+                                                }}>{visibleHistoryCount < friendsListenershipData.length || !friendsListenershipIsLastPage ? "Load more?" : friendsListenershipData.length > 15 ? "You've seen it all! 😉" : ""}</Text>
+                                            </div>
+                                        </>)}
                                     </Stack>
                                 </Stack>
                             )}
