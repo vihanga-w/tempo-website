@@ -39,7 +39,7 @@
     "chakra-react-select": "^4.7.6",
     "cordova-plugin-inappbrowser": "^6.0.0",
     "file-loader": "^6.2.0",
-    "framer-motion": "^11.0.8",
+    "framer-motion": "^11.18.2",
     "javascript-time-ago": "^2.5.11",
     "libphonenumber-js": "^1.10.58",
     "meshline": "^3.3.1",

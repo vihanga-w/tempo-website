@@ -5,6 +5,7 @@ import { use, useEffect, useState } from "react";
 
 import Lanyard from "@/components/Lanyard/Lanyard";
 import { Box } from "@chakra-ui/react";
+import ScrollVelocity from "@/TextAnimations/ScrollVelocity/ScrollVelocity";
 
 export default function AuthSuccess() {
     const [invertGravity, setInvertGravity] = useState(false);
@@ -40,7 +41,25 @@ export default function AuthSuccess() {
 
     return (
         <Box pointerEvents="none">
-            <Lanyard position={[0, 0, 16]} gravity={[0, -40 * (invertGravity ? -1.75 : 1), 0]} />
+            <Box pos="fixed" top="-100px" left="-25px" zIndex="0" transform="rotate(-10deg)" opacity=".45">
+                <ScrollVelocity
+                    texts={['WELCOME', 'WELCOME']} 
+                    velocity={40}
+                    numCopies={10} 
+                    className="custom-scroll-text"
+                />
+            </Box>
+            <Box pos="relative" zIndex="10">
+                <Lanyard position={[0, 0, 14]} gravity={[0, -40 * (invertGravity ? -1.75 : 1), 0]} transparent />
+            </Box>
+            <Box pos="fixed" bottom="205px" left="-25px" zIndex="0" transform="rotate(-10deg)" opacity=".45">
+                <ScrollVelocity
+                    texts={['TEMPO MUSIC', 'TEMPO MUSIC']} 
+                    velocity={40}
+                    numCopies={10} 
+                    className="custom-scroll-text"
+                />
+            </Box>
         </Box>
     );
 }
