@@ -104,22 +104,6 @@ export default function AuthSuccess() {
         username.cb();
     }, [username]);
 
-    useEffect(() => {
-        if (!document || !window)
-            return;
-
-        if (!document.cookie.includes("tempo.a="))
-            window.location.pathname = "/error";
-
-        const authToken = document.cookie.split("tempo.a=")[1].split(";")[0];
-
-        window.localStorage.setItem("tempo.a", authToken);
-
-        setTimeout(() => {
-            window.location.pathname = "/";
-        }, 250);
-    }, []);
-
     return (
         <Box pointerEvents="none">
             <Box pos="fixed" top="-100px" left="-25px" zIndex="1" transform="rotate(-10deg)" opacity=".45">
