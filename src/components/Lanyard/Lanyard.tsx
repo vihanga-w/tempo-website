@@ -153,27 +153,27 @@ function Band({ maxSpeed = 50, minSpeed = 0 }: BandProps) {
     [0, 1.45, 0],
   ]);
 
-  useEffect(() => {
-    if (hovered) {
-      document.body.style.cursor = dragged ? "grabbing" : "grab";
-      return () => {
-        document.body.style.cursor = "auto";
-      };
-    }
-  }, [hovered, dragged]);
+  // useEffect(() => {
+  //   if (hovered) {
+  //     document.body.style.cursor = dragged ? "grabbing" : "grab";
+  //     return () => {
+  //       document.body.style.cursor = "auto";
+  //     };
+  //   }
+  // }, [hovered, dragged]);
 
   useFrame((state, delta) => {
-    if (dragged && typeof dragged !== "boolean") {
-      vec.set(state.pointer.x, state.pointer.y, 0.5).unproject(state.camera);
-      dir.copy(vec).sub(state.camera.position).normalize();
-      vec.add(dir.multiplyScalar(state.camera.position.length()));
-      [card, j1, j2, j3, fixed].forEach((ref) => ref.current?.wakeUp());
-      card.current?.setNextKinematicTranslation({
-        x: vec.x - dragged.x,
-        y: vec.y - dragged.y,
-        z: vec.z - dragged.z,
-      });
-    }
+    // if (dragged && typeof dragged !== "boolean") {
+    //   vec.set(state.pointer.x, state.pointer.y, 0.5).unproject(state.camera);
+    //   dir.copy(vec).sub(state.camera.position).normalize();
+    //   vec.add(dir.multiplyScalar(state.camera.position.length()));
+    //   [card, j1, j2, j3, fixed].forEach((ref) => ref.current?.wakeUp());
+    //   card.current?.setNextKinematicTranslation({
+    //     x: vec.x - dragged.x,
+    //     y: vec.y - dragged.y,
+    //     z: vec.z - dragged.z,
+    //   });
+    // }
     if (fixed.current) {
       [j1, j2].forEach((ref) => {
         if (!ref.current.lerped)
@@ -239,11 +239,7 @@ function Band({ maxSpeed = 50, minSpeed = 0 }: BandProps) {
           position={[2, 0, 0]}
           ref={card}
           {...segmentProps}
-          type={
-            dragged
-              ? ("kinematicPosition" as RigidBodyProps["type"])
-              : ("dynamic" as RigidBodyProps["type"])
-          }
+          type={"dynamic" as RigidBodyProps["type"]}
         >
           <CuboidCollider args={[0.8, 1.125, 0.01]} />
           <group

@@ -1,11 +1,25 @@
 "use client";
 
 import { Loader } from "@/components/loader";
-import { useEffect } from "react";
+import { use, useEffect, useState } from "react";
 
 import Lanyard from "@/components/Lanyard/Lanyard";
+import { Box } from "@chakra-ui/react";
 
 export default function AuthSuccess() {
+    const [invertGravity, setInvertGravity] = useState(false);
+
+    useEffect(() => {
+        if (!document || !window)
+            return;
+
+        // TODO: Verify the user's token
+
+        setTimeout(() => {
+            setInvertGravity(true);
+        }, 3200);
+    }, []);
+
     // useEffect(() => {
     //     if (!document || !window)
     //         return;
@@ -25,6 +39,8 @@ export default function AuthSuccess() {
     // return (<Loader />)
 
     return (
-        <Lanyard position={[0, 0, 20]} gravity={[0, -40, 0]} />
+        <Box pointerEvents="none">
+            <Lanyard position={[0, 0, 16]} gravity={[0, -40 * (invertGravity ? -1.75 : 1), 0]} />
+        </Box>
     );
 }
