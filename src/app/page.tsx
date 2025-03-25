@@ -149,7 +149,7 @@ export default function Home() {
     });
 
     // Check whether we are in a PWA standalone app
-    if (window.navigator && !window.localStorage.getItem("tempo-override-pwa-detection") && !Capacitor.isNativePlatform()) setIsInMobileBrowser(!((("standalone" in window.navigator) && window.navigator.standalone) || window.matchMedia("(display-mode: standalone)")));
+    if (window.navigator && !window.localStorage.getItem("tempo-override-pwa-detection") && !Capacitor.isNativePlatform()) setIsInMobileBrowser(!((("standalone" in window.navigator) && window.navigator.standalone) || window.matchMedia("(display-mode: standalone)").matches));
     else if (window.localStorage.getItem("tempo-override-pwa-detection")) setIsInMobileBrowser(false);
     else setIsInMobileBrowser(!Capacitor.isNativePlatform())
   }, []);
