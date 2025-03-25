@@ -1,0 +1,1 @@
+// This file is no longer needed as the Webpack configuration has been moved to next.config.mjs.
