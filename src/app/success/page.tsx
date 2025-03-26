@@ -50,7 +50,7 @@ export default function AuthSuccess() {
     const [er, _] = useState(ensureReady(2));
     const [username, setUsername] = useState<string | undefined>();
 
-    const isDev = true;
+    const isDev = false;
 
     useEffect(() => {
         if (!document || !window)
