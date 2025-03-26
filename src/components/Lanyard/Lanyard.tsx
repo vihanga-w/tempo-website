@@ -32,6 +32,7 @@ interface LanyardProps {
   gravity?: [number, number, number];
   fov?: number;
   transparent?: boolean;
+  onRest?: () => void;
 }
 
 export default function Lanyard({
@@ -39,6 +40,7 @@ export default function Lanyard({
   gravity = [0, -40, 0],
   fov = 20,
   transparent = true,
+  onRest,
 }: LanyardProps) {
   return (
     <div className="lanyard-wrapper">
@@ -51,7 +53,7 @@ export default function Lanyard({
       >
         <ambientLight intensity={Math.PI} />
         <Physics gravity={gravity} timeStep={1 / 60}>
-          <Band />
+          <Band onRest={onRest} />
         </Physics>
         <Environment blur={0.75}>
           <Lightformer
@@ -91,9 +93,10 @@ export default function Lanyard({
 interface BandProps {
   maxSpeed?: number;
   minSpeed?: number;
+  onRest?: () => void;
 }
 
-function Band({ maxSpeed = 50, minSpeed = 0 }: BandProps) {
+function Band({ maxSpeed = 50, minSpeed = 0, onRest }: BandProps) {
   // Using "any" for refs since the exact types depend on Rapier's internals
   const band = useRef<any>(null);
   const fixed = useRef<any>(null);
@@ -153,27 +156,46 @@ function Band({ maxSpeed = 50, minSpeed = 0 }: BandProps) {
     [0, 1.45, 0],
   ]);
 
-  // useEffect(() => {
-  //   if (hovered) {
-  //     document.body.style.cursor = dragged ? "grabbing" : "grab";
-  //     return () => {
-  //       document.body.style.cursor = "auto";
-  //     };
-  //   }
-  // }, [hovered, dragged]);
+  useEffect(() => {
+    if (hovered) {
+      document.body.style.cursor = dragged ? "grabbing" : "grab";
+      return () => {
+        document.body.style.cursor = "auto";
+      };
+    }
+  }, [hovered, dragged]);
 
   useFrame((state, delta) => {
-    // if (dragged && typeof dragged !== "boolean") {
-    //   vec.set(state.pointer.x, state.pointer.y, 0.5).unproject(state.camera);
-    //   dir.copy(vec).sub(state.camera.position).normalize();
-    //   vec.add(dir.multiplyScalar(state.camera.position.length()));
-    //   [card, j1, j2, j3, fixed].forEach((ref) => ref.current?.wakeUp());
-    //   card.current?.setNextKinematicTranslation({
-    //     x: vec.x - dragged.x,
-    //     y: vec.y - dragged.y,
-    //     z: vec.z - dragged.z,
-    //   });
-    // }
+    if (dragged && typeof dragged !== "boolean") {
+      vec.set(state.pointer.x, state.pointer.y, 0.5).unproject(state.camera);
+      dir.copy(vec).sub(state.camera.position).normalize();
+      vec.add(dir.multiplyScalar(state.camera.position.length()));
+      [card, j1, j2, j3, fixed].forEach((ref) => ref.current?.wakeUp());
+      card.current?.setNextKinematicTranslation({
+        x: vec.x - dragged.x,
+        y: vec.y - dragged.y,
+        z: vec.z - dragged.z,
+      });
+    }
+
+    if (card.current && onRest) {
+      const { x, y } = card.current.translation();
+      const deltaX = Math.abs(x - (card.current.prevX || 0));
+      const deltaY = Math.abs(y - (card.current.prevY || 0));
+      const magnitude = Math.sqrt(deltaX ** 2 + deltaY ** 2);
+
+      const threshold = 0.0001;
+
+      if (magnitude > threshold && magnitude <= 0.00032 && !card.current.atRest) {
+        onRest();
+        
+        card.current.atRest = true;
+      }
+
+      card.current.prevX = x;
+      card.current.prevY = y;
+    }
+
     if (fixed.current) {
       [j1, j2].forEach((ref) => {
         if (!ref.current.lerped)
@@ -239,7 +261,7 @@ function Band({ maxSpeed = 50, minSpeed = 0 }: BandProps) {
           position={[2, 0, 0]}
           ref={card}
           {...segmentProps}
-          type={"dynamic" as RigidBodyProps["type"]}
+          type={dragged ? 'kinematicPosition' : 'dynamic'}
         >
           <CuboidCollider args={[0.8, 1.125, 0.01]} />
           <group

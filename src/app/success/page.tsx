@@ -10,21 +10,32 @@ import SplitText from "@/TextAnimations/SplitText/SplitText";
 import { API_URL } from "@/lib/const";
 import { ClientUserAccount } from "@/lib/usrlib";
 
-function ensureReady() {
-    let ready = false;
+function ensureReady(readyCount = 1) {
+    let ready = 0;
+    let readyIds: string[] = [""];
     let cb: (() => void) | undefined;
 
     return {
-        ready: () => {
-            if (cb)
+        ready: (readyId: string) => {
+            if (readyIds.includes(readyId))
+                return;
+
+            ready++;
+            readyIds.push(readyId);
+
+            if (cb && ready >= readyCount)
                 cb();
 
-            ready = true;
+            console.log("ER-Ready:", ready, "/", readyCount);
         },
         wait: () => {
             return new Promise<void>((resolve) => {
-                if (ready)
+                console.log("ER-Waiting:", ready, "/", readyCount);
+                
+                if (ready >= readyCount) {
+                    console.log("ER-Resolved");
                     return resolve();
+                }
 
                 cb = resolve;
             });
@@ -36,20 +47,16 @@ export default function AuthSuccess() {
     const [invertGravity, setInvertGravity] = useState(false);
     const [showWelcomeText, setShowWelcomeText] = useState(false);
     const [showWelcomeText2, setShowWelcomeText2] = useState(false);
-    const [username, setUsername] = useState<{
-        cb: () => void;
-        text: string;
-    } | undefined>();
+    const [er, _] = useState(ensureReady(2));
+    const [username, setUsername] = useState<string | undefined>();
+
+    const isDev = true;
 
     useEffect(() => {
         if (!document || !window)
             return;
 
-        const er = ensureReady();
-
-        setTimeout(async () => {
-            await er.wait();
-
+        er.wait().then(() => {
             setInvertGravity(true);
 
             setTimeout(() => {
@@ -58,12 +65,12 @@ export default function AuthSuccess() {
             setTimeout(() => {
                 setShowWelcomeText2(true);
             }, 3200);
-        }, 3200);
+        });
 
-        if (!document.cookie.includes("tempo.a="))
+        if (!document.cookie.includes("tempo.a=") && !isDev)
             window.location.pathname = "/error";
 
-        const authToken = document.cookie.split("tempo.a=")[1].split(";")[0];
+        const authToken = (document.cookie.includes("tempo.a=") ? document.cookie.split("tempo.a=")[1].split(";")[0] : "");
 
         window.localStorage.setItem("tempo.a", authToken);
 
@@ -85,15 +92,13 @@ export default function AuthSuccess() {
                 // The server has stated that there was an error
                 console.warn("Server responded with an error state while fetching user authentication status, error:", res.message ?? "Unspecified server error");
 
-                window.location.pathname = "/error";
+                if (!isDev)
+                    window.location.pathname = "/error";
 
                 return;
             }
 
-            setUsername({
-                cb: er.ready,
-                text: res.data?.displayName ?? "User"
-            });
+            setUsername(res.data?.displayName ?? "User");
         });
     }, []);
 
@@ -101,7 +106,9 @@ export default function AuthSuccess() {
         if (!username)
             return;
 
-        username.cb();
+        console.log(username)
+
+        er.ready("username");
     }, [username]);
 
     return (
@@ -115,7 +122,9 @@ export default function AuthSuccess() {
                 />
             </Box>
             <Box pos="relative" zIndex="10">
-                <Lanyard position={[0, 0, 14]} gravity={[0, -40 * (invertGravity ? -1.75 : 1), 0]} transparent />
+                <Lanyard onRest={() => {
+                    er.ready("physics-rest");
+                }} position={[0, 0, 14]} gravity={[0, -40 * (invertGravity ? -1.45 : 1), 0]} transparent />
             </Box>
             <Box pos="fixed" bottom="205px" left="-25px" zIndex="1" transform="rotate(-10deg)" opacity=".45">
                 <ScrollVelocity
@@ -129,7 +138,7 @@ export default function AuthSuccess() {
                 <Box w="75vw" textAlign="center" fontSize="20px" fontWeight="medium" fontFamily="Inter">
                     {showWelcomeText && (<>
                         <SplitText
-                            text={`Welcome to Tempo${username && username.text !== "" ? ", " + username.text : ""}.`}
+                            text={`Welcome to Tempo${username && username !== "" ? ", " + username : ""}.`}
                             className="text-2xl font-semibold text-center"
                             delay={65}
                             animationFrom={{ opacity: 0, transform: 'translate3d(0,12px,0)', filter: 'blur(4px)' }}
@@ -153,7 +162,8 @@ export default function AuthSuccess() {
                             rootMargin="-50px"
                             onLetterAnimationComplete={() => {
                                 setTimeout(() => {
-                                    window.location.pathname = "/";
+                                    if (!isDev)
+                                        window.location.pathname = "/";
                                 }, 1750);
                             }}
                         />
