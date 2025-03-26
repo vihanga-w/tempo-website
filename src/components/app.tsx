@@ -682,7 +682,7 @@ export function UIApp({
                         <>
                             <HStack gap="24px" marginTop="24px">
                                 <Image
-                                    src={`https://gravatar.com/avatar/${"gravatarHash"}?d=identicon&t=${"pfpCacheBuster"}&s=80`}
+                                    src={user.object?.images[0]?.url}
                                     width="80px"
                                     height="80px"
                                     borderRadius="50%"
@@ -690,6 +690,18 @@ export function UIApp({
                                     draggable={false}
                                 />
                                 <Stack gap="0">
+                                <Text
+                                        fontFamily="Inter"
+                                        fontWeight="medium"
+                                        fontSize="16px"
+                                        color="skyblue"
+                                        opacity="0.75"
+                                        onClick={() => {
+                                            pageChanger("edit-profile", "settings");
+                                        }}
+                                    >
+                                        {user.object?.displayName}
+                                    </Text>
                                     <Text
                                         fontFamily="Inter"
                                         fontWeight="regular"
