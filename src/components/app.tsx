@@ -702,6 +702,18 @@ export function UIApp({
                                     >
                                         Edit Profile
                                     </Text>
+                                    <Text
+                                        fontFamily="Inter"
+                                        fontWeight="regular"
+                                        fontSize="14px"
+                                        color="skyblue"
+                                        opacity="0.75"
+                                        onClick={() => {
+                                            window.location.pathname = "/success";
+                                        }}
+                                    >
+                                        Play with Card
+                                    </Text>
                                 </Stack>
                             </HStack>
                             <Box
