@@ -126,11 +126,23 @@ export default function ProfilePage({
             zIndex="0"
             background={`linear-gradient(to bottom, ${reactiveDesignColourCommited ?? "#ffffff00"}, #ffffff00)`}
             opacity={displayReactiveDesignColour ? "0.65" : 0}
-            transform={displayReactiveDesignColour ? "translateY(0)" : "translateY(-100%)"}
+            transform={displayReactiveDesignColour ? "translateY(-60px)" : "translateY(-100%)"}
             padding="24px"
             width="100vw"
-            height="320px"
-            transition=".5s"
+            height="400px"
+            transition=".75s"
+        />
+        <Box
+            pos="fixed"
+            left="0"
+            top="0"
+            zIndex="0"
+            background={reactiveDesignColourCommited ?? "#ffffff00"}
+            opacity={displayReactiveDesignColour ? "0.15" : 0}
+            padding="24px"
+            width="100vw"
+            height="100vh"
+            transition=".75s"
         />
         <Stack gap="26px" width="100%" pos="relative" zIndex="1" marginTop="-15px">
             <HStack gap="24px" marginTop="24px">
