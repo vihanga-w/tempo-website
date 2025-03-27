@@ -40,13 +40,14 @@ export function UIApp({
     const [currentPageTitle, setCurrentPageTitle] = useState<string>("Activity");
     const [prevPage, setPrevPage] = useState<string>("");
     const [pageSwitcherActive, setPageSwitcherActive] = useState<boolean>(false);
-    const [isLoading, setIsLoading] = useState<boolean>(true);
+    const [isLoading, setIsLoading] = useState<boolean>(false);
     const [isFading, setIsFading] = useState<boolean>(false);
     const [activityPageLoading, setActivityPageLoading] = useState<boolean>(true);
     const [livePlaybackStates, setLivePlaybackStates] = useState<UpdateEvent[]>([]);
     const [streamer, setStreamer] = useState<DataStreamer | null>(null);
     const [streamerReset, setStreamerReset] = useState<boolean>(false);
     const [hideTopGradient, setHideTopGradient] = useState<boolean>(false);
+    const [complementaryColour, setComplementaryColour] = useState<string>("#e9e7fb");
     const [discoveryData, setDiscoveryData] = useState<{
         id: string;
         title: string;
@@ -309,6 +310,7 @@ export function UIApp({
         if (id !== "settings" && !id.startsWith("profile-"))
             setHideTopGradient(false);
 
+        setComplementaryColour("#e9e7fb");
         setCurrentPage(id);
         setCurrentPageTitle(title);
         setPrevPage(prevPage ?? "");
@@ -402,7 +404,24 @@ export function UIApp({
                 >
                     <Box position="fixed" overflow="hidden" zIndex="999999999" top="env(safe-area-inset-top)">
                         <HStack gap="10px" onClick={handlePageMenuClick}>
-                            <Image
+                            <Box
+                                transform={
+                                    pageSwitcherActive
+                                        ? "rotate(180deg)"
+                                        : prevPage !== ""
+                                        ? "rotate(90deg)"
+                                        : "rotate(0deg)"
+                                }
+                                transition=".3s"
+                                zIndex="10"
+                            >
+                                <svg width="30" height="19" viewBox="0 0 30 19" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M15 18.5294C15.4315 18.5294 15.863 18.34 16.1565 17.98L29.534 2.95558C29.8274 2.63352 30 2.21673 30 1.74302C30 0.75785 29.3096 0 28.4119 0C27.9977 0 27.5834 0.189482 27.29 0.492542L15 14.2854L2.71002 0.492542C2.41653 0.189482 2.01957 0 1.58807 0C0.690448 0 0 0.75785 0 1.74302C0 2.21673 0.172631 2.63352 0.466044 2.9745L13.8435 17.98C14.1715 18.34 14.5512 18.5294 15 18.5294Z" fill={complementaryColour} style={{
+                                        transition: ".3s"
+                                    }} />
+                                </svg>
+                            </Box>
+                            {/* <Image
                                 src="/icons/ui/chevron.svg"
                                 transform={
                                     pageSwitcherActive
@@ -413,20 +432,26 @@ export function UIApp({
                                 }
                                 transition=".3s"
                                 zIndex="10"
-                                onLoad={() => {
-                                    setTimeout(() => {
-                                        setIsFading(true);
-                                        setIsLoading(false);
-                                    }, 1250);
-                                }}
-                            />
+                                // filter={`invert(${complementaryColour ? 1 : 0})`}
+                                // style={{
+                                //     filter: complementaryColour
+                                //         ? `drop-shadow(0 0 0 ${complementaryColour})`
+                                //         : undefined,
+                                // }}
+                                // onLoad={() => {
+                                //     setTimeout(() => {
+                                //         setIsFading(true);
+                                //         setIsLoading(false);
+                                //     }, 1250);
+                                // }}
+                            /> */}
                             <Text
                                 fontFamily="Inter"
                                 fontWeight="black"
                                 fontSize="36px"
-                                color="text.color"
+                                color={complementaryColour ?? "text.color"}
                                 zIndex="10"
-                                transition=".2s"
+                                transition=".3s"
                                 whiteSpace="nowrap"
                                 opacity={pageSwitcherActive ? "0" : "1"}
                                 marginLeft={pageSwitcherActive ? "-10px" : ""}
@@ -689,6 +714,9 @@ export function UIApp({
                             pageChanger={pageChanger}
                             hideTopGradientCb={(hide: boolean) => {
                                 setHideTopGradient(hide);
+                            }}
+                            setComplementaryColour={(colour: string) => {
+                                setComplementaryColour(colour);
                             }}
                         />
                     )}

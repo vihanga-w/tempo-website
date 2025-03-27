@@ -83,6 +83,12 @@ importers:
       '@vercel/analytics':
         specifier: ^1.2.2
         version: 1.2.2(next@14.1.0(@babel/core@7.24.0)(react-dom@18.2.0(react@18.2.0))(react@18.2.0))(react@18.2.0)
+      apca-w3:
+        specifier: ^0.1.9
+        version: 0.1.9
+      apcach:
+        specifier: ^0.6.4
+        version: 0.6.4
       async-mutex:
         specifier: ^0.5.0
         version: 0.5.0
@@ -92,6 +98,9 @@ importers:
       cordova-plugin-inappbrowser:
         specifier: ^6.0.0
         version: 6.0.0
+      culori:
+        specifier: ^4.0.1
+        version: 4.0.1
       fast-average-color:
         specifier: ^9.5.0
         version: 9.5.0
@@ -165,9 +174,15 @@ importers:
       '@capacitor/cli':
         specifier: ^7.0.1
         version: 7.0.1
+      '@types/apca-w3':
+        specifier: ^0.1.3
+        version: 0.1.3
       '@types/cordova-plugin-inappbrowser':
         specifier: ^2.0.3
         version: 2.0.3
+      '@types/culori':
+        specifier: ^2.1.1
+        version: 2.1.1
       '@types/javascript-time-ago':
         specifier: ^2.5.0
         version: 2.5.0
@@ -1704,9 +1719,15 @@ packages:
   '@tweenjs/tween.js@23.1.3':
     resolution: {integrity: sha512-vJmvvwFxYuGnF2axRtPYocag6Clbb5YS7kLL+SO/TeVFzHqDIWrNKYtcsPMibjDx9O+bu+psAy9NKfWklassUA==}
 
+  '@types/apca-w3@0.1.3':
+    resolution: {integrity: sha512-1C7e66xWCy1UOXHk/VXs4tjrY9hW3q3sykjJJxSC5TIIFt0lt9mh0ysdQxY0rVejTv4SW92G19j98PjqjCSz7Q==}
+
   '@types/cordova-plugin-inappbrowser@2.0.3':
     resolution: {integrity: sha512-l/fWbgw6kf3m1L1qz/BzvSk0Q3xvDRVSRzn5tGP6tdpi/hdPonwIAJ+vFD+DuGoOcf6EfT0D+45nv7FKobuVxw==}
     deprecated: This is a stub types definition. cordova-plugin-inappbrowser provides its own type definitions, so you do not need this installed.
+
+  '@types/culori@2.1.1':
+    resolution: {integrity: sha512-NzLYD0vNHLxTdPp8+RlvGbR2NfOZkwxcYGFwxNtm+WH2NuUNV8785zv1h0sulFQ5aFQ9n/jNDUuJeo3Bh7+oFA==}
 
   '@types/draco3d@1.4.10':
     resolution: {integrity: sha512-AX22jp8Y7wwaBgAixaSvkoG4M/+PlAcm3Qs4OW8yT9DM4xUpWKeFhLueTAyZF39pviAdcDdeJoACapiAceqNcw==}
@@ -1979,6 +2000,12 @@ packages:
   ansi-styles@6.2.1:
     resolution: {integrity: sha512-bN798gFfQX+viw3R7yrGWRqnrN2oRkEkUjjl4JNn4E8GxxbjtG3FbrEIIY3l8/hrwUwIeCZvi4QuOTP4MErVug==}
     engines: {node: '>=12'}
+
+  apca-w3@0.1.9:
+    resolution: {integrity: sha512-Zrf6AeBeQjNe/fxK7U1jCo5zfdjDl6T4/kdw5Xlky3G7u+EJTZkyItjMYQGtwf9pkftsINxcYyOpuLkzKf1ITQ==}
+
+  apcach@0.6.4:
+    resolution: {integrity: sha512-btUArMSP/xPuI1eBFp2TrrgTy4vRsqekLDaxNbnY9nygd/oJCinFm5LunR3FX/81c+/25Fuol6pPYYg79uH7pw==}
 
   arg@4.1.3:
     resolution: {integrity: sha512-58S9QDqG0Xx27YwPSt9fJxivjYl432YCwfDMfZ+71RAqUrZef7LrKQZ3LHLOwCS4FLNBplP533Zx895SeOCHvA==}
@@ -2269,6 +2296,9 @@ packages:
     resolution: {integrity: sha512-1rXeuUUiGGrykh+CeBdu5Ie7OJwinCgQY0bc7GCRxy5xVHy+moaqkpL/jqQq0MtQOeYcrqEz4abc5f0KtU7W4A==}
     engines: {node: '>=12.5.0'}
 
+  colorparsley@0.1.8:
+    resolution: {integrity: sha512-rObESTTTE6G5qO5WFwFxWPggpw4KfpxnLC6Ssl8bITBnNVRhDsyCeTRAUxWQNVTx2pRknKlO2nddYTxjkdNFaw==}
+
   commander@12.1.0:
     resolution: {integrity: sha512-Vw8qHK3bZM9y/P10u3Vib8o/DdkvA2OtPtZvD871QKjy74Wj1WSKFILMPRPSdUSx5RFK1arlJzEtA4PkFgnbuA==}
     engines: {node: '>=18'}
@@ -2413,6 +2443,14 @@ packages:
 
   csstype@3.1.3:
     resolution: {integrity: sha512-M1uQkMl8rQK/szD0LNhtqxIPLpimGm8sOBwU7lLnCpSbTyY3yeU1Vc7l4KT5zT4s/yOxHH5O7tIuuLOCnLADRw==}
+
+  culori@3.3.0:
+    resolution: {integrity: sha512-pHJg+jbuFsCjz9iclQBqyL3B2HLCBF71BwVNujUYEvCeQMvV97R59MNK3R2+jgJ3a1fcZgI9B3vYgz8lzr/BFQ==}
+    engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
+
+  culori@4.0.1:
+    resolution: {integrity: sha512-LSnjA6HuIUOlkfKVbzi2OlToZE8OjFi667JWN9qNymXVXzGDmvuP60SSgC+e92sd7B7158f7Fy3Mb6rXS5EDPw==}
+    engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
 
   dargs@7.0.0:
     resolution: {integrity: sha512-2iy1EkLdlBzQGvbweYRFxmFath8+K7+AKB0TlhHWkNuH+TmovaMH/Wp7V7R4u7f4SnX3OgLsU9t1NI9ioDnUpg==}
@@ -2631,6 +2669,10 @@ packages:
   eslint-scope@5.1.1:
     resolution: {integrity: sha512-2NxwbF/hZ0KpepYN0cNbo+FN6XoK7GaHlQhgx/hIZl6Va0bF45RQOOwhLIy8lQDbuCiadSLCBnH2CFYquit5bw==}
     engines: {node: '>=8.0.0'}
+
+  esm@3.2.25:
+    resolution: {integrity: sha512-U1suiZ2oDVWv4zPO56S0NcR5QriEahGtdN2OR6FiOG4WJvcjBVFB0qI4+eKoWFH483PKGuLuu6V8Z4T5g63UVA==}
+    engines: {node: '>=6'}
 
   esrecurse@4.3.0:
     resolution: {integrity: sha512-KmfKL3b6G+RXvP8N1vr3Tq1kL/oCFgn2NYXEtqP8/L3pKapUA4G8cFVaoF3SU323CD4XypR/ffioHmkti6/Tag==}
@@ -3901,6 +3943,9 @@ packages:
     resolution: {integrity: sha512-dQUtn90WanSNl+7mQKcXAgZxvUe7Z0SqXlgzv0za4LwiUhyzBC58yQO3liFoUgu8GiJVInAhJjkj1N0EtQ5nkQ==}
     hasBin: true
 
+  relative-luminance@2.0.1:
+    resolution: {integrity: sha512-wFuITNthJilFPwkK7gNJcULxXBcfFZvZORsvdvxeOdO44wCeZnuQkf3nFFzOR/dpJNxYsdRZJLsepWbyKhnMww==}
+
   relative-time-format@1.1.6:
     resolution: {integrity: sha512-aCv3juQw4hT1/P/OrVltKWLlp15eW1GRcwP1XdxHrPdZE9MtgqFpegjnTjLhi2m2WI9MT/hQQtE+tjEWG1hgkQ==}
 
@@ -4572,6 +4617,9 @@ packages:
   watchpack@2.4.2:
     resolution: {integrity: sha512-TnbFSbcOCcDgjZ4piURLCbJ3nJhznVh9kw6F6iokjiFPl8ONxe9A6nMDVXDiNbrSfLILs6vB07F7wLBrwPYzJw==}
     engines: {node: '>=10.13.0'}
+
+  wcag-contrast@3.0.0:
+    resolution: {integrity: sha512-RWbpg/S7FOXDCwqC2oFhN/vh8dHzj0OS6dpyOSDHyQFSmqmR+lAUStV/ziTT1GzDqL9wol+nZQB4vCi5yEak+w==}
 
   webgl-constants@1.1.1:
     resolution: {integrity: sha512-LkBXKjU5r9vAW7Gcu3T5u+5cvSvh5WwINdr0C+9jpzVB41cjQAP5ePArDtk/WHYdVj0GefCgM73BA7FlIiNtdg==}
@@ -6896,9 +6944,13 @@ snapshots:
 
   '@tweenjs/tween.js@23.1.3': {}
 
+  '@types/apca-w3@0.1.3': {}
+
   '@types/cordova-plugin-inappbrowser@2.0.3':
     dependencies:
       cordova-plugin-inappbrowser: 6.0.0
+
+  '@types/culori@2.1.1': {}
 
   '@types/draco3d@1.4.10': {}
 
@@ -7191,6 +7243,16 @@ snapshots:
       color-convert: 2.0.1
 
   ansi-styles@6.2.1: {}
+
+  apca-w3@0.1.9:
+    dependencies:
+      colorparsley: 0.1.8
+
+  apcach@0.6.4:
+    dependencies:
+      apca-w3: 0.1.9
+      culori: 3.3.0
+      wcag-contrast: 3.0.0
 
   arg@4.1.3: {}
 
@@ -7502,6 +7564,8 @@ snapshots:
       color-convert: 2.0.1
       color-string: 1.9.1
 
+  colorparsley@0.1.8: {}
+
   commander@12.1.0: {}
 
   commander@2.20.3: {}
@@ -7675,6 +7739,10 @@ snapshots:
   css-what@6.1.0: {}
 
   csstype@3.1.3: {}
+
+  culori@3.3.0: {}
+
+  culori@4.0.1: {}
 
   dargs@7.0.0: {}
 
@@ -7970,6 +8038,8 @@ snapshots:
     dependencies:
       esrecurse: 4.3.0
       estraverse: 4.3.0
+
+  esm@3.2.25: {}
 
   esrecurse@4.3.0:
     dependencies:
@@ -9223,6 +9293,10 @@ snapshots:
     dependencies:
       jsesc: 0.5.0
 
+  relative-luminance@2.0.1:
+    dependencies:
+      esm: 3.2.25
+
   relative-time-format@1.1.6: {}
 
   replace@1.2.2:
@@ -9910,6 +9984,10 @@ snapshots:
     dependencies:
       glob-to-regexp: 0.4.1
       graceful-fs: 4.2.11
+
+  wcag-contrast@3.0.0:
+    dependencies:
+      relative-luminance: 2.0.1
 
   webgl-constants@1.1.1: {}
 
