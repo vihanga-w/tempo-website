@@ -7,6 +7,7 @@ import { PlaybackState } from "./playback-state";
 import { FastAverageColor } from 'fast-average-color';
 import { apcach, crToBg } from "apcach";
 import { oklch, formatHex } from 'culori';
+import α from 'color-alpha';
 
 export default function ProfilePage({
     user,
@@ -115,7 +116,28 @@ export default function ProfilePage({
     }, [reactiveDesignColour]);
 
     useEffect(() => {
-        setStatusBarColour(reactiveDesignColourCommited ?? "#0d0d0e");
+        if (reactiveDesignColourCommited) {
+            const rgbValues = reactiveDesignColourCommited
+                .match(/\d+/g)
+                ?.map(Number);
+            
+            if (!rgbValues)
+                return;
+            
+            console.log(0.65 * rgbValues[0] + (1 - 0.65) * 13)
+            console.log(0.65 * rgbValues[1] + (1 - 0.65) * 13)
+            console.log(0.65 * rgbValues[2] + (1 - 0.65) * 14)
+            
+            rgbToHex(
+                0.65 * rgbValues[0] + (1 - 0.65) * 13,
+                0.65 * rgbValues[1] + (1 - 0.65) * 13,
+                0.65 * rgbValues[2] + (1 - 0.65) * 14
+            )
+            
+            // setStatusBarColour(reactiveDesignColourCommited);
+        } else {
+            setStatusBarColour("#0d0d0e");
+        }
     }, [reactiveDesignColourCommited]);
 
     useEffect(() => {
