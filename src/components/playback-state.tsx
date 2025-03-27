@@ -47,10 +47,12 @@ export function PlaybackState({
     stream,
     userId,
     hideProfile,
+    theme,
 }: {
     stream: DataStreamer | null,
     userId: string,
     hideProfile?: boolean,
+    theme?: string,
 }) {
     const [data, setData] = useState<UpdateEvent["data"]>();
     const [progress, setProgress] = useState(data?.interpolatedProgress ?? data?.state?.progressNormal ?? 0);
@@ -238,7 +240,7 @@ export function PlaybackState({
                     <Box
                         width={`${Math.min(progress * 100, 100)}%`}
                         height="100%"
-                        background="white"
+                        background={theme ?? "white"}
                         borderRadius="8px"
                         transition="0.5s"
                     />
