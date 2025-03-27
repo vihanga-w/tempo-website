@@ -146,72 +146,72 @@ export default function ProfilePage({
         />
         <Stack gap="26px" width="100%" pos="relative" zIndex="1" marginTop="-15px">
             <HStack gap="24px" marginTop="24px">
-            {((user?.object?.images.length ?? 0) > 0 && !pfpLoadFailed) ? (
-                <Image
-                width="82px"
-                height="82px"
-                objectFit="cover"
-                borderRadius="12px"
-                // We are using the first image for now, need to write a method to use most optimal image
-                src={user?.object?.images[0]?.url}
-                draggable={false}
-                onError={() => {
-                    setPfpLoadFailed(true);
-                }}
-                />
-            ) : (
-                <Avatar
-                // Append user id so that different users potentially with same name has different bg colours
-                name={user.object?.displayName ?? "" + user.object?.id ?? ""}
-                borderRadius="12px"
-                width="82px"
-                height="82px"
-                />
-            )}
-            <Stack gap="0">
-                <Text
-                fontFamily="Inter"
-                fontWeight="medium"
-                fontSize="28px"
-                color="text.dark"
-                opacity="0.9"
-                onClick={() => {
-                    pageChanger("edit-profile", "settings");
-                }}
-                >
-                {user.object?.displayName}
-                </Text>
-                <Text
-                fontFamily="Inter"
-                fontWeight="regular"
-                fontSize="14px"
-                color="text.dark"
-                opacity="0.75"
-                marginTop="-4px"
-                onClick={() => {
-                    pageChanger("edit-profile", "settings");
-                }}
-                >
-                Last active{" "}
-                {new Date().getTime() - lastActive <= 3600e3 * 12 ? (
-                    <ReactTimeAgo date={lastActive} locale="en-GB" />
+                {((user?.object?.images.length ?? 0) > 0 && !pfpLoadFailed) ? (
+                    <Image
+                    width="82px"
+                    height="82px"
+                    objectFit="cover"
+                    borderRadius="12px"
+                    // We are using the first image for now, need to write a method to use most optimal image
+                    src={user?.object?.images[0]?.url}
+                    draggable={false}
+                    onError={() => {
+                        setPfpLoadFailed(true);
+                    }}
+                    />
                 ) : (
-                    new Date(lastActive).toLocaleDateString("en-GB")
+                    <Avatar
+                    // Append user id so that different users potentially with same name has different bg colours
+                    name={user.object?.displayName ?? "" + user.object?.id ?? ""}
+                    borderRadius="12px"
+                    width="82px"
+                    height="82px"
+                    />
                 )}
-                </Text>
-                <Text
-                fontFamily="Inter"
-                fontWeight="regular"
-                fontSize="14px"
-                color="skyblue"
-                opacity="0.75"
-                onClick={() => {
-                    window.location.pathname = "/success";
-                }}
-                >
-                Play with Card
-                </Text>
-            </Stack>
+                <Stack gap="0" marginTop="-5px">
+                    <Text
+                    fontFamily="Inter"
+                    fontWeight="medium"
+                    fontSize="28px"
+                    color="text.dark"
+                    opacity="0.9"
+                    onClick={() => {
+                        pageChanger("edit-profile", "settings");
+                    }}
+                    >
+                    {user.object?.displayName}
+                    </Text>
+                    <Text
+                    fontFamily="Inter"
+                    fontWeight="regular"
+                    fontSize="14px"
+                    color="text.dark"
+                    opacity="0.75"
+                    marginTop="-4px"
+                    onClick={() => {
+                        pageChanger("edit-profile", "settings");
+                    }}
+                    >
+                    Last active{" "}
+                    {new Date().getTime() - lastActive <= 3600e3 * 12 ? (
+                        <ReactTimeAgo date={lastActive} locale="en-GB" />
+                    ) : (
+                        new Date(lastActive).toLocaleDateString("en-GB")
+                    )}
+                    </Text>
+                    <Text
+                    fontFamily="Inter"
+                    fontWeight="regular"
+                    fontSize="14px"
+                    color="skyblue"
+                    opacity="0.75"
+                    onClick={() => {
+                        window.location.pathname = "/success";
+                    }}
+                    >
+                    Play with Card
+                    </Text>
+                </Stack>
             </HStack>
             <Stack gap="1px" opacity={playbackState ? "1" : "0"} height={playbackState ? "auto" : "0"} overflow="hidden" transition=".5s">
                 <Text
