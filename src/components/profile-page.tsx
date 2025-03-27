@@ -201,21 +201,19 @@ export default function ProfilePage({
                 </Text>
             </Stack>
             </HStack>
-            {playbackState && (
-            <Stack gap="1px">
+            <Stack gap="1px" opacity={playbackState ? "1" : "0"} height={playbackState ? "auto" : "0"} overflow="hidden" transition=".5s">
                 <Text
-                fontFamily="Inter"
-                fontWeight="bold"
-                fontSize="24px"
-                color="text.dark"
+                    fontFamily="Inter"
+                    fontWeight="bold"
+                    fontSize="24px"
+                    color="text.dark"
                 >Listening to</Text>
                 <PlaybackState
-                stream={streamer}
-                userId={user.id}
-                hideProfile
+                    stream={streamer}
+                    userId={user.id}
+                    hideProfile
                 />
             </Stack>
-            )}
         </Stack>
         </>);
 }
