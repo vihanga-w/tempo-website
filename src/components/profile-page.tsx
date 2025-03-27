@@ -95,6 +95,7 @@ export default function ProfilePage({
 
     useEffect(() => {
         if (reactiveDesignColour) {
+            setStatusBarColour("#0d0d0e");
             setDisplayReactiveDesignColour(false);
 
             setTimeout(() => {
@@ -132,7 +133,7 @@ export default function ProfilePage({
                 0.65 * rgbValues[0] + (1 - 0.65) * 13,
                 0.65 * rgbValues[1] + (1 - 0.65) * 13,
                 0.65 * rgbValues[2] + (1 - 0.65) * 14
-            )
+            );
             
             setStatusBarColour(hex);
         } else {
@@ -193,9 +194,6 @@ export default function ProfilePage({
                 const [r, g, b] = rgbValues;
                 let hex = rgbToHex(r, g, b);
 
-                console.log("rgb:", r, g, b);
-                console.log("hex:", hex);
-
                 // Check if the color is a shade of white (r, g, b values close to each other and above 100)
                 const isShadeOfWhite = Math.abs(r - g) < 15 && Math.abs(g - b) < 15 && Math.abs(r - b) < 15 && r > 100 && g > 100 && b > 100;
                 
@@ -214,38 +212,18 @@ export default function ProfilePage({
                     colourMultiplier = 1.25;
                 }
 
-                // If rgb value is far from white, make it closer to white
-                // const adjustedRgb = {
-                //     r: Math.min(255, r + 30),
-                //     g: Math.min(255, g + 30),
-                //     b: Math.min(255, b + 30),
-                // };
-                // const adjustedHex = rgbToHex(adjustedRgb.r, adjustedRgb.g, adjustedRgb.b);
-                // console.log("adjusted rgb:", adjustedRgb);
-                // console.log("adjusted hex:", adjustedHex);
-
-                // if (adjustedHex !== hex)
-                //     hex = adjustedHex;
-
                 const h = oklch(hex);
-
-                console.log("chroma:", h?.c);
-                console.log("hue:", h?.h);
 
                 const ideal = apcach(crToBg(hex, 60), h?.c ?? 0, h?.h ?? 0);
                 console.log("l:", ideal.lightness)
                 const idealHexPre = formatHex(oklch({
                     mode: "oklch",
-                    l: Math.max(ideal.lightness, 0.85),
+                    l: Math.max(ideal.lightness, 0.865),
                     c: ideal.chroma,
                     h: ideal.hue,
-                    // alpha: ideal.alpha
                 }));
                 const idealRgb = hexToRgb(idealHexPre);
-                console.log("ideal pre:",idealHexPre, idealRgb);
                 const idealHex = rgbToHex((idealRgb?.r ?? 0) * colourMultiplier, (idealRgb?.g ?? 0) * colourMultiplier, (idealRgb?.b ?? 0) * colourMultiplier);
-                
-                console.log("ideal:",idealHex);
                 
                 setReactiveDesignComplementaryColour(idealHex);
                 setComplementaryColour(idealHex);
