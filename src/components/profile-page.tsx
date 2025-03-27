@@ -28,6 +28,13 @@ export default function ProfilePage({
 
     const lastActive = new Date().getTime();
 
+    const setStatusBarColour = (colour: string) => {
+        const themeColour = document.querySelector("meta[name=theme-color]");
+        themeColour?.setAttribute("content", colour);
+    }
+
+    setStatusBarColour("#ffffff");
+
     useEffect(() => {
         const newStreamer = new DataStreamer(user.storedToken, [user.id]);
         
