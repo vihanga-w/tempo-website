@@ -46,11 +46,11 @@ const scrollText = keyframes`
 export function PlaybackState({
     stream,
     userId,
-    index,
+    hideProfile,
 }: {
     stream: DataStreamer | null,
     userId: string,
-    index: number,
+    hideProfile?: boolean,
 }) {
     const [data, setData] = useState<UpdateEvent["data"]>();
     const [progress, setProgress] = useState(data?.interpolatedProgress ?? data?.state?.progressNormal ?? 0);
@@ -63,15 +63,6 @@ export function PlaybackState({
     });
     const [pfpLoadFailed, setPfpLoadFailed] = useState<boolean>(false);
     const [userListenershipFactVisible, setUserListenershipFactVisible] = useState<boolean>(false);
-
-    const calculateContainerWidth = (username: string) => {
-        const usernameLength = username.length;
-        const profilePictureSize = 24; // in pixels
-        const iconSize = 22; // in pixels
-        const padding = 16; // in pixels (8px padding on each side)
-        const usernameWidth = usernameLength * 8; // assuming average character width is 8px
-        return profilePictureSize + iconSize + padding + usernameWidth;
-    };
 
     useEffect(() => {
         if (!stream)
@@ -145,49 +136,51 @@ export function PlaybackState({
     return (<>
         {data?.action.type !== "STOPPED" && (<>
             <Stack gap="8px">
-                <HStack justifyContent="space-between">
-                    <HStack>
-                        {(data?.state?.pfpUrl !== "" && !pfpLoadFailed) ? (
-                            <Image
-                                width="36px"
-                                height="36px"
-                                objectFit="cover"
-                                borderRadius="6px"
-                                src={data?.state?.pfpUrl}
-                                draggable={false}
-                                onError={() => {
-                                    setPfpLoadFailed(true);
-                                }}
-                            />
-                        ) : (
-                            <Avatar
-                                // Append user id so that different users potentially with same name has different bg colours
-                                name={data?.state?.username ?? "" + data?.state?.userId ?? ""}
-                                borderRadius="6px"
-                                width="36px"
-                                height="36px"
-                            />
-                        )}
-                        <Stack spacing="0">
-                            <Text fontSize="16px" fontWeight="bold" marginBottom="-5px">{data?.state?.username}</Text>
-                            {data?.state && (
-                                <Text
-                                    opacity={userListenershipFactVisible ? "1" : "0"}
-                                    transform={userListenershipFactVisible ? "translateX(0)" : "translateX(-6px)"}
-                                    transition="opacity 0.5s, transform 0.5s"
-                                    whiteSpace="nowrap"
-                                    overflow="hidden"
-                                    textOverflow="ellipsis"
-                                    color="#b4b4b4"
-                                    fontSize="16px"
-                                >
-                                    {userListenershipFact.text}
-                                </Text>
+                {!hideProfile && (
+                    <HStack justifyContent="space-between">
+                        <HStack>
+                            {(data?.state?.pfpUrl !== "" && !pfpLoadFailed) ? (
+                                <Image
+                                    width="36px"
+                                    height="36px"
+                                    objectFit="cover"
+                                    borderRadius="6px"
+                                    src={data?.state?.pfpUrl}
+                                    draggable={false}
+                                    onError={() => {
+                                        setPfpLoadFailed(true);
+                                    }}
+                                />
+                            ) : (
+                                <Avatar
+                                    // Append user id so that different users potentially with same name has different bg colours
+                                    name={data?.state?.username ?? "" + data?.state?.userId ?? ""}
+                                    borderRadius="6px"
+                                    width="36px"
+                                    height="36px"
+                                />
                             )}
-                        </Stack>
+                            <Stack spacing="0">
+                                <Text fontSize="16px" fontWeight="bold" marginBottom="-5px">{data?.state?.username}</Text>
+                                {data?.state && (
+                                    <Text
+                                        opacity={userListenershipFactVisible ? "1" : "0"}
+                                        transform={userListenershipFactVisible ? "translateX(0)" : "translateX(-6px)"}
+                                        transition="opacity 0.5s, transform 0.5s"
+                                        whiteSpace="nowrap"
+                                        overflow="hidden"
+                                        textOverflow="ellipsis"
+                                        color="#b4b4b4"
+                                        fontSize="16px"
+                                    >
+                                        {userListenershipFact.text}
+                                    </Text>
+                                )}
+                            </Stack>
+                        </HStack>
+                        <MdAddReaction opacity="0.45" size="22px" />
                     </HStack>
-                    <MdAddReaction opacity="0.45" size="22px" />
-                </HStack>
+                )}
                 <HStack alignItems="self-start" width="100%">
                     <Box minW="72px" pos="relative">
                         {data?.state?.mediaType == "episode" && (

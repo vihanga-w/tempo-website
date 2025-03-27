@@ -21,6 +21,7 @@ import { Mutex } from "async-mutex";
 import { API_URL } from "@/lib/const";
 import { PlaybackHistoryItem } from "./playback-history-item";
 import { AddFriendsPage } from "./add-friends-page";
+import ProfilePage from "./profile-page";
 
 const updateMutex = new Mutex();
 
@@ -232,7 +233,6 @@ export function UIApp({
         };
     }, [user.isLoggedIn]);
 
-    // Update the window focus handler to use the current friendsListenershipPage
     useEffect(() => {
         const handleFocus = async () => {
             if (streamer && !streamer.isReady()) {
@@ -575,7 +575,6 @@ export function UIApp({
                                                             data.state?.songId +
                                                             (data.state?.artists ? "AA" : "ANA")
                                                         }
-                                                        index={i}
                                                         stream={streamer}
                                                         userId={v.userId}
                                                     />
@@ -679,66 +678,7 @@ export function UIApp({
 
                     {/* Settings page */}
                     {currentPage == "settings" && (
-                        <>
-                            <HStack gap="24px" marginTop="24px">
-                                <Image
-                                    src={user.object?.images[0]?.url}
-                                    width="80px"
-                                    height="80px"
-                                    borderRadius="50%"
-                                    background="rgba(255, 255, 255, 0.05)"
-                                    draggable={false}
-                                />
-                                <Stack gap="0">
-                                <Text
-                                        fontFamily="Inter"
-                                        fontWeight="medium"
-                                        fontSize="16px"
-                                        color="skyblue"
-                                        opacity="0.75"
-                                        onClick={() => {
-                                            pageChanger("edit-profile", "settings");
-                                        }}
-                                    >
-                                        {user.object?.displayName}
-                                    </Text>
-                                    <Text
-                                        fontFamily="Inter"
-                                        fontWeight="regular"
-                                        fontSize="14px"
-                                        color="skyblue"
-                                        opacity="0.75"
-                                        onClick={() => {
-                                            pageChanger("edit-profile", "settings");
-                                        }}
-                                    >
-                                        Edit Profile
-                                    </Text>
-                                    <Text
-                                        fontFamily="Inter"
-                                        fontWeight="regular"
-                                        fontSize="14px"
-                                        color="skyblue"
-                                        opacity="0.75"
-                                        onClick={() => {
-                                            window.location.pathname = "/success";
-                                        }}
-                                    >
-                                        Play with Card
-                                    </Text>
-                                </Stack>
-                            </HStack>
-                            <Box
-                                width="100%"
-                                height="1px"
-                                marginTop="24px"
-                                marginBottom="24px"
-                                background="rgba(255, 255, 255, 0.05)"
-                            />
-                            <Text fontFamily="Inter" fontWeight="bold" fontSize="24px" marginTop="-12px">
-                                Invite Colleagues
-                            </Text>
-                        </>
+                        <ProfilePage user={user} pageChanger={pageChanger} />
                     )}
                 </Box>
             </Box>

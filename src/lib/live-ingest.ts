@@ -70,13 +70,15 @@ export class DataStreamer extends EventEmitter {
     private cache: {[key: string]: UpdateEvent};
     private sockCallbacks: {[key: string]: (data: {[key: string]: any}) => void}
     private storedToken?: string;
+    private userFilters?: string[];
 
-    constructor(storedToken?: string) {
+    constructor(storedToken?: string, userIdFilter?: string[]) {
         super();
         
         this.cache = {};
         this.sockCallbacks = {};
         this.storedToken = storedToken;
+        this.userFilters = userIdFilter;
     }
 
     isReady() {
@@ -170,7 +172,8 @@ export class DataStreamer extends EventEmitter {
                             "nocb",
                         ]));
 
-                        this.emit("remove", id);
+                        if (!this.userFilters || this.userFilters.includes(id))
+                            this.emit("remove", id);
                     }
 
                     if (currentListeners.sort().join("") !== newSessions.join("") && this.sock && this.sock.OPEN) {
@@ -263,8 +266,10 @@ export class DataStreamer extends EventEmitter {
                                             if (parsed.state)
                                                 this.cache[userId] = payload;
 
-                                            this.emit("update", payload);
-                                            this.emit("update-" + userId , payload);
+                                            if (!this.userFilters || this.userFilters.includes(userId)) {
+                                                this.emit("update", payload);
+                                                this.emit("update-" + userId , payload);
+                                            }
                                         });
                                     }, 500);
                                 }
@@ -277,8 +282,10 @@ export class DataStreamer extends EventEmitter {
 
                             this.cache[userId] = payload;
 
-                            this.emit("update", payload);
-                            this.emit("update-" + userId, payload);
+                            if (!this.userFilters || this.userFilters.includes(userId)) {
+                                this.emit("update", payload);
+                                this.emit("update-" + userId, payload);
+                            }
                         }
                     } catch (ex) {
                         console.warn("Failed to parse streaming API response, error:", ex);
