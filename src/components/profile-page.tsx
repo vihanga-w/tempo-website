@@ -123,18 +123,18 @@ export default function ProfilePage({
             
             if (!rgbValues)
                 return;
-            
+
             console.log(0.65 * rgbValues[0] + (1 - 0.65) * 13)
             console.log(0.65 * rgbValues[1] + (1 - 0.65) * 13)
             console.log(0.65 * rgbValues[2] + (1 - 0.65) * 14)
             
-            rgbToHex(
+            const hex = rgbToHex(
                 0.65 * rgbValues[0] + (1 - 0.65) * 13,
                 0.65 * rgbValues[1] + (1 - 0.65) * 13,
                 0.65 * rgbValues[2] + (1 - 0.65) * 14
             )
             
-            // setStatusBarColour(reactiveDesignColourCommited);
+            setStatusBarColour(hex);
         } else {
             setStatusBarColour("#0d0d0e");
         }
