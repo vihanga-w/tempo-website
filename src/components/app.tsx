@@ -66,6 +66,11 @@ export function UIApp({
     const [visibleHistoryCount, setVisibleHistoryCount] = useState<number>(ITEMS_PER_BATCH);
     const historyEndRef = useRef<HTMLDivElement | null>(null);
 
+    const setStatusBarColour = (colour: string) => {
+        const themeColour = document.querySelector("meta[name=theme-color]");
+        themeColour?.setAttribute("content", colour);
+    }
+
     async function updateFriendsListenershipHistory(index?: number) {
         // Use passed index or fallback to state
         const pageIndex = index ?? friendsListenershipPage;
@@ -310,6 +315,7 @@ export function UIApp({
         if (id !== "settings" && !id.startsWith("profile-"))
             setHideTopGradient(false);
 
+        setStatusBarColour("€0d0d0e");
         setComplementaryColour("#e9e7fb");
         setCurrentPage(id);
         setCurrentPageTitle(title);
