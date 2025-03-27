@@ -306,7 +306,7 @@ export function UIApp({
                     "\", but a page cannot be found with that id!"
             );
         
-        if (id !== "sesstings" && !id.startsWith("profile-"))
+        if (id !== "settings" && !id.startsWith("profile-"))
             setHideTopGradient(false);
 
         setCurrentPage(id);
@@ -386,7 +386,7 @@ export function UIApp({
                     top="0"
                     left="0"
                     opacity={hideTopGradient ? "0" : "1"}
-                    background="linear-gradient(180deg, rgb(13,13,14) 10%, rgba(13,13,14,0) 100%)"
+                    background="linear-gradient(180deg,rgb(13, 13, 14) 10%, rgba(13,13,14,0) 100%)"
                     zIndex="999"
                     pointerEvents="none"
                     marginTop="env(safe-area-inset-top)"

@@ -33,8 +33,6 @@ export default function ProfilePage({
         themeColour?.setAttribute("content", colour);
     }
 
-    setStatusBarColour("#ffffff");
-
     useEffect(() => {
         const newStreamer = new DataStreamer(user.storedToken, [user.id]);
         
@@ -110,6 +108,10 @@ export default function ProfilePage({
     useEffect(() => {
         hideTopGradientCb(reactiveDesignColour !== null);
     }, [reactiveDesignColour]);
+
+    useEffect(() => {
+        setStatusBarColour(reactiveDesignColourCommited ?? "#0d0d0e");
+    }, [reactiveDesignColourCommited]);
 
     useEffect(() => {
         const handleFocus = async () => {
