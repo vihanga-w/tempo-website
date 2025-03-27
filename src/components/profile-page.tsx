@@ -83,12 +83,21 @@ export default function ProfilePage({
     }, [user.isLoggedIn]);
 
     useEffect(() => {
-        setDisplayReactiveDesignColour(false);
+        if (reactiveDesignColour) {
+            setDisplayReactiveDesignColour(false);
 
-        setTimeout(() => {
+            setTimeout(() => {
+                setReactiveDesignColourCommited(reactiveDesignColour);
+            }, 230);
+            setTimeout(() => {
+                setDisplayReactiveDesignColour(true);
+            }, 250);
+        } else {
             setReactiveDesignColourCommited(reactiveDesignColour);
-            setDisplayReactiveDesignColour(true);
-        }, 250);
+            setTimeout(() => {
+                setDisplayReactiveDesignColour(true);
+            }, 20);
+        }
     }, [reactiveDesignColour]);
 
     useEffect(() => {
