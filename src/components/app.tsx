@@ -46,6 +46,7 @@ export function UIApp({
     const [livePlaybackStates, setLivePlaybackStates] = useState<UpdateEvent[]>([]);
     const [streamer, setStreamer] = useState<DataStreamer | null>(null);
     const [streamerReset, setStreamerReset] = useState<boolean>(false);
+    const [hideTopGradient, setHideTopGradient] = useState<boolean>(false);
     const [discoveryData, setDiscoveryData] = useState<{
         id: string;
         title: string;
@@ -304,6 +305,9 @@ export function UIApp({
                     id +
                     "\", but a page cannot be found with that id!"
             );
+        
+        if (id !== "sesstings" && !id.startsWith("profile-"))
+            setHideTopGradient(false);
 
         setCurrentPage(id);
         setCurrentPageTitle(title);
@@ -381,10 +385,12 @@ export function UIApp({
                     pos="fixed"
                     top="0"
                     left="0"
+                    opacity={hideTopGradient ? "0" : "1"}
                     background="linear-gradient(180deg, rgb(13,13,14) 10%, rgba(13,13,14,0) 100%)"
                     zIndex="999"
                     pointerEvents="none"
                     marginTop="env(safe-area-inset-top)"
+                    transition=".3s"
                 />
 
                 <HStack
@@ -678,7 +684,13 @@ export function UIApp({
 
                     {/* Settings page */}
                     {currentPage == "settings" && (
-                        <ProfilePage user={user} pageChanger={pageChanger} />
+                        <ProfilePage
+                            user={user}
+                            pageChanger={pageChanger}
+                            hideTopGradientCb={(hide: boolean) => {
+                                setHideTopGradient(hide);
+                            }}
+                        />
                     )}
                 </Box>
             </Box>

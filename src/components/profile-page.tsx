@@ -4,21 +4,27 @@ import { HStack, Stack, Box, Image, Text, Avatar } from "@chakra-ui/react";
 import { useEffect, useState } from "react";
 import ReactTimeAgo from "react-time-ago";
 import { PlaybackState } from "./playback-state";
+import { FastAverageColor } from 'fast-average-color';
 
 export default function ProfilePage({
     user,
     pageChanger,
     admin,
+    hideTopGradientCb,
 }: Readonly<{
     user: User;
     pageChanger: (id: string, prevPage?: string) => void;
     admin?: boolean;
+    hideTopGradientCb: (hide: boolean) => void;
 }>) {
     const [pfpLoadFailed, setPfpLoadFailed] = useState(false);
     const [playbackStateLoading, setPlaybackStateLoading] = useState(true);
     const [streamer, setStreamer] = useState<DataStreamer | null>(null);
     const [streamerReset, setStreamerReset] = useState<boolean>(false);
     const [playbackState, setPlaybackState] = useState<UpdateEvent | null>(null);
+    const [reactiveDesignColour, setReactiveDesignColour] = useState<string | null>(null);
+    const [reactiveDesignColourCommited, setReactiveDesignColourCommited] = useState<string | null>(null);
+    const [displayReactiveDesignColour, setDisplayReactiveDesignColour] = useState<boolean>(false);
 
     const lastActive = new Date().getTime();
 
@@ -31,7 +37,24 @@ export default function ProfilePage({
             setPlaybackStateLoading(false);
 
             setPlaybackState((v) => {
+                if (data.data.state) {
+                    const fac = new FastAverageColor();
+                    
+                    fac.getColorAsync(data.data.state.imageUrl)
+                    .then(color => {
+                        setReactiveDesignColour(color.rgb);
+                        hideTopGradientCb(true);
+                        // container.style.backgroundColor = color.rgba;
+                        // container.style.color = color.isDark ? '#fff' : '#000';
+                    })
+                    .catch(e => {
+                        console.log(e);
+                    });
+                }
+
                 if (v && data.data.action.type == "STOPPED") {
+                    setReactiveDesignColour(null);
+
                     return null;
                 } else if (!v && data.data.action.type !== "STOPPED") {
                     return data;
@@ -42,8 +65,10 @@ export default function ProfilePage({
         });
 
         newStreamer.on("remove", (userId) => {
-            if (userId === user.id) 
+            if (userId === user.id) {
                 setPlaybackState(null);
+                setReactiveDesignColour(null);
+            }
         });
 
         newStreamer.on("close", () => {
@@ -56,6 +81,19 @@ export default function ProfilePage({
             newStreamer.cleanup();
         };
     }, [user.isLoggedIn]);
+
+    useEffect(() => {
+        setDisplayReactiveDesignColour(false);
+
+        setTimeout(() => {
+            setReactiveDesignColourCommited(reactiveDesignColour);
+            setDisplayReactiveDesignColour(true);
+        }, 250);
+    }, [reactiveDesignColour]);
+
+    useEffect(() => {
+        hideTopGradientCb(reactiveDesignColour !== null);
+    }, [reactiveDesignColour]);
 
     useEffect(() => {
         const handleFocus = async () => {
@@ -81,90 +119,103 @@ export default function ProfilePage({
     }, [playbackState, streamer, streamerReset]);
 
     return (<>
-        <Stack gap="26px" width="100%">
+        <Box
+            pos="fixed"
+            left="0"
+            top="0"
+            zIndex="0"
+            background={`linear-gradient(to bottom, ${reactiveDesignColourCommited ?? "#ffffff00"}, #ffffff00)`}
+            opacity={displayReactiveDesignColour ? "0.65" : 0}
+            transform={displayReactiveDesignColour ? "translateY(0)" : "translateY(-100%)"}
+            padding="24px"
+            width="100vw"
+            height="320px"
+            transition=".5s"
+        />
+        <Stack gap="26px" width="100%" pos="relative" zIndex="1" marginTop="-15px">
             <HStack gap="24px" marginTop="24px">
-                {((user?.object?.images.length ?? 0) > 0 && !pfpLoadFailed) ? (
-                    <Image
-                        width="82px"
-                        height="82px"
-                        objectFit="cover"
-                        borderRadius="12px"
-                        // We are using the first image for now, need to write a method to use most optimal image
-                        src={user?.object?.images[0]?.url}
-                        draggable={false}
-                        onError={() => {
-                            setPfpLoadFailed(true);
-                        }}
-                    />
+            {((user?.object?.images.length ?? 0) > 0 && !pfpLoadFailed) ? (
+                <Image
+                width="82px"
+                height="82px"
+                objectFit="cover"
+                borderRadius="12px"
+                // We are using the first image for now, need to write a method to use most optimal image
+                src={user?.object?.images[0]?.url}
+                draggable={false}
+                onError={() => {
+                    setPfpLoadFailed(true);
+                }}
+                />
+            ) : (
+                <Avatar
+                // Append user id so that different users potentially with same name has different bg colours
+                name={user.object?.displayName ?? "" + user.object?.id ?? ""}
+                borderRadius="12px"
+                width="82px"
+                height="82px"
+                />
+            )}
+            <Stack gap="0">
+                <Text
+                fontFamily="Inter"
+                fontWeight="medium"
+                fontSize="28px"
+                color="text.dark"
+                opacity="0.9"
+                onClick={() => {
+                    pageChanger("edit-profile", "settings");
+                }}
+                >
+                {user.object?.displayName}
+                </Text>
+                <Text
+                fontFamily="Inter"
+                fontWeight="regular"
+                fontSize="14px"
+                color="text.dark"
+                opacity="0.75"
+                marginTop="-4px"
+                onClick={() => {
+                    pageChanger("edit-profile", "settings");
+                }}
+                >
+                Last active{" "}
+                {new Date().getTime() - lastActive <= 3600e3 * 12 ? (
+                    <ReactTimeAgo date={lastActive} locale="en-GB" />
                 ) : (
-                    <Avatar
-                        // Append user id so that different users potentially with same name has different bg colours
-                        name={user.object?.displayName ?? "" + user.object?.id ?? ""}
-                        borderRadius="12px"
-                        width="82px"
-                        height="82px"
-                    />
+                    new Date(lastActive).toLocaleDateString("en-GB")
                 )}
-                <Stack gap="0">
-                    <Text
-                        fontFamily="Inter"
-                        fontWeight="medium"
-                        fontSize="28px"
-                        color="text.dark"
-                        opacity="0.9"
-                        onClick={() => {
-                            pageChanger("edit-profile", "settings");
-                        }}
-                    >
-                        {user.object?.displayName}
-                    </Text>
-                    <Text
-                        fontFamily="Inter"
-                        fontWeight="regular"
-                        fontSize="14px"
-                        color="text.dark"
-                        opacity="0.75"
-                        marginTop="-4px"
-                        onClick={() => {
-                            pageChanger("edit-profile", "settings");
-                        }}
-                    >
-                        Last active{" "}
-                        {new Date().getTime() - lastActive <= 3600e3 * 12 ? (
-                            <ReactTimeAgo date={lastActive} locale="en-GB" />
-                        ) : (
-                            new Date(lastActive).toLocaleDateString("en-GB")
-                        )}
-                    </Text>
-                    <Text
-                        fontFamily="Inter"
-                        fontWeight="regular"
-                        fontSize="14px"
-                        color="skyblue"
-                        opacity="0.75"
-                        onClick={() => {
-                            window.location.pathname = "/success";
-                        }}
-                    >
-                        Play with Card
-                    </Text>
-                </Stack>
+                </Text>
+                <Text
+                fontFamily="Inter"
+                fontWeight="regular"
+                fontSize="14px"
+                color="skyblue"
+                opacity="0.75"
+                onClick={() => {
+                    window.location.pathname = "/success";
+                }}
+                >
+                Play with Card
+                </Text>
+            </Stack>
             </HStack>
             {playbackState && (
-                <Stack gap="1px">
-                    <Text
-                        fontFamily="Inter"
-                        fontWeight="bold"
-                        fontSize="24px"
-                        color="text.dark"
-                    >Listening to</Text>
-                    <PlaybackState
-                        stream={streamer}
-                        userId={user.id}
-                        hideProfile
-                    />
-                </Stack>
+            <Stack gap="1px">
+                <Text
+                fontFamily="Inter"
+                fontWeight="bold"
+                fontSize="24px"
+                color="text.dark"
+                >Listening to</Text>
+                <PlaybackState
+                stream={streamer}
+                userId={user.id}
+                hideProfile
+                />
+            </Stack>
             )}
         </Stack>
-    </>);
+        </>);
 }
