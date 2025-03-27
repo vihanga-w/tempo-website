@@ -124,15 +124,11 @@ export default function ProfilePage({
             
             if (!rgbValues)
                 return;
-
-            console.log(0.65 * rgbValues[0] + (1 - 0.65) * 13)
-            console.log(0.65 * rgbValues[1] + (1 - 0.65) * 13)
-            console.log(0.65 * rgbValues[2] + (1 - 0.65) * 14)
             
             const hex = rgbToHex(
-                0.65 * rgbValues[0] + (1 - 0.65) * 13,
-                0.65 * rgbValues[1] + (1 - 0.65) * 13,
-                0.65 * rgbValues[2] + (1 - 0.65) * 14
+                0.5 * rgbValues[0] + (1 - 0.5) * 13,
+                0.5 * rgbValues[1] + (1 - 0.5) * 13,
+                0.5 * rgbValues[2] + (1 - 0.5) * 14
             );
             
             setStatusBarColour(hex);
@@ -241,11 +237,11 @@ export default function ProfilePage({
             top="0"
             zIndex="0"
             background={`linear-gradient(to bottom, ${reactiveDesignColourCommited ?? "#ffffff00"}, #ffffff00)`}
-            opacity={displayReactiveDesignColour ? "0.65" : 0}
-            transform={displayReactiveDesignColour ? "translateY(-60px)" : "translateY(-100%)"}
+            opacity={displayReactiveDesignColour ? "0.5" : 0}
+            transform={displayReactiveDesignColour ? "translateY(0px)" : "translateY(-100%)"}
             padding="24px"
             width="100vw"
-            height="400px"
+            height="340px"
             transition=".75s"
         />
         <Box
