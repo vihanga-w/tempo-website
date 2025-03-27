@@ -336,7 +336,7 @@ export default function ProfilePage({
                 <PlaybackState
                     stream={streamer}
                     userId={user.id}
-                    theme={reactiveDesignColourCommited ?? undefined}
+                    theme={reactiveDesignComplementaryColour ?? undefined}
                     hideProfile
                 />
             </Stack>
