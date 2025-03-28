@@ -40,6 +40,24 @@ export default function ProfilePage({
     }
 
     useEffect(() => {
+        const fac = new FastAverageColor();
+
+        let streamerGotMsg = false;
+
+        if (user?.object && user.object.images.length > 0) {
+            fac.getColorAsync(user?.object?.images[0]?.url)
+            .then(color => {
+                if (streamerGotMsg)
+                    return;
+                
+                setReactiveDesignColour(color.rgb);
+                hideTopGradientCb(true);
+            })
+            .catch(e => {
+                console.log(e);
+            });
+        }
+
         const newStreamer = new DataStreamer(user.storedToken, [user.id]);
         
         setStreamer(newStreamer);
@@ -49,14 +67,14 @@ export default function ProfilePage({
 
             setPlaybackState((v) => {
                 if (data.data.state) {
+                    streamerGotMsg = true;
+
                     const fac = new FastAverageColor();
                     
                     fac.getColorAsync(data.data.state.imageUrl)
                     .then(color => {
                         setReactiveDesignColour(color.rgb);
                         hideTopGradientCb(true);
-                        // container.style.backgroundColor = color.rgba;
-                        // container.style.color = color.isDark ? '#fff' : '#000';
                     })
                     .catch(e => {
                         console.log(e);
@@ -211,13 +229,14 @@ export default function ProfilePage({
                 const h = oklch(hex);
 
                 const ideal = apcach(crToBg(hex, 60), h?.c ?? 0, h?.h ?? 0);
-                console.log("l:", ideal.lightness)
+                
                 const idealHexPre = formatHex(oklch({
                     mode: "oklch",
                     l: Math.max(ideal.lightness, 0.865),
                     c: ideal.chroma,
                     h: ideal.hue,
                 }));
+
                 const idealRgb = hexToRgb(idealHexPre);
                 const idealHex = rgbToHex((idealRgb?.r ?? 0) * colourMultiplier, (idealRgb?.g ?? 0) * colourMultiplier, (idealRgb?.b ?? 0) * colourMultiplier);
                 
