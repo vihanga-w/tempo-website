@@ -81,7 +81,7 @@ export default function ProfilePage({
         setTopSongsLoading(true);
 
         // Load user's top songs
-        user.getRemoteUserTopSongs("david.raul.suter", topSongsFilter)
+        user.getRemoteUserTopSongs(targetUserId ?? user.id, topSongsFilter)
         .then(data => {
             setUserTopSongs(data.slice(0, 5));
             setTopSongsLoading(false);
