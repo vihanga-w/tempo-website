@@ -512,6 +512,7 @@ export default function ProfilePage({
                         {userTopSongs.slice(1, userTopSongs.length).map((v) => {
                             return (
                                 <LeaderboardSongItem
+                                    key={v.index + v.title + v.artists.join("") + v.playCount + topSongsFilter}
                                     leaderboardPosition={v.index + 1}
                                     imageUrl={v.imageUrl}
                                     title={v.title}
