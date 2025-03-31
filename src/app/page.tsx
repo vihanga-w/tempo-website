@@ -3,6 +3,8 @@
 import styles from "./page.module.css";
 import PageRouter from "@/lib/page-router";
 
+import "./marquee.css";
+
 import {
   Box,
   Center,

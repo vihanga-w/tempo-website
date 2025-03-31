@@ -131,6 +131,34 @@ export default class User extends EventEmitter {
         return headers;
     }
 
+    public async getRemoteUserTopSongs(userId: string, period: "day" | "week" | "month" | "year" | "all") {
+        const req = await fetch(API_URL + `/profile/${userId}/topSongs/${period}`, {
+            method: "GET",
+            headers: {
+                ...(this.getAuthHeaders())
+            },
+            credentials: "include",
+        });
+        const res = await req.json() as {
+            error: boolean;
+            message?: string;
+            data: {
+                id: string;
+                title: string;
+                artists: string[];
+                index: number;
+                explicit: boolean;
+                playCount: number;
+                imageUrl: string;
+            }[];
+        };
+
+        if (res.error || !res.data)
+            throw new Error("Failed to fetch top songs for user: " + userId + ", error: " + (res.message ?? "unknown error (check network logs)"));
+
+        return res.data;
+    }
+
     public async searchUsers(query: string) {
         const req = await fetch(API_URL + "/searchUsers", {
             method: "POST",

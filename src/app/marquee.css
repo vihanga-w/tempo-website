@@ -1,0 +1,35 @@
+.marquee {
+    width: 100%;
+    margin: 0 auto;
+    white-space: nowrap;
+    overflow: hidden;
+    text-align: right;
+}
+
+.marquee div {
+    animation-name: marquee;
+    animation-duration: 15s; /* Adjusted for smoother scrolling */
+    animation-iteration-count: infinite;
+    animation-timing-function: linear; /* Consistent scrolling speed */
+    animation-direction: normal; /* Scroll forward and reset */
+    display: inline-block; /* Ensure proper scrolling behavior */
+}
+
+/* Make it move */
+@keyframes marquee {
+    0% {
+        transform: translateX(100%); /* Start off-screen to the right */
+    }
+    10% {
+        transform: translateX(0); /* Fully visible at the start */
+    }
+    45% {
+        transform: translateX(calc(-100% + 100vw)); /* Scroll to the end */
+    }
+    55% {
+        transform: translateX(calc(-100% + 100vw)); /* Pause at the end */
+    }
+    100% {
+        transform: translateX(100%); /* Reset to off-screen */
+    }
+}
