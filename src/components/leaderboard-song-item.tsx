@@ -69,7 +69,7 @@ export default function LeaderboardSongItem({
                         </Box>
                     </Box>
                     <Text>
-                    Listened {playCount} time{playCount !== 1 ? "s" : ""}
+                    Listened {playCount == 1 ? "once" : playCount + " times"}
                     </Text>
                 </Stack>
             </HStack>

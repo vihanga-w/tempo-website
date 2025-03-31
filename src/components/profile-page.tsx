@@ -473,7 +473,7 @@ export default function ProfilePage({
                             <Text
                                 fontWeight="medium"
                                 fontSize="18px"
-                            >Listened {userTopSongs.find(v => v.index == 0)?.playCount} time{userTopSongs.find(v => v.index == 0)?.playCount !== 1 ? "s" : ""}</Text>
+                            >Listened {userTopSongs.find(v => v.index == 0)?.playCount == 1 ? "once" : userTopSongs.find(v => v.index == 0)?.playCount + " times"}</Text>
                             <HStack whiteSpace="nowrap" width="100%" paddingRight="5px" margin="0 auto" overflow="hidden" gap="5px" ref={scrollItemRef}>
                                 <Box
                                     ref={scrollItemRef}
