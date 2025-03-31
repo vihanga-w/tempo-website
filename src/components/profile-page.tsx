@@ -1,6 +1,6 @@
 import { DataStreamer, UpdateEvent } from "@/lib/live-ingest";
 import User from "@/lib/usrlib";
-import { HStack, Stack, Box, Image, Text, Avatar } from "@chakra-ui/react";
+import { HStack, Stack, Box, Image, Text, Avatar, Tabs, TabList, Tab, TabPanels, TabPanel } from "@chakra-ui/react";
 import { useEffect, useRef, useState } from "react";
 import ReactTimeAgo from "react-time-ago";
 import { getSpotifyDeeplink, PlaybackState } from "./playback-state";
@@ -46,6 +46,7 @@ export default function ProfilePage({
         imageUrl: string;
     }[]>([]);
     const [topSongOverflow, setTopSongOverflow] = useState<number>(-1);
+    const [topSongsLoading, setTopSongsLoading] = useState<boolean>(true);
 
     const scrollItemRef = useRef<HTMLDivElement>(null);
 
@@ -77,10 +78,19 @@ export default function ProfilePage({
     }, [scrollItemRef, topSongOverflow]);
 
     useEffect(() => {
+        setTopSongsLoading(true);
+
         // Load user's top songs
-        user.getRemoteUserTopSongs(targetUserId ?? user.id, topSongsFilter)
+        user.getRemoteUserTopSongs("david.raul.suter", topSongsFilter)
         .then(data => {
             setUserTopSongs(data.slice(0, 5));
+            setTopSongsLoading(false);
+        })
+        .catch(e => {
+            console.error("Failed to load top songs, error:", e);
+            
+            setUserTopSongs([]);
+            setTopSongsLoading(false);
         });
     }, [topSongsFilter]);
 
@@ -404,21 +414,41 @@ export default function ProfilePage({
                     hideProfile
                 />
             </Stack>
-            <Box
+            <Stack
                 transition=".3s"
                 opacity={userTopSongs.length > 0 && userTopSongs.find(v => v.index == 0) ? 1 : 0}
                 height={userTopSongs.length > 0 && userTopSongs.find(v => v.index == 0) ? "auto" : 0}
+                pos="relative"
             >
-                <Text
-                    fontFamily="Inter"
-                    fontWeight="bold"
-                    fontSize="24px"
-                    color={reactiveDesignComplementaryColour ?? "text.dark"}
-                    transition=".3s"
-                    marginBottom="5px"
-                >
-                    Top Songs
-                </Text>
+                <Box>
+                    <Text
+                        fontFamily="Inter"
+                        fontWeight="bold"
+                        fontSize="24px"
+                        color={reactiveDesignComplementaryColour ?? "text.dark"}
+                        transition=".3s"
+                        float="left"
+                    >
+                        Top Songs
+                    </Text>
+                    <Tabs variant='unstyled' pointerEvents={topSongsLoading ? "none" : "all"} onChange={i => {
+                        const map: ("day" | "week" | "month" | "year" | "all")[] = [
+                            "day",
+                            "week",
+                            "month",
+                            "year"
+                        ];
+
+                        setTopSongsFilter(map[i]);
+                    }} float="right">
+                        <TabList width="148px" height="36px" border="2px solid rgba(255, 255, 255, 0.1)" bg={reactiveDesignColourCommited?.replace("(", "a(").replace(")", ",0.25)") ?? "rgba(255, 255, 255, 0.01)"} borderRadius="14px">
+                            <Tab width="36px" fontSize="14px" borderRadius="12px" _selected={{ color: reactiveDesignComplementaryColour ?? "white", bg: reactiveDesignColourCommited ?? "rgba(255, 255, 255, 0.01)" }}>D</Tab>
+                            <Tab width="36px" fontSize="14px" borderRadius="12px" _selected={{ color: reactiveDesignComplementaryColour ?? "white", bg: reactiveDesignColourCommited ?? "rgba(255, 255, 255, 0.01)" }}>W</Tab>
+                            <Tab width="36px" fontSize="14px" borderRadius="12px" _selected={{ color: reactiveDesignComplementaryColour ?? "white", bg: reactiveDesignColourCommited ?? "rgba(255, 255, 255, 0.01)" }}>M</Tab>
+                            <Tab width="36px" fontSize="14px" borderRadius="12px" _selected={{ color: reactiveDesignComplementaryColour ?? "white", bg: reactiveDesignColourCommited ?? "rgba(255, 255, 255, 0.01)" }}>Y</Tab>
+                        </TabList>
+                    </Tabs>
+                </Box>
                 <Stack
                     width="100%"
                     padding="12px"
@@ -427,7 +457,7 @@ export default function ProfilePage({
                     gap="12px"
                 >
                     {/* Number 1 song */}
-                    <HStack color="text.dark">
+                    <HStack color="text.dark" transition=".3s" filter={`blur(${topSongsLoading ? 4 : 0}px)`}>
                         <Image
                             src={userTopSongs.find(v => v.index == 0)?.imageUrl}
                             width="84px"
@@ -476,7 +506,7 @@ export default function ProfilePage({
                         </Box>
                     </HStack>
 
-                    <Stack gap="10px" paddingBottom="2px">
+                    <Stack gap="10px" paddingBottom="2px" transition=".3s" filter={`blur(${topSongsLoading ? 4 : 0}px)`}>
                         {userTopSongs.slice(1, userTopSongs.length).map((v) => {
                             return (
                                 <LeaderboardSongItem
@@ -490,7 +520,7 @@ export default function ProfilePage({
                         })}
                     </Stack>
                 </Stack>
-            </Box>
+            </Stack>
         </Stack>
         </>);
 }
