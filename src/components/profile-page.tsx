@@ -80,18 +80,20 @@ export default function ProfilePage({
     useEffect(() => {
         setTopSongsLoading(true);
 
-        // Load user's top songs
-        user.getRemoteUserTopSongs(targetUserId ?? user.id, topSongsFilter)
-        .then(data => {
-            setUserTopSongs(data.slice(0, 5));
-            setTopSongsLoading(false);
-        })
-        .catch(e => {
-            console.error("Failed to load top songs, error:", e);
-            
-            setUserTopSongs([]);
-            setTopSongsLoading(false);
-        });
+        setTimeout(() => {
+            // Load user's top songs
+            user.getRemoteUserTopSongs(targetUserId ?? user.id, topSongsFilter)
+            .then(data => {
+                setUserTopSongs(data.slice(0, 5));
+                setTopSongsLoading(false);
+            })
+            .catch(e => {
+                console.error("Failed to load top songs, error:", e);
+                
+                setUserTopSongs([]);
+                setTopSongsLoading(false);
+            });
+        }, 75);
     }, [topSongsFilter]);
 
     useEffect(() => {
