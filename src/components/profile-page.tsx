@@ -469,7 +469,7 @@ export default function ProfilePage({
                             <Text
                                 fontWeight="black"
                                 fontSize="20px"
-                            >Number #1</Text>
+                            >Most Played</Text>
                             <Text
                                 fontWeight="medium"
                                 fontSize="18px"
