@@ -341,7 +341,7 @@ export default function ProfilePage({
                         objectFit="cover"
                         borderRadius="12px"
                         // We are using the first image for now, need to write a method to use most optimal image
-                        src={user?.object?.images[0]?.url}
+                        src={targetUserId ? "" : user?.object?.images[0]?.url}
                         draggable={false}
                         onError={() => {
                             setPfpLoadFailed(true);
@@ -350,7 +350,7 @@ export default function ProfilePage({
                 ) : (
                     <Avatar
                         // Append user id so that different users potentially with same name has different bg colours
-                        name={user.object?.displayName ?? "" + user.object?.id ?? ""}
+                        name={targetUserId ? "" : (user.object?.displayName ?? "" + user.object?.id ?? "")}
                         borderRadius="12px"
                         width="82px"
                         height="82px"
@@ -367,7 +367,7 @@ export default function ProfilePage({
                             pageChanger("edit-profile", "settings");
                         }}
                     >
-                    {user.object?.displayName}
+                    {targetUserId ? "" : user.object?.displayName}
                     </Text>
                     <Text
                         fontFamily="Inter"
@@ -387,6 +387,7 @@ export default function ProfilePage({
                         new Date(lastActive).toLocaleDateString("en-GB")
                     )}
                     </Text>
+                    {!targetUserId && (
                     <Text
                         fontFamily="Inter"
                         fontWeight="regular"
@@ -399,6 +400,7 @@ export default function ProfilePage({
                     >
                     Play with Card
                     </Text>
+                    )}
                 </Stack>
             </HStack>
             <Stack gap="1px" opacity={playbackState ? "1" : "0"} height={playbackState ? "auto" : "0"} overflow="hidden" transition=".5s">
