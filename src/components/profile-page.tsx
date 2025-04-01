@@ -519,6 +519,7 @@ export default function ProfilePage({
                     borderRadius="12px"
                     background={reactiveDesignColour ? reactiveDesignColour.replace("b(", "ba(").replace(")", ",0.25)") : "rgba(255, 255, 255, 0.04)"}
                     gap="12px"
+                    pos="relative"
                 >
                     {!topSongsLoading ? (<>
                         {/* Number 1 song */}
@@ -586,16 +587,16 @@ export default function ProfilePage({
                             })}
                         </Stack>
                     </>) : (
-                        <Box 
-                            width="100%" 
-                            height="100%" 
-                            display="flex" 
-                            alignItems="center" 
-                            justifyContent="center" 
-                            textAlign="center" 
-                            flexDirection="column"
+                        <Box
+                            width="100%"
+                            height="100%"
+                            pos="absolute"
+                            top="0"
+                            left="0"
                         >
-                            <Spinner size="lg" />
+                            <Center height="100%">
+                                <Spinner size="lg" />
+                            </Center>
                         </Box>
                     )}
                 </Stack>
