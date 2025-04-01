@@ -151,7 +151,7 @@ export default function ProfilePage({
         });
 
         newStreamer.on("remove", (userId) => {
-            if (userId === user.id) {
+            if (userId === (targetUserId ?? user.id)) {
                 setPlaybackState(null);
                 setReactiveDesignColour(null);
             }
