@@ -585,11 +585,11 @@ export default function ProfilePage({
                                 );
                             })}
                         </Stack>
-                    </>) : (<Box width="100%" height="100%">
-                        <Center width="100%" height="100%">
+                    </>) : (
+                        <Box width="100%" height="356px" display="flex" alignItems="center" justifyContent="center">
                             <Spinner size="lg" />
-                        </Center>
-                    </Box>)}
+                        </Box>
+                    )}
                 </Stack>
             </Stack>
         </Stack>
