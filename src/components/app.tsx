@@ -60,6 +60,7 @@ export function UIApp({
     const [friendsListenershipIsLastPage, setFriendsListenershipIsLastPage] = useState<boolean>(false);
     const [friendsListenershipIsError, setFriendsListenershipIsError] = useState<boolean>(false);
     const [endOfHistoryMessage, setEndOfHistoryMessage] = useState<string>("You've seen it all! 😉");
+    const [pubProfileUserId, setPubProfileUserId] = useState<string>("");
 
     // Lazy loading: how many history items to show at first
     const ITEMS_PER_BATCH = 100;
@@ -290,6 +291,11 @@ export function UIApp({
             name: "Add Friends",
             id: "add-friends",
             indexed: false,
+        },
+        {
+            name: "",
+            id: "pub-profile",
+            indexed: false,
         }
     ];
 
@@ -312,7 +318,8 @@ export function UIApp({
                     "\", but a page cannot be found with that id!"
             );
         
-        if (id !== "settings" && !id.startsWith("profile-"))
+        if (id !== "settings" && id !== "pub-profile-
+")
             setHideTopGradient(false);
 
         setStatusBarColour("€0d0d0e");
@@ -605,6 +612,10 @@ export function UIApp({
                                                             background="rgba(255, 255, 255, 0.2)"
                                                         />
                                                     )}
+                                                    <Box onClick={() => {
+                                                        setPubProfileUserId(v.userId);
+                                                        pageChanger("pub-profile");
+                                                    }}>
                                                     <PlaybackState
                                                         key={
                                                             "ps-" +
@@ -615,6 +626,7 @@ export function UIApp({
                                                         stream={streamer}
                                                         userId={v.userId}
                                                     />
+                                                    </Box>
                                                 </>
                                             );
                                         })}
