@@ -318,8 +318,7 @@ export function UIApp({
                     "\", but a page cannot be found with that id!"
             );
         
-        if (id !== "settings" && id !== "pub-profile-
-")
+        if (id !== "settings" && id !== "pub-profile")
             setHideTopGradient(false);
 
         setStatusBarColour("€0d0d0e");
