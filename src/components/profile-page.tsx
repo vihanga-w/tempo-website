@@ -520,7 +520,7 @@ export default function ProfilePage({
                     background={reactiveDesignColour ? reactiveDesignColour.replace("b(", "ba(").replace(")", ",0.25)") : "rgba(255, 255, 255, 0.04)"}
                     gap="12px"
                 >
-                    {topSongsLoading ? (<>
+                    {!topSongsLoading ? (<>
                         {/* Number 1 song */}
                         <HStack color="text.dark" transition=".3s">
                             <Image
@@ -585,11 +585,11 @@ export default function ProfilePage({
                                 );
                             })}
                         </Stack>
-                    </>) : (<>
+                    </>) : (<Box width="100%" height="100%">
                         <Center width="100%" height="100%">
                             <Spinner size="lg" />
                         </Center>
-                    </>)}
+                    </Box>)}
                 </Stack>
             </Stack>
         </Stack>
