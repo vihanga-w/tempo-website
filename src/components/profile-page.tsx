@@ -590,12 +590,12 @@ export default function ProfilePage({
                         <Box
                             width="100%"
                             height="100%"
-                            pos="absolute"
-                            top="0"
-                            left="0"
+                            // pos="absolute"
+                            // top="0"
+                            // left="0"
                         >
                             <Center height="100%">
-                                <Spinner size="lg" />
+                                <Spinner size="lg" color={reactiveDesignComplementaryColour ?? "#ffffff"} />
                             </Center>
                         </Box>
                     )}
