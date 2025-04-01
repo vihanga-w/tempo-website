@@ -124,7 +124,7 @@ export default function ProfilePage({
     }, [topSongsFilter]);
 
     useEffect(() => {
-        const loadCb = loadTracker(2, () => {
+        const loadCb = loadTracker(3, () => {
             setTimeout(() => {
                 setPageLoaded(true);
             }, 100);
@@ -162,6 +162,10 @@ export default function ProfilePage({
         
         setStreamer(newStreamer);
 
+        newStreamer.on("not-listening", (userIds: string[]) => {
+            loadCb("top-grad");
+        });
+
         newStreamer.on("update", (data: UpdateEvent) => {
             setPlaybackState((v) => {
                 if (data.data.state) {
@@ -173,6 +177,7 @@ export default function ProfilePage({
                     .then(color => {
                         setReactiveDesignColour(color.rgb);
                         hideTopGradientCb(true);
+                        loadCb("top-grad");
                     })
                     .catch(e => {
                         console.log(e);

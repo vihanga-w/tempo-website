@@ -139,6 +139,9 @@ export class DataStreamer extends EventEmitter {
                 // Setup connection to server
                 let sessions = await this.fetchPublicStreams();
 
+                if (this.userFilters?.some(v => !sessions.includes(v)))
+                    this.emit("not-listening", this.userFilters.filter(v => !sessions.includes(v)));
+
                 if (this.interval)
                     try { clearInterval(this.interval); } catch { }
 
