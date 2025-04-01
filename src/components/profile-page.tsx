@@ -586,7 +586,15 @@ export default function ProfilePage({
                             })}
                         </Stack>
                     </>) : (
-                        <Box width="100%" height="100%" display="flex" alignItems="center" justifyContent="center">
+                        <Box 
+                            width="100%" 
+                            height="100%" 
+                            display="flex" 
+                            alignItems="center" 
+                            justifyContent="center" 
+                            textAlign="center" 
+                            flexDirection="column"
+                        >
                             <Spinner size="lg" />
                         </Box>
                     )}
