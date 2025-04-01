@@ -613,7 +613,7 @@ export function UIApp({
                                                     )}
                                                     <Box onClick={() => {
                                                         setPubProfileUserId(v.userId);
-                                                        pageChanger("pub-profile");
+                                                        pageChanger("pub-profile", "activity");
                                                     }}>
                                                     <PlaybackState
                                                         key={
