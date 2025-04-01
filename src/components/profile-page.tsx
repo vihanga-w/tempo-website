@@ -505,10 +505,10 @@ export default function ProfilePage({
 
                         setTopSongsFilter(map[i]);
                     }} float="right">
-                        <TabList width="112px" height="36px" border="2px solid rgba(255, 255, 255, 0.1)" bg={reactiveDesignColourCommited?.replace("(", "a(").replace(")", ",0.25)") ?? "rgba(255, 255, 255, 0.01)"} borderRadius="14px">
-                            <Tab width="36px" fontSize="14px" borderRadius="12px" _selected={{ color: reactiveDesignComplementaryColour ?? "white", bg: reactiveDesignColourCommited ?? "rgba(255, 255, 255, 0.01)" }}>D</Tab>
-                            <Tab width="36px" fontSize="14px" borderRadius="12px" _selected={{ color: reactiveDesignComplementaryColour ?? "white", bg: reactiveDesignColourCommited ?? "rgba(255, 255, 255, 0.01)" }}>W</Tab>
-                            <Tab width="36px" fontSize="14px" borderRadius="12px" _selected={{ color: reactiveDesignComplementaryColour ?? "white", bg: reactiveDesignColourCommited ?? "rgba(255, 255, 255, 0.01)" }}>M</Tab>
+                        <TabList width="124px" height="36px" border="2px solid rgba(255, 255, 255, 0.1)" bg={reactiveDesignColourCommited?.replace("(", "a(").replace(")", ",0.25)") ?? "rgba(255, 255, 255, 0.01)"} borderRadius="14px">
+                            <Tab width="40px" fontSize="14px" borderRadius="12px" _selected={{ color: reactiveDesignComplementaryColour ?? "white", bg: reactiveDesignColourCommited ?? "rgba(255, 255, 255, 0.01)" }}>24h</Tab>
+                            <Tab width="40px" fontSize="14px" borderRadius="12px" _selected={{ color: reactiveDesignComplementaryColour ?? "white", bg: reactiveDesignColourCommited ?? "rgba(255, 255, 255, 0.01)" }}>7d</Tab>
+                            <Tab width="40px" fontSize="14px" borderRadius="12px" _selected={{ color: reactiveDesignComplementaryColour ?? "white", bg: reactiveDesignColourCommited ?? "rgba(255, 255, 255, 0.01)" }}>30d</Tab>
                         </TabList>
                     </Tabs>
                 </Box>
