@@ -115,7 +115,7 @@ export default function ProfilePage({
             });
         }
 
-        const newStreamer = new DataStreamer(user.storedToken, [user.id]);
+        const newStreamer = new DataStreamer(user.storedToken, [targetUserId ?? user.id]);
         
         setStreamer(newStreamer);
 
