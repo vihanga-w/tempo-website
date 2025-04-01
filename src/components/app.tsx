@@ -293,7 +293,7 @@ export function UIApp({
             indexed: false,
         },
         {
-            name: "",
+            name: "Profile",
             id: "pub-profile",
             indexed: false,
         }
