@@ -266,7 +266,7 @@ export function UIApp({
         }
     }, [livePlaybackStates, streamer, streamerReset]);
 
-    const pages: { name: string; id: string; indexed: boolean }[] = [
+    const pages: { name: string; menuName?: string; id: string; indexed: boolean }[] = [
         {
             name: "Discover",
             id: "discover",
@@ -283,7 +283,8 @@ export function UIApp({
             indexed: true,
         },
         {
-            name: "Profile",
+            name: "Your Profile",
+            menuName: "Profile",
             id: "settings",
             indexed: true,
         },
@@ -512,7 +513,7 @@ export function UIApp({
                                             }
                                             userSelect="none"
                                         >
-                                            {v.name}
+                                            {v.menuName ?? v.name}
                                         </Text>
                                     </>
                                 );

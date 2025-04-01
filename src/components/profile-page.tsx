@@ -1,15 +1,34 @@
 import { DataStreamer, UpdateEvent } from "@/lib/live-ingest";
-import User from "@/lib/usrlib";
-import { HStack, Stack, Box, Image, Text, Avatar, Tabs, TabList, Tab, TabPanels, TabPanel } from "@chakra-ui/react";
+import User, { ClientUserAccount } from "@/lib/usrlib";
+import { HStack, Stack, Box, Image, Text, Avatar, Tabs, TabList, Tab, TabPanels, TabPanel, Center, Spinner } from "@chakra-ui/react";
 import { useEffect, useRef, useState } from "react";
 import ReactTimeAgo from "react-time-ago";
 import { getSpotifyDeeplink, PlaybackState } from "./playback-state";
 import { FastAverageColor } from 'fast-average-color';
 import { apcach, crToBg } from "apcach";
 import { oklch, formatHex } from 'culori';
-import α from 'color-alpha';
 import LeaderboardSongItem from "./leaderboard-song-item";
 import { MdExplicit } from "react-icons/md";
+
+const loadTracker = (expectedCount: number, onComplete: () => void) => {
+    let count = 0;
+    let executed = false;
+    let loadedIds: string[] = [];
+
+    return (id: string) => {
+        if (loadedIds.includes(id))
+            return;
+
+        loadedIds.push(id);
+
+        count += 1;
+
+        if (count >= expectedCount && !executed) {
+            executed = true;
+            onComplete();
+        }
+    }
+}
 
 export default function ProfilePage({
     user,
@@ -26,8 +45,8 @@ export default function ProfilePage({
     hideTopGradientCb: (hide: boolean) => void;
     setComplementaryColour: (hex: string) => void;
 }>) {
+    const [profileData, setProfileData] = useState<ClientUserAccount | undefined>(user.object);
     const [pfpLoadFailed, setPfpLoadFailed] = useState(false);
-    const [playbackStateLoading, setPlaybackStateLoading] = useState(true);
     const [streamer, setStreamer] = useState<DataStreamer | null>(null);
     const [streamerReset, setStreamerReset] = useState<boolean>(false);
     const [playbackState, setPlaybackState] = useState<UpdateEvent | null>(null);
@@ -47,6 +66,7 @@ export default function ProfilePage({
     }[]>([]);
     const [topSongOverflow, setTopSongOverflow] = useState<number>(-1);
     const [topSongsLoading, setTopSongsLoading] = useState<boolean>(true);
+    const [pageLoaded, setPageLoaded] = useState<boolean>(false);
 
     const scrollItemRef = useRef<HTMLDivElement>(null);
 
@@ -56,6 +76,13 @@ export default function ProfilePage({
         const themeColour = document.querySelector("meta[name=theme-color]");
         themeColour?.setAttribute("content", colour);
     }
+
+    useEffect(() => {
+        if (!targetUserId)
+            return;
+
+        setProfileData(undefined);
+    }, [])
 
     useEffect(() => {
         if (!scrollItemRef.current)
@@ -97,6 +124,22 @@ export default function ProfilePage({
     }, [topSongsFilter]);
 
     useEffect(() => {
+        const loadCb = loadTracker(2, () => {
+            setTimeout(() => {
+                setPageLoaded(true);
+            }, 100);
+        });
+
+        user.getRemoteUser(targetUserId ?? user.id)
+        .then(r => {
+            setProfileData(r);
+            loadCb("remote-user-profile");
+        })
+        .catch(e => {
+            console.error("Failed to get remote user for", targetUserId ?? user.id, " error:", e);
+            loadCb("remote-user-profile");
+        });
+
         const fac = new FastAverageColor();
 
         let streamerGotMsg = false;
@@ -120,8 +163,6 @@ export default function ProfilePage({
         setStreamer(newStreamer);
 
         newStreamer.on("update", (data: UpdateEvent) => {
-            setPlaybackStateLoading(false);
-
             setPlaybackState((v) => {
                 if (data.data.state) {
                     streamerGotMsg = true;
@@ -138,15 +179,13 @@ export default function ProfilePage({
                     });
                 }
 
-                if (v && data.data.action.type == "STOPPED") {
+                if (data.data.action.type == "STOPPED") {
                     setReactiveDesignColour(null);
 
                     return null;
-                } else if (!v && data.data.action.type !== "STOPPED") {
-                    return data;
                 }
                 
-                return v;
+                return data;
             });
         });
 
@@ -159,6 +198,10 @@ export default function ProfilePage({
 
         newStreamer.on("close", () => {
             // no-op, state will update once connection re-established
+        });
+
+        newStreamer.on("open", () => {
+            loadCb("remote-user-stream");
         });
 
         newStreamer.init();
@@ -215,7 +258,6 @@ export default function ProfilePage({
     useEffect(() => {
         const handleFocus = async () => {
             if (streamer && !streamer.isReady()) {
-                setPlaybackStateLoading(true);
                 setPlaybackState(null);
                 setStreamerReset(true);
             }
@@ -308,6 +350,20 @@ export default function ProfilePage({
 
     return (<>
         <Box
+            display={pageLoaded ? "none" : "block"}
+            width="100vw"
+            height="100vh"
+            background="bg.dark"
+            pos="fixed"
+            top="0"
+            left="0"
+            zIndex="999999"
+        >
+            <Center height="100vh">
+                <Spinner size="lg" />
+            </Center>
+        </Box>
+        <Box
             pos="fixed"
             left="0"
             top="0"
@@ -341,7 +397,7 @@ export default function ProfilePage({
                         objectFit="cover"
                         borderRadius="12px"
                         // We are using the first image for now, need to write a method to use most optimal image
-                        src={targetUserId ? "" : user?.object?.images[0]?.url}
+                        src={profileData?.images[0].url}
                         draggable={false}
                         onError={() => {
                             setPfpLoadFailed(true);
@@ -350,7 +406,7 @@ export default function ProfilePage({
                 ) : (
                     <Avatar
                         // Append user id so that different users potentially with same name has different bg colours
-                        name={targetUserId ? "" : (user.object?.displayName ?? "" + user.object?.id ?? "")}
+                        name={profileData?.displayName ?? "" + profileData?.id ?? ""}
                         borderRadius="12px"
                         width="82px"
                         height="82px"
@@ -367,7 +423,7 @@ export default function ProfilePage({
                             pageChanger("edit-profile", "settings");
                         }}
                     >
-                    {targetUserId ? "" : user.object?.displayName}
+                    {profileData?.displayName}
                     </Text>
                     <Text
                         fontFamily="Inter"
@@ -413,7 +469,7 @@ export default function ProfilePage({
                 >Listening to</Text>
                 <PlaybackState
                     stream={streamer}
-                    userId={user.id}
+                    userId={targetUserId ?? user.id}
                     theme={reactiveDesignComplementaryColour ?? undefined}
                     hideProfile
                 />
@@ -440,16 +496,14 @@ export default function ProfilePage({
                             "day",
                             "week",
                             "month",
-                            "year"
                         ];
 
                         setTopSongsFilter(map[i]);
                     }} float="right">
-                        <TabList width="148px" height="36px" border="2px solid rgba(255, 255, 255, 0.1)" bg={reactiveDesignColourCommited?.replace("(", "a(").replace(")", ",0.25)") ?? "rgba(255, 255, 255, 0.01)"} borderRadius="14px">
+                        <TabList width="112px" height="36px" border="2px solid rgba(255, 255, 255, 0.1)" bg={reactiveDesignColourCommited?.replace("(", "a(").replace(")", ",0.25)") ?? "rgba(255, 255, 255, 0.01)"} borderRadius="14px">
                             <Tab width="36px" fontSize="14px" borderRadius="12px" _selected={{ color: reactiveDesignComplementaryColour ?? "white", bg: reactiveDesignColourCommited ?? "rgba(255, 255, 255, 0.01)" }}>D</Tab>
                             <Tab width="36px" fontSize="14px" borderRadius="12px" _selected={{ color: reactiveDesignComplementaryColour ?? "white", bg: reactiveDesignColourCommited ?? "rgba(255, 255, 255, 0.01)" }}>W</Tab>
                             <Tab width="36px" fontSize="14px" borderRadius="12px" _selected={{ color: reactiveDesignComplementaryColour ?? "white", bg: reactiveDesignColourCommited ?? "rgba(255, 255, 255, 0.01)" }}>M</Tab>
-                            <Tab width="36px" fontSize="14px" borderRadius="12px" _selected={{ color: reactiveDesignComplementaryColour ?? "white", bg: reactiveDesignColourCommited ?? "rgba(255, 255, 255, 0.01)" }}>Y</Tab>
                         </TabList>
                     </Tabs>
                 </Box>

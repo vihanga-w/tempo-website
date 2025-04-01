@@ -308,6 +308,7 @@ export class DataStreamer extends EventEmitter {
                 this.sock.onopen = () => {
                     sessionReadyCb = () => {
                         if (this.sock && this.sock.OPEN) {
+                            this.emit("open");
                             this.sock.send(JSON.stringify(sessions));
                             sessionReadyCb = undefined;
                         }
