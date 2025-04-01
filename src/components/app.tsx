@@ -738,6 +738,21 @@ export function UIApp({
                             }}
                         />
                     )}
+
+                    {/* Public profile page */}
+                    {currentPage == "pub-profile" && (
+                        <ProfilePage
+                            user={user}
+                            targetUserId={pubProfileUserId}
+                            pageChanger={pageChanger}
+                            hideTopGradientCb={(hide: boolean) => {
+                                setHideTopGradient(hide);
+                            }}
+                            setComplementaryColour={(colour: string) => {
+                                setComplementaryColour(colour);
+                            }}
+                        />
+                    )}
                 </Box>
             </Box>
         </>
