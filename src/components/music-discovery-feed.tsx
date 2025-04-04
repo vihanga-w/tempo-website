@@ -42,7 +42,7 @@ const MusicDiscoveryFeed: React.FC<{ songs: Song[] }> = (props) => {
       const currentY = e instanceof TouchEvent ? e.touches[0].clientY : e.clientY;
       const deltaY = currentY - startY;
 
-      if (deltaY > 0 && deltaY < 50 && window.scrollY === 0) {
+      if (deltaY > 20 && window.scrollY === 0) {
         e.preventDefault(); // Prevent upward scrolling
         setShowRefreshMessage(true);
 
@@ -123,20 +123,28 @@ const MusicDiscoveryFeed: React.FC<{ songs: Song[] }> = (props) => {
           left="0"
           width="100vw"
           height="50px"
-          backgroundColor="gray.800"
+          backgroundColor="transparent"
           color="white"
-          textAlign="center"
           lineHeight="50px"
-          zIndex="1000"
+          zIndex="9999999999999"
+          textAlign="right"
+          paddingRight="16px"
         >
-          Hold to refresh...
+          Hold to refresh
           <Progress
             size="xs"
-            colorScheme="teal"
             value={progress}
             position="absolute"
             bottom="0"
-            width="100%"
+            width="108px" // Set the width to 320px
+            right="16px" // Offset 16px from the right
+            borderRadius="md"
+            sx={{
+              "& > div": {
+                backgroundColor: "white", // Set the progress bar foreground color to white
+              },
+              backgroundColor: "rgba(255, 255, 255, 0.2)", // Set the progress bar background to a translucent white
+            }}
           />
         </Box>
       )}
