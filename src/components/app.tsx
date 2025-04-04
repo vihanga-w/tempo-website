@@ -22,6 +22,7 @@ import { API_URL } from "@/lib/const";
 import { PlaybackHistoryItem } from "./playback-history-item";
 import { AddFriendsPage } from "./add-friends-page";
 import ProfilePage from "./profile-page";
+import MusicDiscoveryFeed from "./music-discovery-feed";
 
 const updateMutex = new Mutex();
 
@@ -53,6 +54,7 @@ export function UIApp({
         title: string;
         artists: string[];
         album: string;
+        imageUrl: string;
         likeness: number;
     }[]>([]);
     const [friendsListenershipData, setFriendsListenershipData] = useState<FriendListenershipItem[]>([]);
@@ -217,6 +219,7 @@ export function UIApp({
                         title: string;
                         artists: string[];
                         album: string;
+                        imageUrl: string;
                         likeness: number;
                     }[];
                 } = r;
@@ -568,18 +571,7 @@ export function UIApp({
                                     We'll let you know when Discover is ready!
                                 </Text>
                             ) : (
-                                <Stack gap="10px">
-                                    {discoveryData.map((v) => {
-                                        return (
-                                            <Box key={v.title + v.likeness}>
-                                                <Text>
-                                                    {v.title} ({v.artists.join(", ")}) -{" "}
-                                                    {Math.ceil(v.likeness * 100)}%
-                                                </Text>
-                                            </Box>
-                                        );
-                                    })}
-                                </Stack>
+                                <MusicDiscoveryFeed songs={discoveryData.filter((_, i) => i < 50)} />
                             )}
                         </>
                     )}
