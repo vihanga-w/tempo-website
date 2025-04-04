@@ -47,12 +47,14 @@ export function PlaybackState({
     stream,
     userId,
     hideProfile,
+    hideReaction,
     theme,
     profileClickCb
 }: {
     stream: DataStreamer | null,
     userId: string,
     hideProfile?: boolean,
+    hideReaction?: boolean,
     theme?: string,
     profileClickCb?: () => void;
 }) {
@@ -182,7 +184,7 @@ export function PlaybackState({
                                 )}
                             </Stack>
                         </HStack>
-                        <MdAddReaction opacity="0.45" size="22px" />
+                        {!hideReaction && (<MdAddReaction opacity="0.45" size="22px" />)}
                     </HStack>
                 )}
                 <HStack alignItems="self-start" width="100%">

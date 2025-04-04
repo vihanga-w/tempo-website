@@ -164,7 +164,8 @@ export function UIApp({
     useEffect(() => {
         if (!user.isLoggedIn) return;
 
-        const newStreamer = new DataStreamer(user.storedToken);
+        const newStreamer = new DataStreamer(user.storedToken, ["*"]);
+
         setStreamer(newStreamer);
 
         newStreamer.on("update", (data: UpdateEvent) => {
@@ -367,8 +368,8 @@ export function UIApp({
                     src="/menu-bg.png"
                     position="absolute"
                     zIndex="999999998"
-                    width={pageSwitcherActive ? "100%" : "75%"}
-                    height={pageSwitcherActive ? "100%" : "75%"}
+                    // width={pageSwitcherActive ? "100%" : "75%"}
+                    height="100%"
                     top={pageSwitcherActive ? "0px" : "-15px"}
                     left={pageSwitcherActive ? "0px" : "-25px"}
                     overflow="hidden"
@@ -378,7 +379,7 @@ export function UIApp({
                     style={{
                         WebkitTouchCallout: "none",
                     }}
-                    backdropFilter="blur(2px)"
+                    backdropFilter="blur(6px)"
                     draggable={false}
                     pointerEvents="none"
                 />
@@ -483,45 +484,64 @@ export function UIApp({
                         alignItems="normal"
                         pointerEvents={pageSwitcherActive ? "all" : "none"}
                     >
-                        {pages
-                            .filter((v) => {
-                                return v.indexed;
-                            })
-                            .map((v, i) => {
-                                if (!v.indexed) return;
-                                return (
-                                    <>
-                                        <Text
-                                            float="left"
-                                            fontFamily="Inter"
-                                            fontWeight={currentPage == v.id ? "bold" : "medium"}
-                                            fontSize="36px"
-                                            color="text.color"
-                                            zIndex="999999998"
-                                            transition="margin .25s ease-out, opacity .2s"
-                                            whiteSpace="nowrap"
-                                            marginLeft={pageSwitcherActive ? "0" : "-75px"}
-                                            opacity={pageSwitcherActive ? (currentPage == v.id ? "1" : "0.75") : "0"}
-                                            // Increase transition delay as we go further down the list
-                                            transitionDelay={
-                                                pageSwitcherActive ? 0 + (i + 1) / 12 + "s" : "0"
-                                            }
-                                            onClick={
-                                                currentPage == v.id
-                                                    ? handlePageMenuClick
-                                                    : () => {
-                                                          pageChanger(v.id);
-                                                          handlePageMenuClick();
-                                                      }
-                                            }
-                                            userSelect="none"
-                                        >
-                                            {v.menuName ?? v.name}
-                                        </Text>
-                                    </>
-                                );
-                            })}
+                        {pages.filter((v) => {
+                            return v.indexed;
+                        })
+                        .map((v, i) => {
+                            if (!v.indexed) return;
+                            return (
+                                <>
+                                    <Text
+                                        float="left"
+                                        fontFamily="Inter"
+                                        fontWeight={currentPage == v.id ? "bold" : "medium"}
+                                        fontSize="36px"
+                                        color="text.color"
+                                        zIndex="999999998"
+                                        transition="margin .25s ease-out, opacity .2s"
+                                        whiteSpace="nowrap"
+                                        marginLeft={pageSwitcherActive ? "0" : "-75px"}
+                                        opacity={pageSwitcherActive ? (currentPage == v.id ? "1" : "0.75") : "0"}
+                                        // Increase transition delay as we go further down the list
+                                        transitionDelay={
+                                            pageSwitcherActive ? 0 + (i + 1) / 12 + "s" : "0"
+                                        }
+                                        onClick={
+                                            currentPage == v.id
+                                                ? handlePageMenuClick
+                                                : () => {
+                                                        pageChanger(v.id);
+                                                        handlePageMenuClick();
+                                                    }
+                                        }
+                                        userSelect="none"
+                                    >
+                                        {v.menuName ?? v.name}
+                                    </Text>
+                                </>
+                            );
+                        })}
                     </VStack>
+                    <Box
+                        width="100vw"
+                        pos="fixed"
+                        bottom="0px"
+                        left="0px"
+                        paddingBottom="26px"
+                        paddingLeft="20px"
+                        paddingRight="20px"
+                        paddingTop="18px"
+                        zIndex="999999998"
+                        transform={pageSwitcherActive ? "translateY(0px)" : "translateY(160%)"}
+                        opacity={pageSwitcherActive ? 1 : 0}
+                        transition="transform .5s, filter .75s"
+                    >
+                        <PlaybackState
+                            stream={streamer}
+                            userId={user.object?.id || ""}
+                            hideReaction={true}
+                        />
+                    </Box>
                     <SmallAddButton
                         onClick={() => {
                             if (pageSwitcherActive) return;
@@ -593,7 +613,7 @@ export function UIApp({
                                         >
                                             Latest
                                         </Text>
-                                        {livePlaybackStates.map((v, i) => {
+                                        {livePlaybackStates.filter(v => v.userId !== user.object?.id).map((v, i) => {
                                             const data = v.data;
                                             return (
                                                 <>

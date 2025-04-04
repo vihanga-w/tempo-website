@@ -102,6 +102,22 @@ export class DataStreamer extends EventEmitter {
         this.sockCallbacks = {};
     }
 
+    private _isUserIdInFilter(userId: string) {
+        if (!this.userFilters)
+            return true;
+
+        if (this.userFilters.includes("!" + userId))
+            return false;
+
+        if (this.userFilters.includes("*"))
+            return true;
+        
+        if (this.userFilters.includes(userId))
+            return true;
+
+        return false;
+    }
+
     getListeners() {
         return new Promise<string[]>(resolve => {
             if (!this.sock || !this.sock.OPEN)
@@ -140,7 +156,7 @@ export class DataStreamer extends EventEmitter {
                 let sessions = await this.fetchPublicStreams();
 
                 if (this.userFilters?.some(v => !sessions.includes(v)))
-                    this.emit("not-listening", this.userFilters.filter(v => !sessions.includes(v)));
+                    this.emit("not-listening", this.userFilters.filter(v => !sessions.includes(v.replace("!", ""))));
 
                 if (this.interval)
                     try { clearInterval(this.interval); } catch { }
@@ -175,7 +191,7 @@ export class DataStreamer extends EventEmitter {
                             "nocb",
                         ]));
 
-                        if (!this.userFilters || this.userFilters.includes(id))
+                        if (this._isUserIdInFilter(id))
                             this.emit("remove", id);
                     }
 
@@ -269,7 +285,7 @@ export class DataStreamer extends EventEmitter {
                                             if (parsed.state)
                                                 this.cache[userId] = payload;
 
-                                            if (!this.userFilters || this.userFilters.includes(userId)) {
+                                            if (this._isUserIdInFilter(userId)) {
                                                 this.emit("update", payload);
                                                 this.emit("update-" + userId , payload);
                                             }
@@ -285,7 +301,7 @@ export class DataStreamer extends EventEmitter {
 
                             this.cache[userId] = payload;
 
-                            if (!this.userFilters || this.userFilters.includes(userId)) {
+                            if (this._isUserIdInFilter(userId)) {
                                 this.emit("update", payload);
                                 this.emit("update-" + userId, payload);
                             }
