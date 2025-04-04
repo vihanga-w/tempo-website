@@ -527,19 +527,27 @@ export function UIApp({
                         pos="fixed"
                         bottom="0px"
                         left="0px"
-                        paddingBottom="26px"
+                        paddingBottom="52px"
                         paddingLeft="20px"
                         paddingRight="20px"
                         paddingTop="18px"
                         zIndex="999999998"
-                        transform={pageSwitcherActive ? "translateY(0px)" : "translateY(160%)"}
-                        opacity={pageSwitcherActive ? 1 : 0}
-                        transition="transform .5s, filter .75s"
+                        transform={
+                            pageSwitcherActive && user.object?.id && streamer?.getPrevState(user.object.id) ?
+                            "translateY(0px)" : "translateY(160%)"
+                        }
+                        opacity={
+                            pageSwitcherActive && user.object?.id && streamer?.getPrevState(user.object.id) ?
+                            1 : 0
+                        }
+                        transition="transform .5s, opacity .75s"
                     >
                         <PlaybackState
+                            key={user.object?.id + "self" + (streamer?.getPrevState(user.object?.id ?? "")?.data.state?.songId ?? "")}
                             stream={streamer}
                             userId={user.object?.id || ""}
-                            hideReaction={true}
+                            hideReaction
+                            hideSpotifyCallout
                         />
                     </Box>
                     <SmallAddButton

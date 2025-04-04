@@ -356,7 +356,7 @@ export class DataStreamer extends EventEmitter {
         connect();
     }
 
-    public getPrevState(userId: string) {
+    public getPrevState(userId: string): UpdateEvent | undefined {
         return this.cache[userId];
     }
 
