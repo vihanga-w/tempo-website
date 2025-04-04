@@ -99,17 +99,14 @@ const MusicDiscoveryFeed: React.FC<{ songs: Song[] }> = (props) => {
 
   const bind = useDrag(({ movement: [, my], velocity, down }) => {
     setDragY(my);
-    
+
     if (!down) {
       const swipeThreshold = window.innerHeight * 0.3;
       const speedThreshold = 0.5;
-      
-      if (Math.abs(my) > swipeThreshold || Math.abs(velocity) > speedThreshold) {
-        setCurrentIndex((prevIndex) =>
-          my > 0
-            ? Math.max(prevIndex - 1, 0)
-            : Math.min(prevIndex + 1, songs.length - 1)
-        );
+
+      if (my < 0 && (Math.abs(my) > swipeThreshold || Math.abs(velocity) > speedThreshold)) {
+        // Only allow moving to the next item when swiping downwards
+        setCurrentIndex((prevIndex) => Math.min(prevIndex + 1, songs.length - 1));
       }
       setDragY(0);
     }
