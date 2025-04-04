@@ -3,6 +3,7 @@ import { Box, VStack, Text, Image, IconButton, Progress } from "@chakra-ui/react
 import { FaHeart, FaRegHeart, FaCheckCircle } from "react-icons/fa"; // Replace FaMusic with FaCheckCircle
 import { useDrag } from "react-use-gesture";
 import { motion, AnimatePresence } from "framer-motion";
+import { FastAverageColor } from "fast-average-color";
 
 interface Song {
     id: string;
@@ -21,6 +22,7 @@ const MusicDiscoveryFeed: React.FC<{ songs: Song[] }> = (props) => {
   const [showRefreshMessage, setShowRefreshMessage] = useState(false);
   const refreshTimeout = useRef<NodeJS.Timeout | null>(null);
   const [progress, setProgress] = useState(0);
+  const [reactiveDesignColour, setReactiveDesignColour] = useState<string | null>(null);
 
   const handleRefresh = () => {
     // Placeholder function for refresh logic
@@ -108,7 +110,26 @@ const MusicDiscoveryFeed: React.FC<{ songs: Song[] }> = (props) => {
 
       if (my < 0 && (Math.abs(my) > swipeThreshold || Math.abs(velocity) > speedThreshold)) {
         // Only allow moving to the next item when swiping downwards
-        setCurrentIndex((prevIndex) => Math.min(prevIndex + 1, songs.length));
+        setCurrentIndex((prevIndex) => {
+            const v = Math.min(prevIndex + 1, songs.length);
+
+            if (!songs[v].imageUrl)
+                return v;
+
+            const fac = new FastAverageColor();
+            
+            fac.getColorAsync(songs[v].imageUrl)
+            .then(color => {
+                setReactiveDesignColour(color.rgb);
+                // hideTopGradientCb(true);
+                // loadCb("top-grad");
+            })
+            .catch(e => {
+                console.log(e);
+            });
+
+            return v;
+        });
       }
       setDragY(0);
     }
@@ -119,7 +140,7 @@ const MusicDiscoveryFeed: React.FC<{ songs: Song[] }> = (props) => {
       {showRefreshMessage && (
         <Box
           position="fixed"
-          top="0"
+          top="-6px"
           left="0"
           width="100vw"
           height="50px"
@@ -172,33 +193,38 @@ const MusicDiscoveryFeed: React.FC<{ songs: Song[] }> = (props) => {
                   <Box
                     width="100vw"
                     height="100vh"
-                    backgroundColor="gray.700"
+                    pos="absolute"
+                    backgroundColor={reactiveDesignColour ?? "gray.700"}
                     textAlign="center"
-                    position="relative"
+                    
+                    display="flex"
+                    alignItems="center"
+                    justifyContent="center"
+                    flexDirection="column"
                   >
                     <Image
                       src={songs[index].imageUrl}
-                      width={{ base: "100%", md: "80%" }}
-                      height={{ base: "100%", md: "80%" }}
+                      width="280px"
+                      height="280px"
                       objectFit="cover"
                       draggable="false"
-                      mx="auto"
+                      marginTop="40px"
+                      marginBottom="60px"
+                      borderRadius="10px"
                     />
-                    <Box position="absolute" bottom={0} left={0} right={0} textAlign="center" backgroundColor="rgba(0,0,0,0.5)" p={4}>
-                      <Text fontSize="lg" fontWeight="bold" color="white">
-                        {songs[index].title} ({Math.min(Math.round(songs[index].likeness * 100), 100)}%)
-                      </Text>
-                      <Text fontSize="md" color="gray.300">
-                        {songs[index].artists.join(", ")}
-                      </Text>
-                      <IconButton
-                        aria-label="like"
-                        icon={<FaRegHeart />}
-                        variant="ghost"
-                        size="lg"
-                        mt={2}
-                      />
-                    </Box>
+                    <Text fontSize="lg" fontWeight="bold" color="white">
+                    {songs[index].title} ({Math.min(Math.round(songs[index].likeness * 100), 100)}%)
+                    </Text>
+                    <Text fontSize="md" color="gray.300">
+                    {songs[index].artists.join(", ")}
+                    </Text>
+                    <IconButton
+                    aria-label="like"
+                    icon={<FaRegHeart />}
+                    variant="ghost"
+                    size="lg"
+                    mt={2}
+                    />
                   </Box>
                 </motion.div>
               )
