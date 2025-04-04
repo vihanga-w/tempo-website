@@ -47,24 +47,26 @@ const MusicDiscoveryFeed: React.FC<{ songs: Song[] }> = (props) => {
         setShowRefreshMessage(true);
 
         if (!refreshTimeout.current) {
-          refreshTimeout.current = setInterval(() => {
+          const updateProgress = () => {
             setProgress((prev) => {
               if (prev >= 100) {
-                clearInterval(refreshTimeout.current!);
-                refreshTimeout.current = null;
                 handleRefresh();
                 setShowRefreshMessage(false);
+                setProgress(0);
+                refreshTimeout.current = null;
                 return 0;
               }
-              return prev + 5;
+              refreshTimeout.current = setTimeout(updateProgress, 20); // Smooth updates
+              return prev + 1;
             });
-          }, 100);
+          };
+          updateProgress();
         }
       } else {
         setShowRefreshMessage(false);
         setProgress(0);
         if (refreshTimeout.current) {
-          clearInterval(refreshTimeout.current);
+          clearTimeout(refreshTimeout.current);
           refreshTimeout.current = null;
         }
       }
@@ -75,7 +77,7 @@ const MusicDiscoveryFeed: React.FC<{ songs: Song[] }> = (props) => {
       setShowRefreshMessage(false);
       setProgress(0);
       if (refreshTimeout.current) {
-        clearInterval(refreshTimeout.current);
+        clearTimeout(refreshTimeout.current);
         refreshTimeout.current = null;
       }
     };
