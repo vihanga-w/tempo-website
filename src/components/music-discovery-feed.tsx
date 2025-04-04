@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Box, VStack, Text, Image, IconButton, Progress } from "@chakra-ui/react";
-import { FaHeart, FaRegHeart } from "react-icons/fa";
+import { FaHeart, FaRegHeart, FaCheckCircle } from "react-icons/fa"; // Replace FaMusic with FaCheckCircle
 import { useDrag } from "react-use-gesture";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -108,7 +108,7 @@ const MusicDiscoveryFeed: React.FC<{ songs: Song[] }> = (props) => {
 
       if (my < 0 && (Math.abs(my) > swipeThreshold || Math.abs(velocity) > speedThreshold)) {
         // Only allow moving to the next item when swiping downwards
-        setCurrentIndex((prevIndex) => Math.min(prevIndex + 1, songs.length - 1));
+        setCurrentIndex((prevIndex) => Math.min(prevIndex + 1, songs.length));
       }
       setDragY(0);
     }
@@ -142,58 +142,88 @@ const MusicDiscoveryFeed: React.FC<{ songs: Song[] }> = (props) => {
       )}
       <VStack spacing={0} align="center" justify="center" pos="fixed" left="0" top="0" height="100vh" width="100vw" ref={containerRef} overflow="hidden">
         <AnimatePresence>
-          {[currentIndex, currentIndex + 1].map((index) => (
-            index < songs.length && (
-              <motion.div
-                key={songs[index].id}
-                {...bind()}
-                style={{
-                  touchAction: "none",
-                  cursor: "grab",
-                  width: "100vw",
-                  height: "100vh",
-                  position: "absolute",
-                  top: `${(index - currentIndex) * 100}%`,
-                }}
-                initial={{ y: (index - currentIndex) * window.innerHeight }}
-                animate={{ y: (index - currentIndex) * window.innerHeight + dragY }}
-                exit={{ opacity: 0 }}
-                transition={{ type: "spring", stiffness: 500, damping: 50 }}
-              >
-                <Box
-                  width="100vw"
-                  height="100vh"
-                  backgroundColor="gray.700"
-                  textAlign="center"
-                  position="relative"
+          {currentIndex < songs.length ? (
+            [currentIndex, currentIndex + 1].map((index) => (
+              index < songs.length && (
+                <motion.div
+                  key={songs[index].id}
+                  {...bind()}
+                  style={{
+                    touchAction: "none",
+                    cursor: "grab",
+                    width: "100vw",
+                    height: "100vh",
+                    position: "absolute",
+                    top: `${(index - currentIndex) * 100}%`,
+                  }}
+                  initial={{ y: (index - currentIndex) * window.innerHeight }}
+                  animate={{ y: (index - currentIndex) * window.innerHeight + dragY }}
+                  exit={{ opacity: 0 }}
+                  transition={{ type: "spring", stiffness: 500, damping: 50 }}
                 >
-                  <Image
-                    src={songs[index].imageUrl}
-                    width={{ base: "100%", md: "80%" }}
-                    height={{ base: "100%", md: "80%" }}
-                    objectFit="cover"
-                    draggable="false"
-                    mx="auto"
-                  />
-                  <Box position="absolute" bottom={0} left={0} right={0} textAlign="center" backgroundColor="rgba(0,0,0,0.5)" p={4}>
-                    <Text fontSize="lg" fontWeight="bold" color="white">
-                      {songs[index].title} ({Math.min(Math.round(songs[index].likeness * 100), 100)}%)
-                    </Text>
-                    <Text fontSize="md" color="gray.300">
-                      {songs[index].artists.join(", ")}
-                    </Text>
-                    <IconButton
-                      aria-label="like"
-                      icon={<FaRegHeart />}
-                      variant="ghost"
-                      size="lg"
-                      mt={2}
+                  <Box
+                    width="100vw"
+                    height="100vh"
+                    backgroundColor="gray.700"
+                    textAlign="center"
+                    position="relative"
+                  >
+                    <Image
+                      src={songs[index].imageUrl}
+                      width={{ base: "100%", md: "80%" }}
+                      height={{ base: "100%", md: "80%" }}
+                      objectFit="cover"
+                      draggable="false"
+                      mx="auto"
                     />
+                    <Box position="absolute" bottom={0} left={0} right={0} textAlign="center" backgroundColor="rgba(0,0,0,0.5)" p={4}>
+                      <Text fontSize="lg" fontWeight="bold" color="white">
+                        {songs[index].title} ({Math.min(Math.round(songs[index].likeness * 100), 100)}%)
+                      </Text>
+                      <Text fontSize="md" color="gray.300">
+                        {songs[index].artists.join(", ")}
+                      </Text>
+                      <IconButton
+                        aria-label="like"
+                        icon={<FaRegHeart />}
+                        variant="ghost"
+                        size="lg"
+                        mt={2}
+                      />
+                    </Box>
                   </Box>
-                </Box>
-              </motion.div>
-            )
-          ))}
+                </motion.div>
+              )
+            ))
+          ) : (
+            <motion.div
+              key="end-message"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              style={{
+                width: "100vw",
+                height: "100vh",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: "gray.700",
+                color: "white",
+                textAlign: "center",
+                padding: "20px",
+              }}
+            >
+              <Box textAlign="center">
+                <Text fontSize="6xl" mb={6}>🎉</Text>
+                <Text fontSize="lg" fontWeight="medium" color="gray.200" mb={2}>
+                  You reached the end of your recommendations
+                </Text>
+                <Text fontSize="md" color="gray.400">
+                  Come back later for more!
+                </Text>
+              </Box>
+            </motion.div>
+          )}
         </AnimatePresence>
       </VStack>
     </>

@@ -571,7 +571,7 @@ export function UIApp({
                                     We'll let you know when Discover is ready!
                                 </Text>
                             ) : (
-                                <MusicDiscoveryFeed songs={discoveryData.filter((_, i) => i < 50)} />
+                                <MusicDiscoveryFeed songs={discoveryData.filter((_, i) => i < 5)} />
                             )}
                         </>
                     )}
