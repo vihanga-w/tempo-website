@@ -1,10 +1,13 @@
-import { Avatar, Box, HStack, Image, Stack, Text } from "@chakra-ui/react";
+import User, { UserFriendship } from "@/lib/usrlib";
+import { Avatar, Box, Button, HStack, Image, Stack, Text } from "@chakra-ui/react";
 import { useState } from "react";
 
 export type UserLookupResultType = {
     id: string;
     username: string;
     pfpUrl?: string;
+    mutual: UserFriendship[];
+    frState: UserFriendship["state"] | "incoming" | "none";
 };
 
 export function UserLookupResult({
@@ -12,34 +15,27 @@ export function UserLookupResult({
     username,
     pfpUrl,
     firstItem,
-    onClick,
+    mutualFriends,
+    friendState,
+    user,
 }: Readonly<{
     userId: string;
     username: string;
     pfpUrl?: string;
     firstItem: boolean;
-    onClick: (userId: string) => void;
+    mutualFriends: UserFriendship[];
+    friendState: UserLookupResultType["frState"];
+    user: User;
 }>) {
     const [pfpLoadFailed, setPfpLoadFailed] = useState<boolean>(false);
+    const [processing, setProcessing] = useState<boolean>(false);
+    const [localSent, setLocalSent] = useState<boolean>(false);
     
     return (<>
         {!firstItem && (
             <Box marginTop="10px" marginBottom="10px" width="100%" height="1px" background="rgba(255, 255, 255, 0.05)" />
         )}
         <HStack gap="15px" position="relative">
-            {/* Box overlay to handle touch events */}
-            <Box
-                width="100%"
-                height="100%"
-                background="transparent"
-                position="absolute"
-                top="0"
-                left="0"
-                zIndex="7"
-                onClick={()=> {
-                    onClick(userId);
-                }}
-            />
             {(pfpUrl && pfpUrl !== "" && !pfpLoadFailed) ? (
                 <Image
                     width="36px"
@@ -75,8 +71,63 @@ export function UserLookupResult({
                     opacity="0.75"
                     marginTop="-5px"
                     userSelect="none"
-                >{"Not listening to anything"}</Text>
+                >{mutualFriends.length} mutual friend{mutualFriends.length !== 1 ? "s" : ""}</Text>
             </Stack>
+            <Button
+                pos={"absolute"}
+                right="0"
+                size="sm"
+                width="80px"
+                background={"accent.dark"}
+                onClick={() => {
+                    if (friendState == "request" || localSent)
+                        return;
+
+                    if (friendState == "incoming") {
+                        console.log(`Accepting friend request from user: ${userId}`);
+
+                        // setProcessing(true);
+
+                        // user.acceptFriendRequest(userId)
+                        // .then(() => {
+                        //     console.log("Friend request accepted successfully");
+                        //     setLocalSent(true);
+                        //     setProcessing(false);
+                        // })
+                        // .catch((ex) => {
+                        //     console.warn("Failed to accept friend request, error:", ex);
+                        //     setProcessing(false);
+                        //     setLocalSent(false);
+                        //     alert("Failed to accept friend request, please try again later.");
+                        // });
+
+                        return;
+                    }
+
+                    console.log(`Sending friend request to user: ${userId}`);
+
+                    setProcessing(true);
+
+                    user.sendFriendRequest(userId)
+                    .then(() => {
+                        console.log("Friend request sent successfully");
+                        setLocalSent(true);
+                        setProcessing(false);
+                    })
+                    .catch((ex) => {
+                        console.warn("Failed to send friend request, error:", ex);
+                        setProcessing(false);
+                        setLocalSent(false);
+                        alert("Failed to send friend request, please try again later.");
+                    });
+                }}
+                disabled={processing || (friendState == "request" || localSent)}
+                opacity={(friendState == "request" || localSent) ? 0.6 : 1}
+                isLoading={processing}
+                pointerEvents={processing || (friendState == "request" || localSent) ? "none" : "auto"}
+            >
+                {(friendState == "request" || localSent) ? "Sent" : friendState == "incoming" ? "Accept" : "+ Friend"}
+            </Button>
         </HStack>
     </>);
 }

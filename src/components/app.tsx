@@ -739,9 +739,9 @@ export function UIApp({
                         <>
                             <AddFriendsPage
                                 user={user}
-                                onComplete={id => {
-                                    console.log("Added new friend:", id);
-                                }}
+                                // onComplete={id => {
+                                //     console.log("Added new friend:", id);
+                                // }}
                             />
                         </>
                     )}

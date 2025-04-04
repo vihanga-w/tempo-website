@@ -17,6 +17,17 @@ import { API_URL } from "./const";
 //     lastSeenString: "now" | string;
 // }
 
+export interface UserFriendship {
+    id: string;
+    u1Id: string;
+    u2Id: string;
+    stats: {
+        streak: number;
+        tasteMatchScore: number;
+    };
+    state: "request" | "friends" | "blocked";
+}
+
 // The client-safe user account object
 export type ClientUserAccount = {
     country: string
@@ -179,26 +190,75 @@ export default class User extends EventEmitter {
         return res.data;
     }
 
-    public async searchUsers(query: string) {
-        const req = await fetch(API_URL + "/searchUsers", {
+    /*
+    This function is used to send a friend request to a user
+    @param userId The id of the user to send a friend request to
+    @returns A promise that resolves when the friend request is sent
+    @throws An error if the friend request fails
+    */
+    public async sendFriendRequest(userId: string) {
+        const req = await fetch(API_URL + "/me/friends/request", {
             method: "POST",
             headers: {
+                "Content-Type": "application/json",
                 ...(this.getAuthHeaders())
             },
             body: JSON.stringify({
-                query,
+                targetUserId: userId,
             }),
+            credentials: "include",
         });
+
+        if (req.status === 409)
+            throw new Error("Failed to send friend request, user already a friend");
+
+        if (req.status === 400)
+            throw new Error("Failed to send friend request, invalid user id");
+
+        if (req.status === 403)
+            throw new Error("Failed to send friend request, not authorized");
+
+        if (req.status === 500)
+            throw new Error("Failed to send friend request, server error");
+
+        if (req.status !== 200)
+            throw new Error("Failed to send friend request, status code: " + req.status);
+
         const res = await req.json() as {
             error: boolean;
             message?: string;
-            results: ClientUserAccount[];
+        };
+
+        if (res.error)
+            throw new Error("Failed to send friend request, error: " + (res.message ?? "unknown error (check network logs)"));
+    }
+
+    public async searchUsers(query: string, limit?: number) {
+        const req = await fetch(API_URL + "/users/query", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                ...(this.getAuthHeaders())
+            },
+            body: JSON.stringify({
+                query: query.toLowerCase(),
+                limit,
+            }),
+            credentials: "include",
+        });
+        const res = await req.json() as {
+            error: boolean;
+            data: {
+                user: ClientUserAccount;
+                mutualFriends: UserFriendship[];
+                friendState: UserFriendship["state"] | "incoming" | "none";
+            }[];
         };
 
         if (res.error)
             throw new Error("Failed to fetch query response, raw response: " + JSON.stringify(res));
 
-        return res.results;
+        return res.data;
     }
 
     public async getPerfMessage() {

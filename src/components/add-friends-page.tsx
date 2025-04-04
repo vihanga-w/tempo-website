@@ -10,10 +10,8 @@ import User from "@/lib/usrlib";
 
 export function AddFriendsPage({
     user,
-    onComplete,
 }: {
     user: User;
-    onComplete: (userId: string) => void;
 }) {
     // State to switch components to their ready state once init is complete
     // const [patientName, setPatientName] = useState<string>("");
@@ -42,41 +40,6 @@ export function AddFriendsPage({
     //         setSTunIsAttemptingConnect(false);
     //     });
     // }, []);
-
-    const onCommit = async (userId: string) => {
-        setIsSubmitting(true);
-        
-        // TODO: Figure this out
-        // On a slow connection, the tunnel may still be attempting to be created
-        // await (() => {
-        //     return new Promise<void>((resolve) => {
-        //         setSTunIsAttemptingConnect()
-        //     });
-        // })();
-
-        // Check if we have a valid tunnel token
-        // const tokenValid = await uplink.verifyTunnelToken(STunSessionKey);
-
-        // if (!tokenValid)
-        //     return alert("Sorry, there was an expanding your circle. Please try again later!");
-
-        // console.log("Pushing user add to circle request for", userId);
-
-        // uplink.pushFrameSync({
-        //     type: "circle-add",
-        //     payload: JSON.stringify({
-        //         targetUser: userId,
-        //         signature: messageAuthority.sign(userId),
-        //     }),
-        // }, (data, cb) => {
-        //     cb();
-
-        //     if (data.type == "error" || data.payload !== "successful")
-        //         return alert("Sorry something went wrong: " + data.payload);
-
-        onComplete(userId);
-        // });
-    };
 
     const textColour = useColorModeValue("text.light", "text.dark");
     const colorVariantName = useColorModeValue("light", "dark");
@@ -116,27 +79,30 @@ export function AddFriendsPage({
 
     // const bgColour = useColorModeValue("bg.light", "bg.dark");
 
-    let onSearchFieldChange: (e: ChangeEvent<HTMLInputElement>) => void;
+    // const [onSearchFieldChange, setOnSearchFieldChange] = useState<((e: ChangeEvent<HTMLInputElement>) => void) | undefined>(undefined);
+
+    // let onSearchFieldChange: (e: ChangeEvent<HTMLInputElement>) => void;
 
     const handler = async (e: ChangeEvent<HTMLInputElement>) => {
         if (e.target.value.trim() == "") {
             setLookupResults([]);
-            
             return;
         }
 
         console.log("Querying server for user with query:", e.target.value);
 
         try {
-            const results = await user.searchUsers(e.target.value);
+            const results = await user.searchUsers(e.target.value, 25);
 
             const processed: UserLookupResultType[] = results.map(v => {
-                const idealImage = v.images.filter(v => v.url.startsWith("https://i.scdn."));
-
+                const idealImage = v.user.images.filter(v => v.url.startsWith("https://i.scdn."));
+                
                 return {
-                    id: v.id,
-                    pfpUrl: (idealImage ?? v.images.length > 0 ? v.images[0].url : undefined),
-                    username: v.displayName,
+                    id: v.user.id,
+                    pfpUrl: idealImage.length > 0 ? idealImage[0].url : v.user.images.length > 0 ? v.user.images[0].url : undefined,
+                    username: v.user.displayName,
+                    mutual: v.mutualFriends,
+                    frState: v.friendState,
                 };
             });
 
@@ -144,17 +110,15 @@ export function AddFriendsPage({
         } catch (ex) {
             console.warn("User lookup query failed, error:", ex);
         }
-    }
+    };
 
-    useEffect(() => {
-        onSearchFieldChange = (e: ChangeEvent<HTMLInputElement>) => {
-            if (lookupTimeout) clearTimeout(lookupTimeout);
-    
-            setLookupTimeout(setTimeout(async () => {
-                await handler(e);
-            }, lookupResults ? 0 : 320));
-        }
-    }, [lookupResults]);
+    const onSearchFieldChange = (e: ChangeEvent<HTMLInputElement>) => {
+        if (lookupTimeout) clearTimeout(lookupTimeout);
+
+        setLookupTimeout(setTimeout(async () => {
+            await handler(e);
+        }, lookupResults.length > 0 ? 320 : 0));
+    };
 
     return (<>
         <Stack gap="34px">
@@ -173,22 +137,21 @@ export function AddFriendsPage({
                         // label="Search for someone"
                         placeholder="Search for someone"
                         valid={1}
-                        onChange={e => {
-                            if (onSearchFieldChange)
-                                onSearchFieldChange(e);
-                            else
-                                handler(e);
-                        }}
+                        onChange={onSearchFieldChange}
                     />
                     <Box>
-                        {lookupResults.map((v, i) => {
+                        {lookupResults.filter(v => v.id !== user.object?.id).map((v, i) => {
                             return (
                                 <UserLookupResult
                                     userId={v.id}
                                     username={v.username}
                                     pfpUrl={v.pfpUrl}
                                     firstItem={i == 0}
-                                    onClick={onCommit}
+                                    mutualFriends={v.mutual}
+                                    friendState={v.frState}
+                                    // onClick={onCommit}
+                                    user={user}
+                                    key={v.id + v.username + i}
                                 />
                             );
                         })}
