@@ -604,20 +604,21 @@ export function UIApp({
                                                             background="rgba(255, 255, 255, 0.2)"
                                                         />
                                                     )}
-                                                    <Box onClick={() => {
-                                                        setPubProfileUserId(v.userId);
-                                                        pageChanger("pub-profile", "activity");
-                                                    }}>
-                                                    <PlaybackState
-                                                        key={
-                                                            "ps-" +
-                                                            v.userId +
-                                                            data.state?.songId +
-                                                            (data.state?.artists ? "AA" : "ANA")
-                                                        }
-                                                        stream={streamer}
-                                                        userId={v.userId}
-                                                    />
+                                                    <Box>
+                                                        <PlaybackState
+                                                            key={
+                                                                "ps-" +
+                                                                v.userId +
+                                                                data.state?.songId +
+                                                                (data.state?.artists ? "AA" : "ANA")
+                                                            }
+                                                            stream={streamer}
+                                                            userId={v.userId}
+                                                            profileClickCb={() => {
+                                                                setPubProfileUserId(v.userId);
+                                                                pageChanger("pub-profile", "activity");
+                                                            }}
+                                                        />
                                                     </Box>
                                                 </>
                                             );

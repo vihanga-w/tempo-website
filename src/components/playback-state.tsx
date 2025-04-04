@@ -48,11 +48,13 @@ export function PlaybackState({
     userId,
     hideProfile,
     theme,
+    profileClickCb
 }: {
     stream: DataStreamer | null,
     userId: string,
     hideProfile?: boolean,
     theme?: string,
+    profileClickCb?: () => void;
 }) {
     const [data, setData] = useState<UpdateEvent["data"]>();
     const [progress, setProgress] = useState(data?.interpolatedProgress ?? data?.state?.progressNormal ?? 0);
@@ -140,7 +142,7 @@ export function PlaybackState({
             <Stack gap="8px">
                 {!hideProfile && (
                     <HStack justifyContent="space-between">
-                        <HStack>
+                        <HStack onClick={profileClickCb}>
                             {(data?.state?.pfpUrl !== "" && !pfpLoadFailed) ? (
                                 <Image
                                     width="36px"

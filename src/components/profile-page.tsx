@@ -395,7 +395,7 @@ export default function ProfilePage({
         />
         <Stack gap="26px" width="100%" pos="relative" zIndex="1" marginTop="-15px">
             <HStack gap="24px" marginTop="24px">
-                {((user?.object?.images.length ?? 0) > 0 && !pfpLoadFailed) ? (
+                {((profileData?.images.length ?? 0) > 0 && !pfpLoadFailed) ? (
                     <Image
                         width="82px"
                         height="82px"
