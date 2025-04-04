@@ -4,6 +4,8 @@ import { FaHeart, FaRegHeart, FaCheckCircle } from "react-icons/fa"; // Replace 
 import { useDrag } from "react-use-gesture";
 import { motion, AnimatePresence } from "framer-motion";
 import { FastAverageColor } from "fast-average-color";
+import { formatHex, oklch } from "culori";
+import { apcach, crToBg } from "apcach";
 
 interface Song {
     id: string;
@@ -23,6 +25,7 @@ const MusicDiscoveryFeed: React.FC<{ songs: Song[] }> = (props) => {
   const refreshTimeout = useRef<NodeJS.Timeout | null>(null);
   const [progress, setProgress] = useState(0);
   const [reactiveDesignColour, setReactiveDesignColour] = useState<string | null>(null);
+  const [reactiveDesignComplementaryColour, setReactiveDesignComplementaryColour] = useState<string | null>(null);
 
   const handleRefresh = () => {
     // Placeholder function for refresh logic
@@ -113,7 +116,7 @@ const MusicDiscoveryFeed: React.FC<{ songs: Song[] }> = (props) => {
         setCurrentIndex((prevIndex) => {
             const v = Math.min(prevIndex + 1, songs.length);
 
-            if (!songs[v].imageUrl)
+            if (!songs[v])
                 return v;
 
             const fac = new FastAverageColor();
@@ -121,8 +124,68 @@ const MusicDiscoveryFeed: React.FC<{ songs: Song[] }> = (props) => {
             fac.getColorAsync(songs[v].imageUrl)
             .then(color => {
                 setReactiveDesignColour(color.rgb);
-                // hideTopGradientCb(true);
-                // loadCb("top-grad");
+                
+                const rgbValues = color.rgb
+                    .match(/\d+/g)
+                    ?.map(Number);
+
+                if (!rgbValues)
+                    return;
+
+                function componentToHex(c: number) {
+                    var hex = Math.ceil(Math.min(c, 255)).toString(16);
+            
+                    return hex.length == 1 ? "0" + hex : hex;
+                }
+                
+                function rgbToHex(r: number, g: number, b: number) {
+                    return "#" + componentToHex(r) + componentToHex(g) + componentToHex(b);
+                }
+            
+                function hexToRgb(hex: string) {
+                    var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+                    return result ? {
+                        r: parseInt(result[1], 16),
+                        g: parseInt(result[2], 16),
+                        b: parseInt(result[3], 16)
+                    } : null;
+                }
+
+                const [r, g, b] = rgbValues;
+                let hex = rgbToHex(r, g, b);
+
+                // Check if the color is a shade of white (r, g, b values close to each other and above 100)
+                const isShadeOfWhite = Math.abs(r - g) < 15 && Math.abs(g - b) < 15 && Math.abs(r - b) < 15 && r > 100 && g > 100 && b > 100;
+                
+                if (isShadeOfWhite) {
+                    setReactiveDesignComplementaryColour("#ffffff");
+
+                    return;
+                }
+
+                let colourMultiplier = 1;
+
+                if (r > 175 && g > 175 && b > 175) {
+                    colourMultiplier = 2.75;
+                } else if (r < 80 && g < 80 && b < 80) {
+                    colourMultiplier = 1.25;
+                }
+
+                const h = oklch(hex);
+
+                const ideal = apcach(crToBg(hex, 60), h?.c ?? 0, h?.h ?? 0);
+                
+                const idealHexPre = formatHex(oklch({
+                    mode: "oklch",
+                    l: 1,
+                    c: ideal.chroma,
+                    h: ideal.hue,
+                }));
+
+                const idealRgb = hexToRgb(idealHexPre);
+                const idealHex = rgbToHex((idealRgb?.r ?? 0) * colourMultiplier, (idealRgb?.g ?? 0) * colourMultiplier, (idealRgb?.b ?? 0) * colourMultiplier);
+
+                setReactiveDesignComplementaryColour(idealHex);
             })
             .catch(e => {
                 console.log(e);
@@ -212,11 +275,11 @@ const MusicDiscoveryFeed: React.FC<{ songs: Song[] }> = (props) => {
                       marginBottom="60px"
                       borderRadius="10px"
                     />
-                    <Text fontSize="lg" fontWeight="bold" color="white">
-                    {songs[index].title} ({Math.min(Math.round(songs[index].likeness * 100), 100)}%)
+                    <Text fontSize="24px" fontWeight="bold" color={reactiveDesignComplementaryColour ?? "white"} width="80%">
+                        {songs[index].title} ({Math.min(Math.round(songs[index].likeness * 100), 100)}%)
                     </Text>
-                    <Text fontSize="md" color="gray.300">
-                    {songs[index].artists.join(", ")}
+                    <Text fontSize="18px" color={reactiveDesignComplementaryColour ?? "white"} opacity="0.75" width="80%">
+                        {songs[index].artists.join(", ")}
                     </Text>
                     <IconButton
                     aria-label="like"
