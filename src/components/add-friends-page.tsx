@@ -1,4 +1,4 @@
-import { ChangeEvent, useEffect, useState } from "react";
+import { ChangeEvent, use, useEffect, useState } from "react";
 import { Avatar, Box, Center, Stack, Text, useColorModeValue } from "@chakra-ui/react";
 import { Input } from "./mchat-input";
 import { ChakraStylesConfig, Select } from "chakra-react-select";
@@ -85,7 +85,31 @@ export function AddFriendsPage({
 
     const handler = async (e: ChangeEvent<HTMLInputElement>) => {
         if (e.target.value.trim() == "") {
-            setLookupResults([]);
+            // setLookupResults([]);
+            const incoming = await user.getFriends(["incoming"]);
+
+            if (incoming.length == 0) {
+                setLookupResults([]);
+                return;
+            }
+
+            const incomingUsers = await Promise.all(incoming.map(async v => {
+                const u = await user.searchUsers(v.u1Id == user.object?.id ? v.u2Id : v.u1Id, 1);
+
+                if (u.length == 0)
+                    return null;
+
+                return {
+                    id: u[0].user.id,
+                    pfpUrl: u[0].user.images.length > 0 ? u[0].user.images[0].url : undefined,
+                    username: u[0].user.displayName,
+                    mutual: u[0].mutualFriends,
+                    frState: u[0].friendState,
+                };
+            }));
+
+            setLookupResults(incomingUsers.filter(v => v != null) as UserLookupResultType[]);
+
             return;
         }
 
@@ -120,6 +144,10 @@ export function AddFriendsPage({
         }, lookupResults.length > 0 ? 320 : 0));
     };
 
+    useEffect(() => {
+        handler({ target: { value: "" } } as ChangeEvent<HTMLInputElement>);
+    }, []);
+
     return (<>
         <Stack gap="34px">
             <Text
@@ -139,7 +167,7 @@ export function AddFriendsPage({
                         valid={1}
                         onChange={onSearchFieldChange}
                     />
-                    <Box>
+                    <Box height="calc(100vh - 275px)" overflowY="auto" position="relative">
                         {lookupResults.filter(v => v.id !== user.object?.id).map((v, i) => {
                             return (
                                 <UserLookupResult

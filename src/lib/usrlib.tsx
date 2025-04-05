@@ -25,7 +25,7 @@ export interface UserFriendship {
         streak: number;
         tasteMatchScore: number;
     };
-    state: "request" | "friends" | "blocked";
+    state: "request" | "incoming" | "friends" | "blocked";
 }
 
 // The client-safe user account object
@@ -186,6 +186,25 @@ export default class User extends EventEmitter {
 
         if (res.error || !res.data)
             throw new Error("Failed to fetch top songs for user: " + userId + ", error: " + (res.message ?? "unknown error (check network logs)"));
+
+        return res.data;
+    }
+
+    public async getFriends(filter?: ("friends" | "incoming" | "request" | "blocked")[]) {
+        const req = await fetch(API_URL + "/me/friends" + (filter ? `?state=${filter.join(",")}` : ""), {
+            headers: {
+                ...(this.getAuthHeaders())
+            },
+            credentials: "include",
+        });
+        const res = await req.json() as {
+            error: boolean;
+            message?: string;
+            data: UserFriendship[];
+        };
+
+        if (res.error || !res.data)
+            throw new Error("Failed to fetch friends, error: " + (res.message ?? "unknown error (check network logs)"));
 
         return res.data;
     }
