@@ -1,6 +1,6 @@
 import User, { ClientUserAccount, UserFriendship } from "@/lib/usrlib";
-import { Box, Image, Text } from "@chakra-ui/react";
-import { useEffect, useState } from "react";
+import { Box, Image, Spinner, Text } from "@chakra-ui/react";
+import { use, useEffect, useState } from "react";
 import { UserLookupResult } from "./user-lookup-result";
 
 export default function FriendsPage({
@@ -11,30 +11,51 @@ export default function FriendsPage({
     const [friends, setFriends] = useState<{
         user: ClientUserAccount;
         friendship: UserFriendship;
-    }[]>([]);
-    const [displayInstructions, setDisplayInstructions] = useState<boolean>(false);
+    }[]>(user.friends);
+    const [isLoading, setIsLoading] = useState<boolean>(true);
 
     useEffect(() => {
+        if (friends.length > 0) {
+            setIsLoading(false);
+        }
+
         if (user.friends.length > 0) {
-            setFriends(user.friends);
-        } else {
-            setFriends([]);
+            setFriends([...user.friends]);
         }
 
         user.on("friends-updated", (friends) => {
             setFriends([...friends]);
+            setIsLoading(false);
         });
 
-        setTimeout(() => {
-            setDisplayInstructions(true);
-        }, 250); // TODO: Reduce this again (to 65ms) after adding loading screen
+        user.refreshDetails();
     }, []);
 
     useEffect(() => {
-        setFriends(user.friends);
+        setFriends([...user.friends]);
     }, [user.friends]);
 
+    useEffect(() => {
+        if (friends.length > 0) {
+            setTimeout(() => {
+                setIsLoading(false);
+            }, 1e3);
+        } else {
+            setIsLoading(true);
+        }
+    }, [friends]);
+
     return (<Box width="100%" paddingTop="20px">
+        <Spinner
+            pos="fixed"
+            top="0"
+            bottom="0"
+            left="0"
+            right="0"
+            margin="auto"
+            display={isLoading ? "block" : "none"}
+            size="lg"
+        />
         {friends.length > 0 ? (
             friends.map((friend, i) => (
                 <UserLookupResult
@@ -51,7 +72,7 @@ export default function FriendsPage({
                     friendsView
                 />
             ))
-        ) : (<Box display={!displayInstructions ? "none" : "block"}>
+        ) : (<Box display={isLoading ? "none" : "block"}>
             <Image
                 src={`/add-new-case-indication-arrow.svg`}
                 position="absolute"
