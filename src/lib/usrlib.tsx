@@ -105,6 +105,10 @@ export default class User extends EventEmitter {
     public email: string = "";
     public object: ClientUserAccount | undefined;
     public storedToken?: string;
+    public friends: {
+        user: ClientUserAccount;
+        friendship: UserFriendship;
+    }[] = [];
 
     constructor() {
         super();
@@ -324,10 +328,10 @@ export default class User extends EventEmitter {
 
     public async refreshDetails() {
         // Check if we are successfully authenticated
-        this.isLoggedIn = await this.isUserAuthenticated();
+        const loggedIn = await this.isUserAuthenticated();
         
         // If we are logged in, load the user details
-        if (this.isLoggedIn) {
+        if (loggedIn) {
             const details = await this.getDetails();
 
             // Expose the raw user object
@@ -335,6 +339,13 @@ export default class User extends EventEmitter {
 
             this.id = details!.id;
             this.email = details!.email;
+            
+            if (!this.isLoggedIn)
+                this.isLoggedIn = true;
+        } else {
+            // If we are not logged in, set the user object to undefined
+            this.object = undefined;
+            this.isLoggedIn = false;
         }
     }
 
@@ -404,6 +415,23 @@ export default class User extends EventEmitter {
                 console.warn("Server responded with an error state while fetching user authentication status, error:", res.message ?? "Unspecified server error");
 
                 return undefined;
+            }
+
+            if (this.id !== "") {
+                const friends = await this.getFriends(["friends"]);
+
+                friends.forEach(async f => {
+                    const user = await this.getRemoteUser(f.u1Id == this.id ? f.u2Id : f.u1Id);
+
+                    if (!this.friends.find(v => v.user.id == user.id)) {
+                        this.friends.push({
+                            user,
+                            friendship: f,
+                        });
+                    }
+                });
+
+                this.emit("friends-updated", this.friends);
             }
 
             return res.data;

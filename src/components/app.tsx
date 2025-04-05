@@ -23,6 +23,8 @@ import { PlaybackHistoryItem } from "./playback-history-item";
 import { AddFriendsPage } from "./add-friends-page";
 import ProfilePage from "./profile-page";
 import MusicDiscoveryFeed from "./music-discovery-feed";
+import { UserLookupResult } from "./user-lookup-result";
+import FriendsPage from "./friends-page";
 
 const updateMutex = new Mutex();
 
@@ -63,6 +65,7 @@ export function UIApp({
     const [friendsListenershipIsError, setFriendsListenershipIsError] = useState<boolean>(false);
     const [endOfHistoryMessage, setEndOfHistoryMessage] = useState<string>("You've seen it all! 😉");
     const [pubProfileUserId, setPubProfileUserId] = useState<string>("");
+    const [friends, setFriends] = useState<User["friends"]>([]);
 
     // Lazy loading: how many history items to show at first
     const ITEMS_PER_BATCH = 100;
@@ -158,6 +161,11 @@ export function UIApp({
         if (currentPage == "activity") {
             // Refresh friends listenership history data
             updateFriendsListenershipHistory();
+        } else if (currentPage == "friends") {
+            user.refreshDetails()
+            .then(() => {
+                setFriends(user.friends);
+            });
         }
     }, [currentPage]);
 
@@ -239,6 +247,8 @@ export function UIApp({
 
         // Fetch friends listenership history
         updateFriendsListenershipHistory();
+
+        setFriends(user.friends);
 
         return () => {
             newStreamer.cleanup();
@@ -700,39 +710,7 @@ export function UIApp({
                     )}
 
                     {/* Friends page */}
-                    {currentPage == "friends" && (
-                        <>
-                            <Image
-                                src={`/add-new-case-indication-arrow.svg`}
-                                position="absolute"
-                                right="46px"
-                                top="48px"
-                                marginTop="env(safe-area-inset-top)"
-                                zIndex="9999999"
-                            />
-                            <Text
-                                position="absolute"
-                                top="0"
-                                left="0"
-                                justifyContent="center"
-                                alignItems="center"
-                                display="flex"
-                                height="calc(100vh - 72px)"
-                                width="100vw"
-                                color="text.dark"
-                                margin="auto"
-                                textAlign="center"
-                                fontFamily="Inter"
-                                fontSize="16px"
-                                fontWeight="regular"
-                                zIndex="1"
-                            >
-                                Tempo is better with friends!
-                                <br />
-                                Why not try adding someone?
-                            </Text>
-                        </>
-                    )}
+                    {currentPage == "friends" && (<FriendsPage user={user} />)}
 
                     {/* Add friends page */}
                     {currentPage == "add-friends" && (
