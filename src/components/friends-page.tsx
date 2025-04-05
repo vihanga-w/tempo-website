@@ -27,7 +27,7 @@ export default function FriendsPage({
 
         setTimeout(() => {
             setDisplayInstructions(true);
-        }, 65);
+        }, 250); // TODO: Reduce this again (to 65ms) after adding loading screen
     }, []);
 
     useEffect(() => {
