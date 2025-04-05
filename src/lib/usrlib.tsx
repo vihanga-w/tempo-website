@@ -252,6 +252,24 @@ export default class User extends EventEmitter {
             throw new Error("Failed to send friend request, error: " + (res.message ?? "unknown error (check network logs)"));
     }
 
+    public async acceptFriendRequest(friendshipId: string) {
+        const req = await fetch(API_URL + "/me/friends/accept/" + friendshipId, {
+            headers: {
+                ...(this.getAuthHeaders())
+            },
+            credentials: "include",
+        });
+        const res = await req.json() as {
+            error: boolean;
+            message?: string;
+        };
+
+        if (res.error)
+            throw new Error("Failed to accept friend request, error: " + (res.message ?? "unknown error (check network logs)"));
+
+        return;
+    }
+
     public async searchUsers(query: string, limit?: number) {
         const req = await fetch(API_URL + "/users/query", {
             method: "POST",

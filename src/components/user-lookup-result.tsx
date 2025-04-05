@@ -33,6 +33,7 @@ export function UserLookupResult({
     const [pfpLoadFailed, setPfpLoadFailed] = useState<boolean>(false);
     const [processing, setProcessing] = useState<boolean>(false);
     const [localSent, setLocalSent] = useState<boolean>(false);
+    const [localFriends, setLocalFriends] = useState<boolean>(false);
     
     return (<>
         {!firstItem && (
@@ -86,23 +87,33 @@ export function UserLookupResult({
                     if (friendState == "request" || localSent)
                         return;
 
-                    if (friendState == "incoming") {
+                    if (friendState == "incoming" && friendshipId) {
                         console.log(`Accepting friend request from user: ${userId}, friendshipId: ${friendshipId}`);
 
-                        // setProcessing(true);
+                        setProcessing(true);
 
-                        // user.acceptFriendRequest(userId)
-                        // .then(() => {
-                        //     console.log("Friend request accepted successfully");
-                        //     setLocalSent(true);
-                        //     setProcessing(false);
-                        // })
-                        // .catch((ex) => {
-                        //     console.warn("Failed to accept friend request, error:", ex);
-                        //     setProcessing(false);
-                        //     setLocalSent(false);
-                        //     alert("Failed to accept friend request, please try again later.");
-                        // });
+                        user.acceptFriendRequest(friendshipId)
+                        .then(() => {
+                            console.log("Friend request accepted successfully");
+
+                            setProcessing(false);
+                            setLocalSent(false);
+                            setLocalFriends(true);
+                        })
+                        .catch((ex) => {
+                            console.warn("Failed to accept friend request, error:", ex);
+                            
+                            setProcessing(false);
+                            setLocalSent(false);
+                            setLocalFriends(false);
+
+                            alert("Failed to accept friend request, please try again later.");
+                        });
+
+                        return;
+                    } else if (friendState == "incoming" && !friendshipId) {
+                        console.warn("Failed to accept friend request, no friendshipId provided");
+                        alert("Failed to accept friend request, please try again later.");
 
                         return;
                     }
@@ -124,12 +135,12 @@ export function UserLookupResult({
                         alert("Failed to send friend request, please try again later.");
                     });
                 }}
-                disabled={processing || (friendState == "request" || localSent)}
-                opacity={(friendState == "request" || localSent) ? 0.6 : 1}
+                disabled={processing || (friendState == "request" || localSent) || (friendState == "friends" || localFriends)}
+                opacity={(friendState == "request" || localSent) || (friendState == "friends" || localFriends) ? 0.6 : 1}
                 isLoading={processing}
-                pointerEvents={processing || (friendState == "request" || localSent) ? "none" : "auto"}
+                pointerEvents={processing || (friendState == "request" || localSent) || (friendState == "friends" || localFriends) ? "none" : "auto"}
             >
-                {(friendState == "request" || localSent) ? "Sent" : friendState == "incoming" ? "Accept" : "+ Friend"}
+                {(friendState == "request" || localSent) ? "Sent" : friendState == "incoming" ? "Accept" : (friendState == "friends" || localFriends) ? "Friends" : "+ Friend"}
             </Button>
         </HStack>
     </>);
