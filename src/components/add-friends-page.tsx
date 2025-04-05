@@ -105,6 +105,7 @@ export function AddFriendsPage({
                     username: u[0].user.displayName,
                     mutual: u[0].mutualFriends,
                     frState: u[0].friendState,
+                    frId: u[0].friendshipId,
                 };
             }));
 
@@ -113,7 +114,7 @@ export function AddFriendsPage({
             return;
         }
 
-        console.log("Querying server for user with query:", e.target.value);
+        console.log("Querying server for users with query:", e.target.value);
 
         try {
             const results = await user.searchUsers(e.target.value, 25);
@@ -127,6 +128,7 @@ export function AddFriendsPage({
                     username: v.user.displayName,
                     mutual: v.mutualFriends,
                     frState: v.friendState,
+                    frId: v.friendshipId,
                 };
             });
 
@@ -177,6 +179,7 @@ export function AddFriendsPage({
                                     firstItem={i == 0}
                                     mutualFriends={v.mutual}
                                     friendState={v.frState}
+                                    friendshipId={v.frId}
                                     // onClick={onCommit}
                                     user={user}
                                     key={v.id + v.username + i}

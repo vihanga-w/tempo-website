@@ -271,6 +271,7 @@ export default class User extends EventEmitter {
                 user: ClientUserAccount;
                 mutualFriends: UserFriendship[];
                 friendState: UserFriendship["state"] | "incoming" | "none";
+                friendshipId?: string;
             }[];
         };
 

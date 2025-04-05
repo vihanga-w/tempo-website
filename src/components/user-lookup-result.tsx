@@ -8,6 +8,7 @@ export type UserLookupResultType = {
     pfpUrl?: string;
     mutual: UserFriendship[];
     frState: UserFriendship["state"] | "incoming" | "none";
+    frId?: string;
 };
 
 export function UserLookupResult({
@@ -17,6 +18,7 @@ export function UserLookupResult({
     firstItem,
     mutualFriends,
     friendState,
+    friendshipId,
     user,
 }: Readonly<{
     userId: string;
@@ -25,6 +27,7 @@ export function UserLookupResult({
     firstItem: boolean;
     mutualFriends: UserFriendship[];
     friendState: UserLookupResultType["frState"];
+    friendshipId?: string;
     user: User;
 }>) {
     const [pfpLoadFailed, setPfpLoadFailed] = useState<boolean>(false);
@@ -84,7 +87,7 @@ export function UserLookupResult({
                         return;
 
                     if (friendState == "incoming") {
-                        console.log(`Accepting friend request from user: ${userId}`);
+                        console.log(`Accepting friend request from user: ${userId}, friendshipId: ${friendshipId}`);
 
                         // setProcessing(true);
 
