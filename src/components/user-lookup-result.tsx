@@ -140,7 +140,7 @@ export function UserLookupResult({
                 isLoading={processing}
                 pointerEvents={processing || (friendState == "request" || localSent) || (friendState == "friends" || localFriends) ? "none" : "auto"}
             >
-                {(friendState == "request" || localSent) ? "Sent" : friendState == "incoming" ? "Accept" : (friendState == "friends" || localFriends) ? "Friends" : "+ Friend"}
+                {(friendState == "request" || localSent) ? "Sent" : (friendState == "friends" || localFriends) ? "Friends" : friendState == "incoming" ? "Accept" : "+ Friend"}
             </Button>
         </HStack>
     </>);
