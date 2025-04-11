@@ -644,7 +644,7 @@ export function UIApp({
                                 </Center>
                             ) : (
                                 <Stack gap="28px" overflowY="auto" paddingBottom="18px" width="100%">
-                                    <Stack gap="18px" overflowY="auto" width="100%">
+                                    <Stack gap="18px" overflowY="auto" width="100%" display={livePlaybackStates.length > 0 ? "block" : "none"}>
                                         <Text
                                             fontFamily="arial, helvetica"
                                             fontWeight="bold"
@@ -683,7 +683,7 @@ export function UIApp({
                                             );
                                         })}
                                     </Stack>
-                                    <Stack gap="12px" overflowY="auto" width="100%">
+                                    <Stack gap="12px" overflowY="auto" width="100%" display={friendsListenershipData.length > 0 ? "block" : "none"}>
                                         <Text
                                             fontFamily="arial, helvetica"
                                             fontWeight="bold"
@@ -725,6 +725,29 @@ export function UIApp({
                                             </>
                                         )}
                                     </Stack>
+                                    {friendsListenershipData.length == 0 && livePlaybackStates.length == 0 && (
+                                        <Text
+                                            position="absolute"
+                                            top="0"
+                                            left="0"
+                                            justifyContent="center"
+                                            alignItems="center"
+                                            display="flex"
+                                            height="calc(100vh - 72px)"
+                                            width="100vw"
+                                            color="text.dark"
+                                            margin="auto"
+                                            textAlign="center"
+                                            fontFamily="Inter"
+                                            fontSize="16px"
+                                            fontWeight="regular"
+                                            zIndex="1"
+                                        >
+                                            There's nothing to see here,
+                                            <br />
+                                            check back later!
+                                        </Text>
+                                    )}
                                 </Stack>
                             )}
                         </>
