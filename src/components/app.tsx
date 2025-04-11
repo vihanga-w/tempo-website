@@ -182,9 +182,11 @@ export function UIApp({
 
         setStreamer(newStreamer);
 
-        newStreamer.on("update", (data: UpdateEvent) => {
+        newStreamer.on("open", () => {
             setActivityPageLoading(false);
+        });
 
+        newStreamer.on("update", (data: UpdateEvent) => {
             updateMutex.runExclusive(() => {
                 setLivePlaybackStates((v) => {
                     const existing = v.find((a) => a.userId === data.userId);
