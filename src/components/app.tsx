@@ -25,6 +25,7 @@ import ProfilePage from "./profile-page";
 import MusicDiscoveryFeed from "./music-discovery-feed";
 import { UserLookupResult } from "./user-lookup-result";
 import FriendsPage from "./friends-page";
+import ReactionDrawer from "./reaction-drawer";
 
 const updateMutex = new Mutex();
 
@@ -65,6 +66,8 @@ export function UIApp({
     const [friendsListenershipIsError, setFriendsListenershipIsError] = useState<boolean>(false);
     const [endOfHistoryMessage, setEndOfHistoryMessage] = useState<string>("You've seen it all! 😉");
     const [pubProfileUserId, setPubProfileUserId] = useState<string>("");
+    const [reactionDrawerItem, setReactionDrawerItem] = useState<UpdateEvent["data"]["state"] | undefined>();
+    const { isOpen: isReactionDrawerVisible, onOpen: openReactionDrawer, onClose: closeReactionDrawer } = useDisclosure();
     const [friends, setFriends] = useState<User["friends"]>([]);
 
     // Lazy loading: how many history items to show at first
@@ -357,6 +360,9 @@ export function UIApp({
         if (id !== "settings" && id !== "pub-profile")
             setHideTopGradient(false);
 
+        if (id !== "activity")
+            closeReactionDrawer();
+
         setStatusBarColour("€0d0d0e");
         setComplementaryColour("#e9e7fb");
         setCurrentPage(id);
@@ -638,6 +644,7 @@ export function UIApp({
                     {/* Activity page */}
                     {currentPage == "activity" && (
                         <>
+                            <ReactionDrawer isOpen={isReactionDrawerVisible} open={openReactionDrawer} close={closeReactionDrawer} item={reactionDrawerItem} />
                             {activityPageLoading ? (
                                 <Center pos="absolute" width="100vw" height="100vh" top="0" left="0">
                                     <Spinner size="lg" />
@@ -676,6 +683,10 @@ export function UIApp({
                                                             profileClickCb={() => {
                                                                 setPubProfileUserId(v.userId);
                                                                 pageChanger("pub-profile", "activity");
+                                                            }}
+                                                            reactionClickCb={(data: UpdateEvent["data"]["state"]) => {
+                                                                setReactionDrawerItem(data);
+                                                                openReactionDrawer();
                                                             }}
                                                         />
                                                     </Box>

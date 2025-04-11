@@ -50,7 +50,8 @@ export function PlaybackState({
     hideReaction,
     hideSpotifyCallout,
     theme,
-    profileClickCb
+    profileClickCb,
+    reactionClickCb,
 }: {
     stream: DataStreamer | null,
     userId: string,
@@ -59,6 +60,7 @@ export function PlaybackState({
     hideSpotifyCallout?: boolean,
     theme?: string,
     profileClickCb?: () => void;
+    reactionClickCb?: (data: UpdateEvent["data"]["state"]) => void;
 }) {
     const [data, setData] = useState<UpdateEvent["data"]>();
     const [progress, setProgress] = useState(data?.interpolatedProgress ?? data?.state?.progressNormal ?? 0);
@@ -186,7 +188,10 @@ export function PlaybackState({
                                 )}
                             </Stack>
                         </HStack>
-                        {!hideReaction && (<MdAddReaction opacity="0.45" size="22px" />)}
+                        {!hideReaction && (<MdAddReaction opacity="0.45" size="22px" onClick={() => {
+                            if (reactionClickCb)
+                                reactionClickCb(data?.state);
+                        }} />)}
                     </HStack>
                 )}
                 <HStack alignItems="self-start" width="100%">
