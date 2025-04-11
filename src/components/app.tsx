@@ -109,7 +109,7 @@ export function UIApp({
 
     useEffect(() => {
         prouter.on("set-main-page", (p: string) => {
-            setCurrentPage(p);
+            pageChanger(p, "activity");
         });
     }, []);
 
