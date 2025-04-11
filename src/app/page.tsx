@@ -72,16 +72,26 @@ export default function Home() {
   });
 
   const triggerModal = (title: string, content: JSX.Element, primaryButton?: {
-    text: string;
+    text?: string;
     callback: () => void;
   }, secondaryButton?: {
-    text: string;
+    text?: string;
     callback: () => void;
   }) => {
     setModalTitle(title);
     setModalContent(content);
-    setModalPBtn(primaryButton);
-    setModalSBtn(secondaryButton);
+
+    if (primaryButton?.text)
+      setModalPBtn(primaryButton as {
+        text: string;
+        callback: () => void;
+      });
+    
+    if (secondaryButton?.text)
+      setModalSBtn(secondaryButton as {
+        text: string;
+        callback: () => void;
+      });
 
     onModalOpen();
   }
@@ -418,30 +428,97 @@ export default function Home() {
           if (window.localStorage.getItem("tempo-dev-warning-msg"))
             return;
     
-          const showMsg = () => {
-            triggerModal("Hi there! 👋", (<>
-              <Text>
-                Thank you for supporting Tempo.
-                <br />
-                <br />
-                We are currently undergoing rapid application development and as such, the application may not be entirely stable. You may experience unexpected behaviours and weird bugs as development progresses.
-                <br />
-                <br />
-                Please report any bugs as you encounter them (and feature requests) to help build Tempo.
-                <br />
-                <br />
-                Thank you for your understanding!
-              </Text>
-            </>), {
-              text: "Got it!",
-              callback() {
-                window.localStorage.setItem("tempo-dev-warning-msg", "true");
-                onModalClose();
-              },
-            })
+          const showWelcomeMsg = () => {
+            return new Promise<void>((resolve) => {
+              triggerModal("Hi there! 👋", (<>
+                <Text>
+                  Thank you for supporting Tempo.
+                  <br />
+                  <br />
+                  We are currently undergoing rapid application development and as such, the application may not be entirely stable. You may experience unexpected behaviours and weird bugs as development progresses.
+                  <br />
+                  <br />
+                  Please report any bugs as you encounter them (and feature requests) to help build Tempo.
+                  <br />
+                  <br />
+                  Thank you for your understanding!
+                </Text>
+              </>), {
+                text: "Got it!",
+                callback() {
+                  window.localStorage.setItem("tempo-dev-warning-msg", "true");
+                  onModalClose();
+                  resolve();
+                },
+              });
+            });
           };
 
-          showMsg();
+          const showUpdateMsg = () => {
+            return new Promise<void>(async (resolve) => {
+              const localVersion = parseInt(window.localStorage.getItem("tempo-local-version") ?? "-1");
+              const localVersionNotice = parseInt(window.localStorage.getItem("tempo-local-version-notice") ?? "-1");
+              
+              try {
+                const req = await fetch(API_URL + "/.version");
+                const remoteVersion = parseInt(await req.text());
+
+                if (!isNaN(remoteVersion) && (isNaN(localVersion) || localVersion < remoteVersion)) {
+                  // Client version is out of date, force ui to refresh
+                  window.localStorage.setItem("tempo-local-version", remoteVersion.toString())
+                  return window.location.reload();
+                } else if (localVersion === remoteVersion && localVersionNotice < remoteVersion) {
+                  const req = await fetch(API_URL + "/.version-notice");
+                  const notice = (await req.json()) as {
+                    title: string;
+                    text: string[];
+                    primaryButtonText?: string;
+                    secondaryButtonText?: string;
+                    secondaryButtonPage?: string;
+                  };
+
+                  triggerModal(notice.title, (<>
+                    <Text>
+                      {notice.text.map((v, i) => {
+                        if (v == "")
+                          return (<br />);
+
+                        return (<>
+                          {i !== 0 && (<br />)}
+                          {v}
+                        </>);
+                      })}
+                    </Text>
+                  </>), {
+                    text: notice.primaryButtonText ?? "Got it!",
+                    callback() {
+                      window.localStorage.setItem("tempo-local-version-notice", remoteVersion.toString());
+                      onModalClose();
+                      resolve();
+                    },
+                  }, {
+                    text: notice.secondaryButtonText,
+                    callback() {
+                      window.localStorage.setItem("tempo-local-version-notice", remoteVersion.toString());
+                      
+                      if (notice.secondaryButtonPage)
+                        prouter.setPage(notice.secondaryButtonPage);
+                      
+                      onModalClose();
+                      resolve();
+                    },
+                  });
+                }
+              } catch (ex) {
+                console.error("Failed to check application version, error:", ex);
+
+                resolve();
+              }
+            });
+          };
+
+          showUpdateMsg()
+          .then(showWelcomeMsg);
         });
         prouter.setPage("app");
       }
