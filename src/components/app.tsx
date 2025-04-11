@@ -399,7 +399,7 @@ export function UIApp({
                     src="/menu-bg.png"
                     position="absolute"
                     zIndex="999999998"
-                    // width={pageSwitcherActive ? "100%" : "75%"}
+                    width="100%"
                     height="100%"
                     top={pageSwitcherActive ? "0px" : "-15px"}
                     left={pageSwitcherActive ? "0px" : "-25px"}
