@@ -263,6 +263,19 @@ export function UIApp({
 
     useEffect(() => {
         const handleFocus = async () => {
+            const localVersion = parseInt(window.localStorage.getItem("tempo-local-version") ?? "-1");
+            
+            try {
+                const req = await fetch(API_URL + "/.version");
+                const remoteVersion = parseInt(await req.text());
+
+                if (!isNaN(remoteVersion) && (isNaN(localVersion) || localVersion < remoteVersion)) {
+                    // Client version is out of date, force ui to refresh
+                    window.localStorage.setItem("tempo-local-version", remoteVersion.toString())
+                    return window.location.reload();
+                }
+            } catch {}
+
             if (streamer && !streamer.isReady()) {
                 setActivityPageLoading(true);
                 setLivePlaybackStates([]);
