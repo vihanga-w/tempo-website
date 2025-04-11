@@ -425,11 +425,13 @@ export default function Home() {
       } else {
         onSubmitSubscribe()
         .then(() => {
-          if (window.localStorage.getItem("tempo-dev-warning-msg"))
-            return;
-    
           const showWelcomeMsg = () => {
             return new Promise<void>((resolve) => {
+              if (window.localStorage.getItem("tempo-dev-warning-msg")) {
+                resolve();
+                return;
+              }
+              
               triggerModal("Hi there! 👋", (<>
                 <Text>
                   Thank you for supporting Tempo.
