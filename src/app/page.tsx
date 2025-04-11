@@ -502,7 +502,7 @@ export default function Home() {
                       window.localStorage.setItem("tempo-local-version-notice", remoteVersion.toString());
                       
                       if (notice.secondaryButtonPage)
-                        prouter.setPage(notice.secondaryButtonPage);
+                        prouter.setMainUIPage(notice.secondaryButtonPage);
                       
                       onModalClose();
                       resolve();

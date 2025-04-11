@@ -35,11 +35,15 @@ const generateEndOfHistoryMessage = () => {
 export function UIApp({
     prouter,
     user,
+    currentPage,
+    setCurrentPage,
 }: Readonly<{
     prouter: PageRouter,
     user: User,
+    currentPage: string,
+    setCurrentPage: (page: string) => void;
 }>) {
-    const [currentPage, setCurrentPage] = useState<string>("activity");
+    // const [currentPage, setCurrentPage] = useState<string>("activity");
     const [currentPageTitle, setCurrentPageTitle] = useState<string>("Activity");
     const [prevPage, setPrevPage] = useState<string>("");
     const [pageSwitcherActive, setPageSwitcherActive] = useState<boolean>(false);

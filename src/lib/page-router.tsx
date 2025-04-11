@@ -12,6 +12,7 @@ export default class PageRouter extends EventEmitter {
     // private uplink: Uplink;
     private user: User;
     public connectionState: string;
+    private mainUIPage: string;
 
     constructor(user: User) {
         super();
@@ -19,6 +20,7 @@ export default class PageRouter extends EventEmitter {
         // this.uplink = uplink;
         this.user = user;
         this.connectionState = "offline";
+        this.mainUIPage = "activity";
 
         // uplink.on("classify-connection-state-change", d => {
         //     console.log("classify-connection-state-change ==>", d);
@@ -38,6 +40,10 @@ export default class PageRouter extends EventEmitter {
         this.navigate(pageId);
     }
 
+    setMainUIPage(pageId: string) {
+        this.mainUIPage = pageId;
+    }
+
     initRouter() {
         this.navigate();
         this.emit("ready");
@@ -55,7 +61,14 @@ export default class PageRouter extends EventEmitter {
             //     }} />));
             // }
             case "app": {
-                return this.emit("page-navigate", (<UIApp prouter={this} user={this.user} />))
+                return this.emit("page-navigate", (<UIApp
+                    prouter={this}
+                    user={this.user}
+                    currentPage={this.mainUIPage}
+                    setCurrentPage={(p) => {
+                        this.mainUIPage = p;
+                    }}
+                />))
             }
             default: {
                 return this.emit("page-navigate", (<E404 />));
