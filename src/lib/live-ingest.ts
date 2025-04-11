@@ -370,7 +370,7 @@ export class DataStreamer extends EventEmitter {
     }
 
     private async fetchPublicStreams() {
-        const req = await fetch(API_URL + "/spotify/public/sessions", {
+        const req = await fetch(API_URL + "/spotify/friends/sessions", {
             headers: {
                 ...(this.getAuthHeaders())
             },
