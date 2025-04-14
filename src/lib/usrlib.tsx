@@ -431,6 +431,8 @@ export default class User extends EventEmitter {
                     }
                 });
 
+                alert(friends.map(v => v.id).join(", "))
+
                 this.emit("friends-updated", this.friends);
             }
 
