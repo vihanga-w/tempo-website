@@ -210,6 +210,8 @@ export default class User extends EventEmitter {
         if (res.error || !res.data)
             throw new Error("Failed to fetch friends, error: " + (res.message ?? "unknown error (check network logs)"));
 
+        console.log(JSON.stringify(res));
+
         return res.data;
     }
 
