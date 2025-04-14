@@ -153,7 +153,7 @@ export function UserLookupResult({
                             console.warn("Failed to send friend request, error:", ex);
                             setProcessing(false);
                             setLocalSent(false);
-                            alert("Failed to send friend request, please try again later.");
+                            alert("Failed to send friend request, please try again later. Error: " + ex.toString());
                         });
                     }}
                     disabled={processing || (friendState == "request" || localSent) || (friendState == "friends" || localFriends)}
