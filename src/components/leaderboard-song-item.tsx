@@ -7,12 +7,14 @@ export default function LeaderboardSongItem({
     title,
     artists,
     playCount,
+    fact,
 } : Readonly<{
     leaderboardPosition: number;
     imageUrl: string;
     title: string;
     artists: string[];
     playCount: number;
+    fact?: string;
 }>) {
     const [overflow, setOverflow] = useState<number>(-1);
 
@@ -69,7 +71,7 @@ export default function LeaderboardSongItem({
                         </Box>
                     </Box>
                     <Text>
-                    Listened {playCount == 1 ? "once" : playCount + " times"}
+                    {!fact ? `Listened ${playCount == 1 ? "once" : playCount + " times"}` : fact}
                     </Text>
                 </Stack>
             </HStack>

@@ -88,12 +88,12 @@ export default function ProfilePage({
         if (!scrollItemRef.current)
             return;
 
-        if (scrollItemRef.current.getBoundingClientRect().width <= window.innerWidth - 125)
+        if (scrollItemRef.current.getBoundingClientRect().width <= window.innerWidth - 155)
             return;
 
         const process = () => {
             if (scrollItemRef.current && topSongOverflow <= 0)
-                setTopSongOverflow(scrollItemRef.current.getBoundingClientRect().width - (window.innerWidth - 165));
+                setTopSongOverflow(scrollItemRef.current.getBoundingClientRect().width - (window.innerWidth - 162));
             else
                 setTopSongOverflow(0);
         }
@@ -538,7 +538,7 @@ export default function ProfilePage({
                                     fontWeight="medium"
                                     fontSize="18px"
                                 >Listened {userTopSongs.find(v => v.index == 0)?.playCount == 1 ? "once" : userTopSongs.find(v => v.index == 0)?.playCount + " times"}</Text>
-                                <HStack whiteSpace="nowrap" width="100%" paddingRight="5px" margin="0 auto" overflow="hidden" gap="5px" ref={scrollItemRef}>
+                                <HStack whiteSpace="nowrap" width="100%" paddingRight="5px" margin="0 auto" overflow="hidden" gap="5px">
                                     <Box
                                         ref={scrollItemRef}
                                         // display="inline-block"

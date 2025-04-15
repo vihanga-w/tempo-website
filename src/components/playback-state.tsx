@@ -15,7 +15,7 @@ function formatTime(ms: number) {
     return `${minutes}:${secs < 10 ? '0' : ''}${secs}`;
 }
 
-function formatTimeToMinAndHour(ms: number, fullText?: boolean) {
+export function formatTimeToMinAndHour(ms: number, fullText?: boolean) {
     if (ms < 0)
         ms = 0;
 
