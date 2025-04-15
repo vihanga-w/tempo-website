@@ -142,7 +142,7 @@ const DateComponent = ({
     monthStr: string;
 }>) => {
     return (<>
-        <Stack fontFamily="Inter" gap={0} width="80px" transform="scale(0.8)">
+        <Stack fontFamily="Inter" gap={0} width="80px" transform="scale(0.75)">
             <Text fontWeight="bold" fontSize="33px" textAlign="center">{dayStr}</Text>
             <Center>
                 <HStack>
@@ -201,17 +201,21 @@ const RecapContent = ({
 
     return (<Stack gap="15px" paddingLeft="10px" paddingRight="10px" paddingBottom="15px">
         <HStack width="100%" justifyContent="space-between" paddingLeft="10px" paddingRight="10px">
-            <DateComponent
-                dayNum={dateNum}
-                dayStr={day}
-                monthStr={month}
-            />
-            <Box width="32%" height="1px" background="white" />
-            <DateComponent
-                dayNum={recapProcessedDate.getDate()}
-                dayStr={dayMap[recapProcessedDate.getDay()]}
-                monthStr={monthMap[recapProcessedDate.getMonth()]}
-            />
+            {type == "weekly" ? (<Center width="100%" height="62px" justifyContent="space-between">
+                <DateComponent
+                    dayNum={dateNum}
+                    dayStr={day}
+                    monthStr={month}
+                />
+                <Box width="36%" height="1px" background="white" />
+                <DateComponent
+                    dayNum={recapProcessedDate.getDate()}
+                    dayStr={dayMap[recapProcessedDate.getDay()]}
+                    monthStr={monthMap[recapProcessedDate.getMonth()]}
+                />
+            </Center>) : (<Center width="100%" height="62px">
+                <Text fontFamily="Inter" fontSize="40px" fontWeight="black" textAlign="center">YESTERDAY</Text>
+            </Center>)}
         </HStack>
 
         <Box width="100vw" height="1px" background="rgba(255, 255, 255, 0.16)" marginLeft="-20px" />
