@@ -23,7 +23,7 @@ export default function LegalDrawer({
     return (
         <Drawer placement="bottom" onClose={close} isOpen={isOpen} isFullHeight>
             <DrawerOverlay />
-            <DrawerContent background="#0D0D0E" backdropFilter="blur(5px)">
+            <DrawerContent background="#0D0D0E">
                 <DrawerHeader borderBottomWidth='1px' height="64px" display="flex" width="100vw">
                     <Box display="flex" justifyContent="space-between" alignItems="center" width="100%">
                         <Text>{page == "terms" ? "Terms & Conditions" : "Privacy Policy"}</Text>
