@@ -210,7 +210,7 @@ export default class User extends EventEmitter {
         if (res.error || !res.data)
             throw new Error("Failed to fetch friends, error: " + (res.message ?? "unknown error (check network logs)"));
 
-        alert(JSON.stringify(res));
+        // alert(JSON.stringify(res));
 
         return res.data;
     }
@@ -433,7 +433,7 @@ export default class User extends EventEmitter {
                     }
                 });
 
-                alert(friends.map(v => v.id).join(", "))
+                // alert(friends.map(v => v.id).join(", "))
 
                 this.emit("friends-updated", this.friends);
             }
