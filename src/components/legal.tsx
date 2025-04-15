@@ -161,6 +161,7 @@ export default function LegalPage({
               _hover={{ bg: "#2A33EE" }}
               _disabled={{ bg: "gray.700", cursor: "not-allowed" }}
               py={6}
+              marginBottom="20px"
               size="lg"
               onClick={() => {
                 window.localStorage.setItem("tempo-legal-agreed", Date.now().toString());

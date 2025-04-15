@@ -13,7 +13,7 @@ const styles: { [key: string]: React.CSSProperties } = {
         overflowY: "scroll",
         height: "100%",
         background: "transparent",
-        paddingBottom: "60px",
+        paddingBottom: "80px",
     },
     section: {
         marginTop: '2rem'
