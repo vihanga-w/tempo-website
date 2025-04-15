@@ -1,5 +1,6 @@
 import EventEmitter from "events";
 import { API_URL } from "./const";
+import { Recap } from "@/components/recap-drawer";
 
 // export type PublicUserAccount = {
 //     id: string;
@@ -446,6 +447,34 @@ export default class User extends EventEmitter {
 
             return undefined;
         }
+    }
+
+    async getRecaps() {
+        const req = await fetch(API_URL + "/me/recap", {
+            headers: {
+                ...(this.getAuthHeaders())
+            },
+            credentials: "include",
+        });
+        const res = (await req.json()) as {
+            error: boolean;
+            message?: string;
+            data?: {
+                daily: Recap | null;
+                weekly: Recap | null;
+            };
+        };
+
+        if (res.error)
+            throw new Error("Server returned an error response while fetching recaps, code: " + req.status.toString() + " (" + (res.message ?? "unknown error") + ")")
+
+        // Assume empty since server technically didnt return an error
+        if (!res.data) return {
+            daily: null,
+            weekly: null,
+        };
+
+        return res.data;
     }
 
     public async getEncryptionAvailability(): Promise<EncryptionAvailability> {

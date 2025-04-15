@@ -26,6 +26,7 @@ import MusicDiscoveryFeed from "./music-discovery-feed";
 import { UserLookupResult } from "./user-lookup-result";
 import FriendsPage from "./friends-page";
 import ReactionDrawer from "./reaction-drawer";
+import RecapDrawer, { Recap } from "./recap-drawer";
 
 const updateMutex = new Mutex();
 
@@ -67,13 +68,17 @@ export function UIApp({
     const [endOfHistoryMessage, setEndOfHistoryMessage] = useState<string>("You've seen it all! 😉");
     const [pubProfileUserId, setPubProfileUserId] = useState<string>("");
     const [reactionDrawerItem, setReactionDrawerItem] = useState<UpdateEvent["data"]["state"] | undefined>();
-    const { isOpen: isReactionDrawerVisible, onOpen: openReactionDrawer, onClose: closeReactionDrawer } = useDisclosure();
     const [friends, setFriends] = useState<User["friends"]>([]);
+    const [dailyRecap, setDailyRecap] = useState<Recap | null>(null);
+    const [weeklyRecap, setWeeklyRecap] = useState<Recap | null>(null);
 
     // Lazy loading: how many history items to show at first
     const ITEMS_PER_BATCH = 100;
     const [visibleHistoryCount, setVisibleHistoryCount] = useState<number>(ITEMS_PER_BATCH);
     const historyEndRef = useRef<HTMLDivElement | null>(null);
+
+    const { isOpen: isReactionDrawerVisible, onOpen: openReactionDrawer, onClose: closeReactionDrawer } = useDisclosure();
+    const { isOpen: isRecapDrawerVisible, onOpen: openRecapDrawer, onClose: closeRecapDrawer } = useDisclosure();
 
     const setStatusBarColour = (colour: string) => {
         const themeColour = document.querySelector("meta[name=theme-color]");
@@ -114,7 +119,34 @@ export function UIApp({
         prouter.on("set-main-page", (p: string) => {
             pageChanger(p, "activity");
         });
+
+        const fetchRecaps = async () => {
+            try {
+                const recaps = await user.getRecaps();
+
+                setDailyRecap(recaps.daily);
+                setWeeklyRecap(recaps.weekly);
+                setPageSwitcherActive(false);
+
+                if (recaps.daily || recaps.weekly)
+                    openRecapDrawer();
+            } catch (ex) {
+                console.error("Failed to fetch latest user recaps, error:", ex);
+            }
+        }
+
+        fetchRecaps();
+
+        // Refresh every 30 sec
+        setInterval(fetchRecaps, 30e3);
     }, []);
+
+    useEffect(() => {
+        if (!isRecapDrawerVisible) {
+            setDailyRecap(null);
+            setWeeklyRecap(null);
+        }
+    }, [isRecapDrawerVisible]);
 
     useEffect(() => {
         // When friendsListenershipData is refreshed, reset the visible count
@@ -379,6 +411,13 @@ export function UIApp({
 
     return (
         <>
+            <RecapDrawer
+                open={openRecapDrawer}
+                close={closeRecapDrawer}
+                isOpen={isRecapDrawerVisible}
+                daily={dailyRecap}
+                weekly={weeklyRecap}
+            />
             <Box
                 position="fixed"
                 top="0"
@@ -455,6 +494,7 @@ export function UIApp({
                     marginLeft="0"
                     marginRight="0"
                     marginTop="-15px"
+                    opacity={(dailyRecap || weeklyRecap) ? 0 : 1}
                 >
                     <Box position="fixed" overflow="hidden" zIndex="999999999" top="env(safe-area-inset-top)">
                         <HStack gap="10px" onClick={handlePageMenuClick}>
@@ -475,30 +515,6 @@ export function UIApp({
                                     }} />
                                 </svg>
                             </Box>
-                            {/* <Image
-                                src="/icons/ui/chevron.svg"
-                                transform={
-                                    pageSwitcherActive
-                                        ? "rotate(180deg)"
-                                        : prevPage !== ""
-                                        ? "rotate(90deg)"
-                                        : "rotate(0deg)"
-                                }
-                                transition=".3s"
-                                zIndex="10"
-                                // filter={`invert(${complementaryColour ? 1 : 0})`}
-                                // style={{
-                                //     filter: complementaryColour
-                                //         ? `drop-shadow(0 0 0 ${complementaryColour})`
-                                //         : undefined,
-                                // }}
-                                // onLoad={() => {
-                                //     setTimeout(() => {
-                                //         setIsFading(true);
-                                //         setIsLoading(false);
-                                //     }, 1250);
-                                // }}
-                            /> */}
                             <Text
                                 fontFamily="Inter"
                                 fontWeight="black"
