@@ -213,8 +213,10 @@ const RecapContent = ({
                     dayStr={dayMap[recapProcessedDate.getDay()]}
                     monthStr={monthMap[recapProcessedDate.getMonth()]}
                 />
-            </Center>) : (<Center width="100%" height="62px">
-                <Text fontFamily="Inter" fontSize="40px" fontWeight="black" textAlign="center">YESTERDAY</Text>
+            </Center>) : (<Center width="100%" height="62px" justifyContent="space-between">
+                <Box width="11%" height="1px" background="white" />
+                <Text fontFamily="Inter" fontSize="38px" fontWeight="black" textAlign="center">YESTERDAY</Text>
+                <Box width="11%" height="1px" background="white" />
             </Center>)}
         </HStack>
 
