@@ -8,7 +8,8 @@ const styles: { [key: string]: React.CSSProperties } = {
         fontFamily: '"Helvetica Neue", sans-serif',
         color: '#fff',
         lineHeight: 1.6,
-        overflow: "auto"
+        overflow: "scroll",
+        height: "100vh"
     },
     section: {
         marginTop: '2rem'
