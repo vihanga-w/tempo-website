@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import {
   Box,
   Button,
@@ -14,9 +14,11 @@ import {
   Stack,
   Text,
   extendTheme,
+  useDisclosure,
+  Image,
 } from "@chakra-ui/react"
 import PageRouter from "@/lib/page-router"
-// import { CheckCircle, Shield } from "lucide-react"
+import LegalDrawer from "./legal-drawer"
 
 // Create a custom theme with our colors
 const theme = extendTheme({
@@ -61,24 +63,40 @@ export default function LegalPage({
 }: Readonly<{
     prouter: PageRouter;
 }>) {
-  const [agreed, setAgreed] = useState(false)
+  const { isOpen, onOpen, onClose } = useDisclosure();
+
+  const [agreed, setAgreed] = useState(false);
+  const [legalPage, setLegalPage] = useState<"terms" | "privacy" | "">("");
+
+  useEffect(() => {
+    if (legalPage == "") {
+        onClose();
+
+        return;
+    }
+
+    onOpen();
+  }, [legalPage]);
+
+  useEffect(() => {
+    if (!isOpen)
+        setLegalPage("");
+  }, [isOpen]);
 
   return (
     <ChakraProvider theme={theme}>
+      <LegalDrawer open={onOpen} close={onClose} isOpen={isOpen} page={legalPage == "" ? "terms" : legalPage} />
+
       <Flex minHeight="100vh" direction="column" bg="#0D0D0E">
-        <Container maxW="container.md" py={6} flex="1" display="flex" flexDirection="column">
+        <Container maxW="container.md" py={6} px={5} flex="1" display="flex" flexDirection="column">
           <Center mt={10} mb={8}>
-            <Box
-              bg="dark.800"
-              p={4}
-              borderRadius="full"
-              boxSize="16"
-              display="flex"
-              alignItems="center"
-              justifyContent="center"
-            >
-              {/* <Shield size={32} color="#3B44FF" /> */}
-            </Box>
+            <Image
+                src={`/icons/ui/logo-clear.svg`}
+                alt="Tempo logo"
+                width="72px"
+                marginBottom="16px"
+                userSelect="none"
+              />
           </Center>
 
           <Heading textAlign="center" mb={6} size="lg">
@@ -93,17 +111,23 @@ export default function LegalPage({
             <Box bg="dark.800" p={5} borderRadius="md">
               <Stack spacing={4} fontSize="sm" color="gray.300">
                 <Text>
-                  By using this application, you agree to be bound by our Terms and Conditions and acknowledge that you
+                  By using Tempo., you agree to be bound by our Terms and Conditions and acknowledge that you
                   have read our Privacy Policy.
                 </Text>
                 <Text>
-                  <Link href="/terms" textDecoration="underline">
+                  View our{" "}
+                  <Link href="#" onClick={() => {
+                    setLegalPage("terms");
+                  }} textDecoration="underline">
                     Terms and Conditions
                   </Link>
                   {" and "}
-                  <Link href="/privacy" textDecoration="underline">
+                  <Link href="#" onClick={() => {
+                    setLegalPage("privacy");
+                  }} textDecoration="underline">
                     Privacy Policy
                   </Link>
+                  .
                 </Text>
               </Stack>
             </Box>
@@ -113,7 +137,7 @@ export default function LegalPage({
                 id="terms"
                 isChecked={agreed}
                 onChange={(e) => setAgreed(e.target.checked)}
-                colorScheme="purple"
+                // colorScheme="purple"
                 borderColor="gray.600"
                 mt={1}
                 sx={{
@@ -139,17 +163,11 @@ export default function LegalPage({
               py={6}
               size="lg"
               onClick={() => {
+                window.localStorage.setItem("tempo-legal-agreed", Date.now().toString());
                 prouter.setPage("app");
               }}
             >
-              {agreed ? (
-                <Flex align="center" gap={2}>
-                  {/* <CheckCircle size={16} /> */}
-                  <Text>Continue</Text>
-                </Flex>
-              ) : (
-                "Continue"
-              )}
+              {"Continue"}
             </Button>
           </Box>
         </Container>

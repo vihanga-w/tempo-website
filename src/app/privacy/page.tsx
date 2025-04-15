@@ -1,4 +1,6 @@
-import React from 'react';
+"use client";
+
+import React, { useEffect, useState } from 'react';
 
 const styles: { [key: string]: React.CSSProperties } = {
     container: {
@@ -9,7 +11,7 @@ const styles: { [key: string]: React.CSSProperties } = {
         color: '#fff',
         lineHeight: 1.6,
         overflow: "scroll",
-        height: "100vh"
+        height: "100%"
     },
     section: {
         marginTop: '2rem'
@@ -39,11 +41,18 @@ const Section: React.FC<SectionProps> = ({ number, title, children }) => (
 );
 
 const PrivacyPolicy: React.FC = () => {
+    const [isEmbed, setIsEmbed] = useState<boolean>(false);
+    
+    useEffect(() => {
+        setIsEmbed(window.location.hash == "#embed");
+    }, []);
+    
     return (
         <div style={styles.container}>
             <h1 style={{
                 fontSize: "28px",
                 fontWeight: "bold",
+                display: (isEmbed ? "none" : "block")
             }}>Tempo. Privacy Policy</h1>
             <p><strong>Effective Date:</strong> Tuesday 15th April 2025</p>
             <p><strong>Last Updated:</strong> Tuesday 15th April 2025</p>
