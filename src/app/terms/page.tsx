@@ -40,7 +40,10 @@ const Section: React.FC<SectionProps> = ({ number, title, children }) => (
 const TermsAndConditions: React.FC = () => {
     return (
         <div style={styles.container}>
-            <h1>Tempo. – Terms & Conditions</h1>
+            <h1 style={{
+                fontSize: "28px",
+                fontWeight: "bold",
+            }}>Tempo. Terms & Conditions</h1>
             <p><strong>Effective Date:</strong> Tuesday 15th April 2025</p>
             <p><strong>Last Updated:</strong> Tuesday 15th April 2025</p>
 
@@ -120,7 +123,7 @@ const TermsAndConditions: React.FC = () => {
                     We reserve the right to suspend or terminate your access to Tempo. if we believe you have violated these Terms, abused other users, or engaged in behaviour that threatens the app’s safety or functionality. Termination may be immediate and without prior notice.
                 </p>
                 <p>
-                    You may delete your account at any time by contacting us directly at <a href="mailto:hello@tempo-music.co">hello@tempo-music.co</a>. Upon account deletion, we will remove your personal data in accordance with our retention and deletion policies.
+                    You may delete your account at any time by contacting us directly at <a href="mailto:hello@tempo-music.co" color="royalblue">hello@tempo-music.co</a>. Upon account deletion, we will remove your personal data in accordance with our retention and deletion policies.
                 </p>
             </Section>
 
@@ -141,7 +144,7 @@ const TermsAndConditions: React.FC = () => {
 
             <Section title="Contact">
                 <p>
-                    If you have any questions about these Terms, please contact us at <a href="mailto:hello@tempo-music.co">hello@tempo-music.co</a>.
+                    If you have any questions about these Terms, please contact us at <a href="mailto:hello@tempo-music.co" color="royalblue">hello@tempo-music.co</a>.
                 </p>
             </Section>
         </div>

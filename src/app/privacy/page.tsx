@@ -40,8 +40,12 @@ const Section: React.FC<SectionProps> = ({ number, title, children }) => (
 const PrivacyPolicy: React.FC = () => {
     return (
         <div style={styles.container}>
-            <h1>Tempo. – Privacy Policy</h1>
-            <p><strong>Effective Date:</strong> [Insert Date]</p>
+            <h1 style={{
+                fontSize: "28px",
+                fontWeight: "bold",
+            }}>Tempo. Privacy Policy</h1>
+            <p><strong>Effective Date:</strong> Tuesday 15th April 2025</p>
+            <p><strong>Last Updated:</strong> Tuesday 15th April 2025</p>
 
             <p>
                 This Privacy Policy explains how <strong>Tempo.</strong> (“we”, “our”, or “us”) collects, uses, discloses and protects your personal data when you use the Tempo. mobile application (“App”). We are committed to protecting your privacy and complying with the UK General Data Protection Regulation (UK GDPR), the Data Protection Act 2018, and any other relevant data protection laws applicable in the United Kingdom.
@@ -157,7 +161,7 @@ const PrivacyPolicy: React.FC = () => {
                     <li><strong>Right to restrict processing</strong> – You may ask us to suspend processing of your data under certain conditions.</li>
                     <li><strong>Right to data portability</strong> – You can request a copy of your data in a commonly used, machine-readable format.</li>
                 </ul>
-                <p>To exercise any of these rights, please contact us at <a href="mailto:hello@tempo-music.co">hello@tempo-music.co</a>.</p>
+                <p>To exercise any of these rights, please contact us at <a href="mailto:hello@tempo-music.co" color="royalblue">hello@tempo-music.co</a>.</p>
             </Section>
 
             <Section number="9" title="Security Measures">
@@ -185,7 +189,7 @@ const PrivacyPolicy: React.FC = () => {
                 <p>
                     If you have questions, concerns, or requests relating to your personal data or this Privacy Policy, you can contact us at:
                 </p>
-                <p><strong>Email:</strong> <a href="mailto:hello@tempo-music.co">hello@tempo-music.co</a></p>
+                <p><strong>Email:</strong> <a href="mailto:hello@tempo-music.co" color="royalblue">hello@tempo-music.co</a></p>
                 <p>We aim to respond to all requests within 30 days.</p>
             </Section>
 
