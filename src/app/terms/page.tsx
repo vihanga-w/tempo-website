@@ -18,7 +18,8 @@ const styles: { [key: string]: React.CSSProperties } = {
         marginBottom: '0.5rem',
         fontSize: '1.5rem',
         borderBottom: '1px solid #ddd',
-        paddingBottom: '0.3rem'
+        paddingBottom: '0.3rem',
+        fontWeight: "bold",
     }
 };
 
