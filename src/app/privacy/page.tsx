@@ -12,7 +12,7 @@ const styles: { [key: string]: React.CSSProperties } = {
         lineHeight: 1.6,
         overflow: "scroll",
         height: "100%",
-        paddingBottom: "25px",
+        paddingBottom: "60px",
     },
     section: {
         marginTop: '2rem'
