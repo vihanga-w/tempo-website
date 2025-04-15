@@ -6,8 +6,9 @@ const styles: { [key: string]: React.CSSProperties } = {
         margin: '0 auto',
         padding: '2rem',
         fontFamily: '"Helvetica Neue", sans-serif',
-        color: '#333',
-        lineHeight: 1.6
+        color: '#fff',
+        lineHeight: 1.6,
+        overflow: "auto",
     },
     section: {
         marginTop: '2rem'
