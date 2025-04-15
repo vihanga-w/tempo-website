@@ -48,6 +48,8 @@ const TermsAndConditions: React.FC = () => {
             <p><strong>Effective Date:</strong> Tuesday 15th April 2025</p>
             <p><strong>Last Updated:</strong> Tuesday 15th April 2025</p>
 
+            <br />
+
             <p>
                 Welcome to <strong>Tempo.</strong>, a social music application that enables users to share their real-time Spotify listening activity with friends, react to what others are playing, and receive personalised music recommendations. These Terms and Conditions (“Terms”) govern your use of the Tempo. app (“we”, “us”, or “our”) and all related services. By using the app, you accept and agree to these Terms in full. If you do not agree to them, you must not use the app.
             </p>

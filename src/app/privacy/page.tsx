@@ -48,6 +48,8 @@ const PrivacyPolicy: React.FC = () => {
             <p><strong>Effective Date:</strong> Tuesday 15th April 2025</p>
             <p><strong>Last Updated:</strong> Tuesday 15th April 2025</p>
 
+            <br />
+
             <p>
                 This Privacy Policy explains how <strong>Tempo.</strong> (“we”, “our”, or “us”) collects, uses, discloses and protects your personal data when you use the Tempo. mobile application (“App”). We are committed to protecting your privacy and complying with the UK General Data Protection Regulation (UK GDPR), the Data Protection Act 2018, and any other relevant data protection laws applicable in the United Kingdom.
             </p>
