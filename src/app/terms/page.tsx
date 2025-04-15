@@ -54,7 +54,7 @@ const TermsAndConditions: React.FC = () => {
 
             <p>You may see us being referred to under the name of “Tempo Music”.</p>
 
-            <hr />
+            {/* <hr /> */}
 
             <Section number="1" title="Eligibility">
                 <p>

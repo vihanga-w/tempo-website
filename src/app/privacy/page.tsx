@@ -56,7 +56,7 @@ const PrivacyPolicy: React.FC = () => {
 
             <p>By using Tempo., you acknowledge and agree to the practices described in this Privacy Policy.</p>
 
-            <hr />
+            {/* <hr /> */}
 
             <Section number="1" title="About Tempo.">
                 <p>
