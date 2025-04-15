@@ -86,12 +86,16 @@ export default function Home() {
         text: string;
         callback: () => void;
       });
+    else
+      setModalPBtn(undefined);
     
     if (secondaryButton?.text)
       setModalSBtn(secondaryButton as {
         text: string;
         callback: () => void;
       });
+    else
+      setModalSBtn(undefined);
 
     onModalOpen();
   }
@@ -522,7 +526,11 @@ export default function Home() {
           showUpdateMsg()
           .then(showWelcomeMsg);
         });
-        prouter.setPage("app");
+
+        if (window.localStorage.getItem("tempo-legal-agreed") === "true")
+          prouter.setPage("app");
+        else
+          prouter.setPage("legal");
       }
     });
 

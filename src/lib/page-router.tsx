@@ -5,6 +5,7 @@ import { EventEmitter } from "events";
 import React from "react";
 import { UIApp } from "@/components/app";
 import User from "./usrlib";
+import LegalPage from "@/components/legal";
 
 const LSNavigationKey = "tempo-navigation";
 
@@ -28,7 +29,7 @@ export default class PageRouter extends EventEmitter {
         // });
 
         if (!window.localStorage.getItem(LSNavigationKey)) {
-            window.localStorage.setItem(LSNavigationKey, "signup");
+            window.localStorage.setItem(LSNavigationKey, "legal");
         }
     }
 
@@ -50,14 +51,17 @@ export default class PageRouter extends EventEmitter {
     private navigate(pageId?: string) {
         const page = (pageId ?? window.localStorage.getItem(LSNavigationKey));
 
-        console.log(page)
-
         switch (page) {
             // case "signup": {
             //     return this.emit("page-navigate", (<Signup uplink={this.uplink} prouter={this} flowCompleteCb={() => {
             //         this.user.init();
             //     }} />));
             // }
+            case "legal": {
+                return this.emit("page-navigate", (<LegalPage
+                    prouter={this}
+                />))
+            }
             case "app": {
                 return this.emit("page-navigate", (<UIApp
                     prouter={this}
