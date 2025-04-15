@@ -207,16 +207,16 @@ const RecapContent = ({
                     dayStr={day}
                     monthStr={month}
                 />
-                <Box width="36%" height="1px" background="white" />
+                <Box width="100%" height="1px" background="white" marginLeft="18px" marginRight="18px" />
                 <DateComponent
                     dayNum={recapProcessedDate.getDate()}
                     dayStr={dayMap[recapProcessedDate.getDay()]}
                     monthStr={monthMap[recapProcessedDate.getMonth()]}
                 />
             </Center>) : (<Center width="100%" height="62px" justifyContent="space-between">
-                <Box width="11%" height="1px" background="white" />
+                <Box width="100%" height="1px" background="white" marginRight="12px" />
                 <Text fontFamily="Inter" fontSize="38px" fontWeight="black" textAlign="center">YESTERDAY</Text>
-                <Box width="11%" height="1px" background="white" />
+                <Box width="100%" height="1px" background="white" marginLeft="12px" />
             </Center>)}
         </HStack>
 
