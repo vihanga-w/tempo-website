@@ -287,7 +287,7 @@ export default function ReactionDrawer({
 
         if (openIndex == 1 && !weekly)
             return;
-        
+
         // Mark this recap viewed after 2.5s
         setTimeout(() => {
             user.markRecapSeen(["daily", "weekly"][openIndex] as "daily" | "weekly");
@@ -302,7 +302,8 @@ export default function ReactionDrawer({
                     <Box display="flex" justifyContent="space-between" alignItems="center" width="100%">
                         <Text>{(daily && weekly) ? "Your Music Recap" : daily ? "Your Daily Recap" : "Your Weekly Recap"}</Text>
                         <MdClose size="38px" onClick={() => {
-                            
+                            user.markRecapSeen(["daily", "weekly"][openIndex] as "daily" | "weekly");
+                            close();
                         }} />
                     </Box>
                 </DrawerHeader>
