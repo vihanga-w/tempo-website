@@ -4,6 +4,7 @@ import { RefObject, useEffect, useRef, useState } from "react";
 import { MdClose, MdExplicit } from "react-icons/md";
 import LeaderboardSongItem from "./leaderboard-song-item";
 import { formatTimeToMinAndHour } from "./playback-state";
+import User from "@/lib/usrlib";
 
 interface RecapSortItem {
     id: string;
@@ -258,16 +259,40 @@ export default function ReactionDrawer({
     isOpen,
     daily,
     weekly,
+    user,
 }: {
     open: () => void;
     close: () => void;
     isOpen: boolean;
     daily: Recap | null;
     weekly: Recap | null;
+    user: User;
 }) {
+    const [openIndex, setOpenIndex] = useState<number>(0);
+
     const artwork = useRef<HTMLImageElement>(null);
 
     useOutsideAlerter(artwork, close);
+
+    useEffect(() => {
+        if (daily && !weekly)
+            setOpenIndex(0);
+        else if (!daily && weekly)
+            setOpenIndex(1);
+    }, [daily, weekly]);
+
+    useEffect(() => {
+        if (openIndex == 0 && !daily)
+            return;
+
+        if (openIndex == 1 && !weekly)
+            return;
+        
+        // Mark this recap viewed after 2.5s
+        setTimeout(() => {
+            user.markRecapSeen(["daily", "weekly"][openIndex] as "daily" | "weekly");
+        }, 2500);
+    }, [openIndex]);
 
     return (
         <Drawer placement="bottom" onClose={close} isOpen={isOpen} isFullHeight>
@@ -277,13 +302,15 @@ export default function ReactionDrawer({
                     <Box display="flex" justifyContent="space-between" alignItems="center" width="100%">
                         <Text>{(daily && weekly) ? "Your Music Recap" : daily ? "Your Daily Recap" : "Your Weekly Recap"}</Text>
                         <MdClose size="38px" onClick={() => {
-                            close();
+                            
                         }} />
                     </Box>
                 </DrawerHeader>
                 <DrawerBody padding="0">
                     {(daily && weekly) ? (
-                        <Tabs isFitted variant='line' defaultIndex={0}>
+                        <Tabs isFitted variant='line' defaultIndex={0} onChange={i => {
+                            setOpenIndex(i);
+                        }}>
                             <TabList mb='1em'>
                                 <Tab>Daily Recap</Tab>
                                 <Tab>Weekly Recap</Tab>
@@ -293,7 +320,7 @@ export default function ReactionDrawer({
                                     <RecapContent recap={daily} type="daily" />
                                 </TabPanel>
                                 <TabPanel>
-                                    <RecapContent recap={daily} type="weekly" />
+                                    <RecapContent recap={weekly} type="weekly" />
                                 </TabPanel>
                             </TabPanels>
                         </Tabs>

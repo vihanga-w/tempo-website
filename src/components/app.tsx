@@ -417,6 +417,7 @@ export function UIApp({
                 isOpen={isRecapDrawerVisible}
                 daily={dailyRecap}
                 weekly={weeklyRecap}
+                user={user}
             />
             <Box
                 position="fixed"

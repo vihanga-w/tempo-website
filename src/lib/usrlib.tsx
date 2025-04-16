@@ -449,7 +449,7 @@ export default class User extends EventEmitter {
         }
     }
 
-    async getRecaps() {
+    public async getRecaps() {
         const req = await fetch(API_URL + "/me/recap", {
             headers: {
                 ...(this.getAuthHeaders())
@@ -475,6 +475,19 @@ export default class User extends EventEmitter {
         };
 
         return res.data;
+    }
+
+    public async markRecapSeen(type: "daily" | "weekly") {
+        const req = await fetch(API_URL + "/me/recap/" + type + "/seen", {
+            method: "POST",
+            headers: {
+                ...(this.getAuthHeaders())
+            },
+            credentials: "include",
+        });
+        
+        // This is not a definite indicator of success as the server does not return a success validated state
+        return (req.status == 200);
     }
 
     public async getEncryptionAvailability(): Promise<EncryptionAvailability> {
