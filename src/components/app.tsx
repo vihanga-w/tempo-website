@@ -668,7 +668,7 @@ export function UIApp({
                                 </Center>
                             ) : (
                                 <Stack gap="28px" overflowY="auto" paddingBottom="18px" width="100%">
-                                    <Stack gap="18px" overflowY="auto" width="100%" display={livePlaybackStates.length > 0 ? "flex" : "none"}>
+                                    <Stack gap="18px" overflowY="auto" width="100%" display={livePlaybackStates.filter(v => v.userId !== user.id).length > 0 ? "flex" : "none"}>
                                         <Text
                                             fontFamily="arial, helvetica"
                                             fontWeight="bold"
