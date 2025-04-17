@@ -447,7 +447,7 @@ export default function ProfilePage({
                     >
                     {profileData?.listenerTypeClassification ?? "Casual Listener"}
                     </Text>
-                    {(playbackState?.data.state?.playSessionStart && new Date().getTime() - playbackState.data.state.playSessionStart <= 60e3) ? (
+                    {(playbackState?.data.state?.playSessionStart && new Date().getTime() - playbackState.data.state.playSessionStart >= (60e3 * 5)) ? (
                         <Text>{`🔥 ${formatTimeToMinAndHour(new Date().getTime() - playbackState?.data.state.playSessionStart, true)}`}</Text>
                     ) : playbackState ? (
                         <Text>Started listening recently</Text>
