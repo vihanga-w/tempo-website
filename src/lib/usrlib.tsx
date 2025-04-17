@@ -404,10 +404,10 @@ export default class User extends EventEmitter {
             for (let i = 0; i < res.data.length; i++) {
                 const d = res.data[i];
 
-                if (d.item.track.album.artUrl.startsWith("https://i.scdn.co/image/"))
+                if (d.item.track.album.artUrl && d.item.track.album.artUrl.startsWith("https://i.scdn.co/image/"))
                     res.data[i].item.track.album.artUrl = res.data[i].item.track.album.artUrl.replace("https://i.scdn.co/image/", "https://imgcdn.tempo-music.co/scdn/");
 
-                if (d.pfpUrl.startsWith("https://i.scdn.co/image/"))
+                if (d.pfpUrl && d.pfpUrl.startsWith("https://i.scdn.co/image/"))
                     res.data[i].pfpUrl = res.data[i].pfpUrl.replace("https://i.scdn.co/image/", "https://imgcdn.tempo-music.co/scdn/");
             }
 
