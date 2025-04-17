@@ -7,9 +7,11 @@ import { DataStreamer, UpdateEvent } from "@/lib/live-ingest";
 export default function FriendsPage({
     user,
     streamer,
+    openPubProfile,
 }: {
     user: User;
     streamer: DataStreamer | null;
+    openPubProfile: (id: string) => void;
 }) {
     const [friends, setFriends] = useState<{
         user: ClientUserAccount;
@@ -74,6 +76,7 @@ export default function FriendsPage({
                     user={user}
                     streamer={streamer}
                     key={i}
+                    openPubProfile={openPubProfile}
                     
                     friendsView
                 />

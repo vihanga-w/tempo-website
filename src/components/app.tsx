@@ -786,6 +786,10 @@ export function UIApp({
                         <FriendsPage
                             user={user}
                             streamer={streamer}
+                            openPubProfile={(id) => {
+                                setPubProfileUserId(id);
+                                pageChanger("pub-profile", "friends");
+                            }}
                         />
                     )}
 
