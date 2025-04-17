@@ -1,6 +1,7 @@
 import EventEmitter from "events";
 import { API_URL } from "./const";
 import { Recap } from "@/components/recap-drawer";
+import { FaF } from "react-icons/fa6";
 
 // export type PublicUserAccount = {
 //     id: string;
@@ -429,17 +430,22 @@ export default class User extends EventEmitter {
 
                 for (let i = 0; i < friends.length; i++) {
                     const f = friends[i];
+                    const otherId = (f.u1Id == this.id ? f.u2Id : f.u1Id);
                     
-                    const user = await this.getRemoteUser(f.u1Id == this.id ? f.u2Id : f.u1Id);
+                    try {
+                        const user = await this.getRemoteUser(otherId);
 
-                    const uniqueUserIds = new Set();
-                    
-                    if (!uniqueUserIds.has(user.id)) {
-                        frtemp.push({
-                            user: user,
-                            friendship: f,
-                        });
-                        uniqueUserIds.add(user.id);
+                        const uniqueUserIds = new Set();
+                        
+                        if (!uniqueUserIds.has(user.id)) {
+                            frtemp.push({
+                                user: user,
+                                friendship: f,
+                            });
+                            uniqueUserIds.add(user.id);
+                        }
+                    } catch (ex) {
+                        console.warn("Unable to fetch user object for", otherId);
                     }
                 }
 
@@ -450,7 +456,7 @@ export default class User extends EventEmitter {
 
             return res.data;
         } catch (ex) {
-            console.error("Failed to check user authentication status, error:", ex, "\nWe will assume the user is not authenticated");
+            console.error("Failed to get user details, error:", ex, "\nWe will assume the user is not authenticated");
 
             this.authError = true;
 
