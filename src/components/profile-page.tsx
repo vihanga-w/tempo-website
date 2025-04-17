@@ -395,7 +395,7 @@ export default function ProfilePage({
             transition=".75s"
         />
         <Stack gap="26px" width="100%" pos="relative" zIndex="1" marginTop="-15px">
-            <HStack gap="18px" marginTop="24px">
+            <HStack gap="14px" marginTop="24px">
                 <Box width="88px" height="88px" border={playbackState ? "3px solid #A480FF" : "0px"} borderRadius="17px">
                     {((profileData?.images.length ?? 0) > 0 && !pfpLoadFailed) ? (
                         <Image
