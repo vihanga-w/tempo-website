@@ -3,6 +3,7 @@ import { Avatar, Box, HStack, Image, Stack, Text}  from "@chakra-ui/react"
 import { MdAddReaction, MdExplicit } from "react-icons/md";
 import { useEffect, useState } from "react";
 import { keyframes } from "@emotion/react";
+import { getSizedImageUrl } from "@/lib/sized-img";
 
 function formatTime(ms: number) {
     if (ms < 0)
@@ -149,15 +150,15 @@ export function PlaybackState({
                 {!hideProfile && (
                     <HStack justifyContent="space-between">
                         <HStack onClick={profileClickCb}>
-                            {(data?.state?.pfpUrl !== "" && !pfpLoadFailed) ? (
+                            {(getSizedImageUrl(data?.state?.pfpUrl ?? "", 36, 36) !== "" && !pfpLoadFailed) ? (
                                 <Image
                                     width="36px"
                                     height="36px"
                                     objectFit="cover"
                                     borderRadius="6px"
-                                    src={data?.state?.pfpUrl}
+                                    src={getSizedImageUrl(data?.state?.pfpUrl ?? "", 36, 36)}
                                     draggable={false}
-                                    onError={() => {
+                                    onError={(e) => {
                                         setPfpLoadFailed(true);
                                     }}
                                 />
@@ -206,7 +207,7 @@ export function PlaybackState({
                                 src="/podcast-icon.svg"
                             />
                         )}
-                        <Image width="72px" height="72px" background="rgba(255, 255, 255, 0.2)" borderRadius="6px" src={data?.state?.imageUrl} draggable={false} />
+                        <Image width="72px" height="72px" background="rgba(255, 255, 255, 0.2)" borderRadius="6px" src={getSizedImageUrl(data?.state?.imageUrl ?? "", 72, 72)} draggable={false} />
                     </Box>
                     <Stack height="100%" width="100%" gap="0" fontFamily="arial, helvetica" lineHeight="18px">
                         <HStack pos="relative" gap="5px" justifyContent="space-between">

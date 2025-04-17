@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { FastAverageColor } from "fast-average-color";
 import { formatHex, oklch } from "culori";
 import { apcach, crToBg } from "apcach";
+import { getSizedImageUrl } from "@/lib/sized-img";
 
 interface Song {
     id: string;
@@ -266,7 +267,7 @@ const MusicDiscoveryFeed: React.FC<{ songs: Song[] }> = (props) => {
                     flexDirection="column"
                   >
                     <Image
-                      src={songs[index].imageUrl}
+                      src={getSizedImageUrl(songs[index].imageUrl, 280, 280)}
                       width="280px"
                       height="280px"
                       objectFit="cover"

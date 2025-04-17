@@ -1,4 +1,5 @@
 import { DataStreamer, UpdateEvent } from "@/lib/live-ingest";
+import { getSizedImageUrl } from "@/lib/sized-img";
 import User, { UserFriendship } from "@/lib/usrlib";
 import { Avatar, Box, Button, HStack, Image, Stack, Text } from "@chakra-ui/react";
 import { useEffect, useRef, useState } from "react";
@@ -164,7 +165,7 @@ export function UserLookupResult({
                         transition=".3s"
                         objectFit="cover"
                         borderRadius="8px"
-                        src={pfpUrl}
+                        src={getSizedImageUrl(pfpUrl, !friendsView ? 36 : 56, !friendsView ? 36 : 56)}
                         draggable={false}
                         onError={() => {
                             setPfpLoadFailed(true);

@@ -442,7 +442,7 @@ export function UIApp({
             {/* The main user interface */}
             <Box padding="20px" width="100%">
                 <Image
-                    src="/menu-bg.png"
+                    src="/menu-bg.webp"
                     position="absolute"
                     zIndex="999999998"
                     width="100%"
@@ -654,7 +654,7 @@ export function UIApp({
                                     We'll let you know when Discover is ready!
                                 </Text>
                             ) : (
-                                <MusicDiscoveryFeed songs={discoveryData.filter((_, i) => i < 50)} />
+                                <MusicDiscoveryFeed songs={discoveryData.slice(0, 50)} />
                             )}
                         </>
                     )}

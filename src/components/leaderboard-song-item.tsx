@@ -1,3 +1,4 @@
+import { getSizedImageUrl } from "@/lib/sized-img";
 import { HStack, Text, Image, Stack, Box } from "@chakra-ui/react";
 import { useEffect, useRef, useState } from "react";
 
@@ -44,7 +45,7 @@ export default function LeaderboardSongItem({
         <HStack gap="8px">
             <Text opacity="0.75">{`#${leaderboardPosition}`}</Text>
             <HStack>
-                <Image width="48px" src={imageUrl} borderRadius="8px" />
+                <Image width="48px" height="48px" src={getSizedImageUrl(imageUrl, 48, 48)} borderRadius="8px" />
                 <Stack gap="0">
                     <Box width="100%" margin="0 auto" overflow="hidden" whiteSpace="nowrap">
                         <Box

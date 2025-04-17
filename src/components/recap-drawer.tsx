@@ -5,6 +5,7 @@ import { MdClose, MdExplicit } from "react-icons/md";
 import LeaderboardSongItem from "./leaderboard-song-item";
 import { formatTimeToMinAndHour } from "./playback-state";
 import User from "@/lib/usrlib";
+import { getSizedImageUrl } from "@/lib/sized-img";
 
 interface RecapSortItem {
     id: string;
@@ -83,8 +84,9 @@ const SongLeaderboardComponent = ({
         {/* Number 1 song */}
         <HStack color="text.dark" transition=".3s">
             <Image
-                src={recapData.find(v => v.index == 0)?.imageUrl}
+                src={getSizedImageUrl(recapData.find(v => v.index == 0)?.imageUrl ?? "", 84, 84)}
                 width="84px"
+                height="84px"
                 borderRadius="8px"
             />
             <Box pos="relative" width="100%">

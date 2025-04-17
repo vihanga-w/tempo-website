@@ -2,6 +2,7 @@ import { Box, HStack, Image, Stack, Text } from "@chakra-ui/react";
 import { MdAddReaction, MdExplicit } from "react-icons/md";
 import ReactTimeAgo from "react-time-ago";
 import { FriendListenershipItem } from "@/lib/usrlib";
+import { getSizedImageUrl } from "@/lib/sized-img";
 
 function formatTime(ms: number) {
   if (ms < 0) ms = 0;
@@ -60,8 +61,9 @@ export function PlaybackHistoryItem({
           height="64px"
           objectFit="cover"
           borderRadius="6px"
-          src={data.item.track.album.artUrl}
+          src={getSizedImageUrl(data.item.track.album.artUrl, 64, 64)}
           draggable={false}
+          loading="lazy"
         />
         <Stack spacing="0" flex="1">
           <HStack pos="relative" gap="5px" justifyContent="space-between">

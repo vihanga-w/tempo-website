@@ -9,6 +9,7 @@ import { apcach, crToBg } from "apcach";
 import { oklch, formatHex } from 'culori';
 import LeaderboardSongItem from "./leaderboard-song-item";
 import { MdExplicit } from "react-icons/md";
+import { getSizedImageUrl } from "@/lib/sized-img";
 
 const loadTracker = (expectedCount: number, onComplete: () => void) => {
     let count = 0;
@@ -402,7 +403,7 @@ export default function ProfilePage({
                         objectFit="cover"
                         borderRadius="12px"
                         // We are using the first image for now, need to write a method to use most optimal image
-                        src={profileData?.images[0].url}
+                        src={getSizedImageUrl(profileData?.images[0].url ?? "", 82, 82)}
                         draggable={false}
                         onError={() => {
                             setPfpLoadFailed(true);
@@ -525,7 +526,7 @@ export default function ProfilePage({
                         {/* Number 1 song */}
                         <HStack color="text.dark" transition=".3s">
                             <Image
-                                src={userTopSongs.find(v => v.index == 0)?.imageUrl}
+                                src={getSizedImageUrl(userTopSongs.find(v => v.index == 0)?.imageUrl ?? "", 84, 84)}
                                 width="84px"
                                 borderRadius="8px"
                             />

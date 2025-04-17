@@ -1,4 +1,5 @@
 import { UpdateEvent } from "@/lib/live-ingest";
+import { getSizedImageUrl } from "@/lib/sized-img";
 import { Drawer, DrawerOverlay, DrawerContent, DrawerHeader, DrawerBody, useDisclosure, Image, Box } from "@chakra-ui/react";
 import { RefObject, useEffect, useRef } from "react";
 import { MdClose } from "react-icons/md";
@@ -46,7 +47,7 @@ export default function ReactionDrawer({
                 <DrawerBody>
                     <Box display="flex" justifyContent="center" alignItems="center" height="100%">
                         <Image
-                            src={item?.imageUrl}
+                            src={getSizedImageUrl(item?.imageUrl ?? "", 240, 240)}
                             width="240px"
                             height="240px"
                             objectFit="cover"
