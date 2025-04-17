@@ -551,7 +551,7 @@ export function UIApp({
                                         fontFamily="Inter"
                                         fontWeight={currentPage == v.id ? "bold" : "medium"}
                                         fontSize="36px"
-                                        color="text.color"
+                                        color={complementaryColour ?? "text.color"}
                                         zIndex="999999998"
                                         transition="margin .25s ease-out, opacity .2s"
                                         whiteSpace="nowrap"
