@@ -70,6 +70,12 @@ export function UserLookupResult({
             return;
 
         const process = () => {
+            if (scrollItemRef.current)
+                scrollItemRef.current.style.transition = "transform 5s ease-in-out";
+
+            if (textWidth <= window.innerWidth - 135)
+                return;
+
             if (scrollItemRef.current && overflow <= 0)
                 setOverflow(textWidth - (window.innerWidth - 125));
             else
@@ -81,6 +87,24 @@ export function UserLookupResult({
 
         setTimeout(() => { process() }, 10e3);
     }, [scrollItemRef, overflow, textWidth]);
+
+    useEffect(() => {
+        if (!scrollItemRef.current)
+            return;
+
+        console.log("reset")
+
+        if (scrollItemRef.current) {
+            scrollItemRef.current.style.transition = "none";
+            setOverflow(0);
+
+            setTimeout(() => {
+                if (scrollItemRef.current) {
+                    scrollItemRef.current.style.transition = "transform 5s ease-in-out";
+                }
+            }, 50); // Small delay to ensure transition reset
+        }
+    }, [scrollItemRef, textWidth])
 
     useEffect(() => {
         if (!streamer)
@@ -163,7 +187,7 @@ export function UserLookupResult({
                         userSelect="none"
                     >{mutualFriends.length} mutual friend{mutualFriends.length !== 1 ? "s" : ""}</Text>
                 )}
-                {friendsView && (
+                {friendsView && (<Box>
                     <Text
                         fontFamily="Inter"
                         fontWeight="regular"
@@ -175,9 +199,10 @@ export function UserLookupResult({
                         transform={`translateX(-${overflow}px)`}
                         transition="transform 5s ease-in-out"
                         display="inline-block"
+                        key={livePlaybackState ? fact : "You are friends"}
                     >{livePlaybackState ? fact : "You are friends"}</Text>
-                    // TODO: Show something else if fact not provided
-                )}
+                    {/* TODO: Show something else if fact not provided */}
+                </Box>)}
             </Stack>
             {friendsView ? (<>
                 {/* Send message button */}
