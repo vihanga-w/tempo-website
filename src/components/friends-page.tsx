@@ -2,11 +2,14 @@ import User, { ClientUserAccount, UserFriendship } from "@/lib/usrlib";
 import { Box, Image, Spinner, Text } from "@chakra-ui/react";
 import { use, useEffect, useState } from "react";
 import { UserLookupResult } from "./user-lookup-result";
+import { DataStreamer, UpdateEvent } from "@/lib/live-ingest";
 
 export default function FriendsPage({
     user,
+    streamer,
 }: {
     user: User;
+    streamer?: DataStreamer;
 }) {
     const [friends, setFriends] = useState<{
         user: ClientUserAccount;
@@ -67,9 +70,10 @@ export default function FriendsPage({
                     friendState={friend.friendship.state}
                     friendshipId={friend.friendship.id}
                     user={user}
-                    key={i}
-
+                    streamer={streamer}
+                    
                     friendsView
+                    // isListening={playingItem?.data.state !== undefined}
                 />
             ))
         ) : (<Box display={isLoading ? "none" : "block"}>

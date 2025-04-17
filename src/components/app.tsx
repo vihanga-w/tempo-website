@@ -782,7 +782,12 @@ export function UIApp({
                     )}
 
                     {/* Friends page */}
-                    {currentPage == "friends" && (<FriendsPage user={user} />)}
+                    {currentPage == "friends" && (
+                        <FriendsPage
+                            user={user}
+                            streamer={streamer}
+                        />
+                    )}
 
                     {/* Add friends page */}
                     {currentPage == "add-friends" && (
