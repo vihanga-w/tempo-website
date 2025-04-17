@@ -148,7 +148,7 @@ export function UserLookupResult({
             <Box
                 minWidth={friendsView ? "52px" : "36px"}
                 minHeight={friendsView ? "52px" : "36px"}
-                borderRadius="8px"
+                borderRadius="10px"
                 border={livePlaybackState ? "2px solid #A480FF" : "0px"}
                 transition=".3s"
                 onClick={() => {

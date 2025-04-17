@@ -63,9 +63,7 @@ export default function FriendsPage({
             size="lg"
         />
         {friends.length > 0 ? (
-            friends.map((friend, i) => {
-                return (
-                <UserLookupResult
+            friends.map((friend, i) => (<UserLookupResult
                     userId={friend.user.id}
                     username={friend.user.displayName}
                     pfpUrl={friend.user.images?.length > 0 ? friend.user.images[0].url : undefined}
@@ -80,7 +78,7 @@ export default function FriendsPage({
                     
                     friendsView
                 />
-            )})
+            ))
         ) : (<Box display={isLoading ? "none" : "block"}>
             <Image
                 src={`/add-new-case-indication-arrow.svg`}
