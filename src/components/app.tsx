@@ -517,8 +517,9 @@ export function UIApp({
                                 </svg>
                             </Box>
                             <Text
-                                fontFamily="Inter"
+                                fontFamily="Libre Franklin"
                                 fontWeight="black"
+                                fontStyle="italic"
                                 fontSize="36px"
                                 color={complementaryColour ?? "text.color"}
                                 zIndex="10"
