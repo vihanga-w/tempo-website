@@ -11,7 +11,7 @@ import {
     Center,
     Spinner
 } from "@chakra-ui/react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import React, { lazy, Suspense } from "react";
 import { SmallAddButton } from "./small-add-btn";
 import { Loader } from "./loader";
@@ -386,7 +386,7 @@ export function UIApp({
         }
     ];
 
-    const pageChanger = (id: string, prevPage?: string) => {
+    const pageChanger = useCallback((id: string, prevPage?: string) => {
         let exists = false;
         let title = "";
 
@@ -416,12 +416,12 @@ export function UIApp({
         setCurrentPage(id);
         setCurrentPageTitle(title);
         setPrevPage(prevPage ?? "");
-    };
+    }, [closeReactionDrawer]);
 
-    const handlePageMenuClick = () => {
+    const handlePageMenuClick = useCallback(() => {
         if (prevPage !== "") return pageChanger(prevPage);
         setPageSwitcherActive(!pageSwitcherActive);
-    };
+    }, [prevPage, pageSwitcherActive]);
 
     const addNewItemPossiblePages = ["friends"];
 
@@ -513,7 +513,7 @@ export function UIApp({
                     marginTop="-15px"
                     opacity={(dailyRecap || weeklyRecap) ? 0 : 1}
                 >
-                    <Box position="fixed" overflow="hidden" zIndex="999999999" top="env(safe-area-inset-top)">
+                    <Box position="fixed" overflow="hidden" zIndex={(isReactionDrawerVisible || isRecapDrawerVisible) ? "999" : "999999999"} top="env(safe-area-inset-top)">
                         <HStack gap="10px" onClick={handlePageMenuClick}>
                             <Box
                                 transform={
@@ -621,17 +621,18 @@ export function UIApp({
                             hideSpotifyCallout
                         />
                     </Box>
-                    <SmallAddButton
-                        onClick={() => {
-                            if (pageSwitcherActive) return;
-                            if (currentPage == "friends") pageChanger("add-friends", "friends");
-                        }}
-                        isCross={false}
-                        scale={prevPage || !addNewItemPossiblePages.includes(currentPage) ? 0.65 : 1}
-                        opacity={prevPage || !addNewItemPossiblePages.includes(currentPage) ? "0" : "1"}
-                        active={prevPage == "" || !addNewItemPossiblePages.includes(currentPage)}
-                        zIndex="9999999"
-                    />
+                    <Box zIndex="9999999" marginTop="-8px" width="100vw" pointerEvents={prevPage || !addNewItemPossiblePages.includes(currentPage) ? "none" : "all"}>
+                        <SmallAddButton
+                            onClick={() => {
+                                if (pageSwitcherActive) return;
+                                if (currentPage == "friends") pageChanger("add-friends", "friends");
+                            }}
+                            isCross={false}
+                            scale={prevPage || !addNewItemPossiblePages.includes(currentPage) ? 0.65 : 1}
+                            opacity={prevPage || !addNewItemPossiblePages.includes(currentPage) ? "0" : "1"}
+                            active={prevPage == "" || !addNewItemPossiblePages.includes(currentPage)}
+                        />
+                    </Box>
                 </HStack>
 
                 <Box

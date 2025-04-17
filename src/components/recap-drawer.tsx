@@ -304,6 +304,7 @@ export default function ReactionDrawer({
                     <Box display="flex" justifyContent="space-between" alignItems="center" width="100%">
                         <Text>{(daily && weekly) ? "Your Music Recap" : daily ? "Your Daily Recap" : "Your Weekly Recap"}</Text>
                         <MdClose size="38px" onClick={() => {
+                            console.log("closing recap")
                             user.markRecapSeen(["daily", "weekly"][openIndex] as "daily" | "weekly");
                             close();
                         }} />
