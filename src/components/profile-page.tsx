@@ -543,7 +543,7 @@ export default function ProfilePage({
                                         ref={scrollItemRef}
                                         // display="inline-block"
                                         transform={`translateX(-${topSongOverflow}px)`}
-                                        transition="transform 5s ease-in-out"
+                                        transition="transform 5s"
                                     >
                                         <HStack>
                                             <Text

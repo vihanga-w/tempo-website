@@ -51,7 +51,7 @@ export default function LeaderboardSongItem({
                             ref={scrollItemRef}
                             display="inline-block"
                             transform={`translateX(-${overflow}px)`}
-                            transition="transform 5s ease-in-out"
+                            transition="transform 5s"
                         >
                             <HStack gap="5px">
                                 <Text

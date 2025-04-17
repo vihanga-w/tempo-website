@@ -71,7 +71,7 @@ export function UserLookupResult({
 
         const process = () => {
             if (scrollItemRef.current)
-                scrollItemRef.current.style.transition = "transform 5s ease-in-out";
+                scrollItemRef.current.style.transition = "transform 5s";
 
             if (textWidth <= window.innerWidth - 135)
                 return;
@@ -85,7 +85,7 @@ export function UserLookupResult({
         if (overflow == -1)
             setTimeout(() => { process() }, 2500);
 
-        setTimeout(() => { process() }, 5e3);
+        setTimeout(() => { process() }, 7500);
     }, [scrollItemRef, overflow, textWidth]);
 
     useEffect(() => {
@@ -100,7 +100,7 @@ export function UserLookupResult({
 
             setTimeout(() => {
                 if (scrollItemRef.current) {
-                    scrollItemRef.current.style.transition = "transform 5s ease-in-out";
+                    scrollItemRef.current.style.transition = "transform 5s";
                 }
             }, 50); // Small delay to ensure transition reset
         }
@@ -197,7 +197,7 @@ export function UserLookupResult({
                         userSelect="none"
                         ref={scrollItemRef}
                         transform={`translateX(-${overflow}px)`}
-                        transition="transform 5s ease-in-out"
+                        transition="transform 5s"
                         display="inline-block"
                         key={livePlaybackState ? fact : "You are friends"}
                     >{livePlaybackState ? fact : "You are friends"}</Text>

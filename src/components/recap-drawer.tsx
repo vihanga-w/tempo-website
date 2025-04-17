@@ -100,7 +100,7 @@ const SongLeaderboardComponent = ({
                     <Box
                         // display="inline-block"
                         transform={`translateX(-${topSongOverflow}px)`}
-                        transition="transform 5s ease-in-out"
+                        transition="transform 5s"
                         ref={scrollItemRef}
                     >
                         <HStack>
