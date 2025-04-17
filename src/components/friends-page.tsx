@@ -9,7 +9,7 @@ export default function FriendsPage({
     streamer,
 }: {
     user: User;
-    streamer?: DataStreamer;
+    streamer: DataStreamer | null;
 }) {
     const [friends, setFriends] = useState<{
         user: ClientUserAccount;
