@@ -96,6 +96,7 @@ export default function LegalPage({
                 width="72px"
                 marginBottom="16px"
                 userSelect="none"
+                loading="lazy"
               />
           </Center>
 

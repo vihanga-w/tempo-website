@@ -601,11 +601,12 @@ export default function Home() {
           >
             <Stack gap="5px">
               <Image
-                src={`/icons/ui/logo-clear.svg`}
+                src="/icons/ui/logo-clear.svg"
                 alt="Tempo logo"
                 width="88px"
                 marginBottom="16px"
                 userSelect="none"
+                loading="lazy"
               />
               <Box>
                 <Text fontFamily="Inter" fontSize="20px">{!hasPreviouslyBeenOpened ? "Welcome to " : "Welcome back to "}<b>Tempo</b>!</Text>
@@ -645,7 +646,7 @@ export default function Home() {
           <Center background="#0D0D0E" padding="15%" pos="fixed" width="100vw" height="100vh" top="0" left="0">
             <Stack gap="15px">
               <Center width="100%">
-                <Image width="100px" src="/icons/ui/logo-clear.svg" />
+                <Image width="100px" src="/icons/ui/logo-clear.svg" loading="lazy" />
               </Center>
               <Text
                 fontFamily="arial, helvetica"
