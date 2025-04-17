@@ -12,7 +12,7 @@ import {
     Spinner
 } from "@chakra-ui/react";
 import { useEffect, useRef, useState } from "react";
-import React from "react";
+import React, { lazy, Suspense } from "react";
 import { SmallAddButton } from "./small-add-btn";
 import { Loader } from "./loader";
 import { PlaybackState } from "./playback-state";
@@ -20,15 +20,31 @@ import { DataStreamer, UpdateEvent } from "@/lib/live-ingest";
 import { Mutex } from "async-mutex";
 import { API_URL } from "@/lib/const";
 import { PlaybackHistoryItem } from "./playback-history-item";
-import { AddFriendsPage } from "./add-friends-page";
-import ProfilePage from "./profile-page";
-import MusicDiscoveryFeed from "./music-discovery-feed";
 import { UserLookupResult } from "./user-lookup-result";
-import FriendsPage from "./friends-page";
-import ReactionDrawer from "./reaction-drawer";
 import RecapDrawer, { Recap } from "./recap-drawer";
 
+const MusicDiscoveryFeed = lazy(() => import("./music-discovery-feed"));
+const FriendsPage = lazy(() => import("./friends-page"));
+const AddFriendsPage = lazy(() => import("./add-friends-page"));
+const ProfilePage = lazy(() => import("./profile-page"));
+const ReactionDrawer = lazy(() => import("./reaction-drawer"));
+
 const updateMutex = new Mutex();
+
+const SuspenseSpinner = () => {
+    return(<Box
+        position="absolute"
+        top="0"
+        left="0"
+        width="100vw"
+        height="100vh"
+        display="flex"
+        alignItems="center"
+        justifyContent="center"
+    >
+        <Spinner size="lg" />
+    </Box>);
+}
 
 const generateEndOfHistoryMessage = () => {
     return (Math.random() <= 0.1 ? "~ End of historussy ~" : "You've seen it all! 😉");
@@ -423,11 +439,11 @@ export function UIApp({
                 position="fixed"
                 top="0"
                 left="0"
-                width="100%"
-                height="100%"
+                width="100vw"
+                height="100vh"
                 background="white"
-                zIndex="999999999999"
-                display={isLoading || isFading ? "flex" : "none"}
+                zIndex={isLoading ? "99999999999999" : "-1"}
+                display="flex"
                 alignItems="center"
                 justifyContent="center"
                 opacity={isLoading ? 1 : 0}
@@ -654,7 +670,9 @@ export function UIApp({
                                     We'll let you know when Discover is ready!
                                 </Text>
                             ) : (
-                                <MusicDiscoveryFeed songs={discoveryData.slice(0, 50)} />
+                                <Suspense fallback={<SuspenseSpinner />}>
+                                    <MusicDiscoveryFeed songs={discoveryData.slice(0, 50)} />
+                                </Suspense>
                             )}
                         </>
                     )}
@@ -662,7 +680,9 @@ export function UIApp({
                     {/* Activity page */}
                     {currentPage == "activity" && (
                         <>
-                            <ReactionDrawer isOpen={isReactionDrawerVisible} open={openReactionDrawer} close={closeReactionDrawer} item={reactionDrawerItem} />
+                            <Suspense fallback={<SuspenseSpinner />}>
+                                <ReactionDrawer isOpen={isReactionDrawerVisible} open={openReactionDrawer} close={closeReactionDrawer} item={reactionDrawerItem} />
+                            </Suspense>
                             {activityPageLoading ? (
                                 <Center pos="absolute" width="100vw" height="100vh" top="0" left="0">
                                     <Spinner size="lg" />
@@ -784,55 +804,63 @@ export function UIApp({
 
                     {/* Friends page */}
                     {currentPage == "friends" && (
-                        <FriendsPage
-                            user={user}
-                            streamer={streamer}
-                            openPubProfile={(id) => {
-                                setPubProfileUserId(id);
-                                pageChanger("pub-profile", "friends");
-                            }}
-                        />
+                        <Suspense fallback={<SuspenseSpinner />}>
+                            <FriendsPage
+                                user={user}
+                                streamer={streamer}
+                                openPubProfile={(id) => {
+                                    setPubProfileUserId(id);
+                                    pageChanger("pub-profile", "friends");
+                                }}
+                            />
+                        </Suspense>
                     )}
 
                     {/* Add friends page */}
                     {currentPage == "add-friends" && (
                         <>
-                            <AddFriendsPage
-                                user={user}
-                                // onComplete={id => {
-                                //     console.log("Added new friend:", id);
-                                // }}
-                            />
+                            <Suspense fallback={<SuspenseSpinner />}>
+                                <AddFriendsPage
+                                    user={user}
+                                    // onComplete={id => {
+                                    //     console.log("Added new friend:", id);
+                                    // }}
+                                />
+                            </Suspense>
                         </>
                     )}
 
                     {/* Settings page */}
                     {currentPage == "settings" && (
-                        <ProfilePage
-                            user={user}
-                            pageChanger={pageChanger}
-                            hideTopGradientCb={(hide: boolean) => {
-                                setHideTopGradient(hide);
-                            }}
-                            setComplementaryColour={(colour: string) => {
-                                setComplementaryColour(colour);
-                            }}
-                        />
+                        <Suspense fallback={<SuspenseSpinner />}>
+                            <ProfilePage
+                                user={user}
+                                pageChanger={pageChanger}
+                                hideTopGradientCb={(hide: boolean) => {
+                                    setHideTopGradient(hide);
+                                }}
+                                setComplementaryColour={(colour: string) => {
+                                    setComplementaryColour(colour);
+                                }}
+                            />
+                        </Suspense>
                     )}
 
                     {/* Public profile page */}
                     {currentPage == "pub-profile" && (
-                        <ProfilePage
-                            user={user}
-                            targetUserId={pubProfileUserId}
-                            pageChanger={pageChanger}
-                            hideTopGradientCb={(hide: boolean) => {
-                                setHideTopGradient(hide);
-                            }}
-                            setComplementaryColour={(colour: string) => {
-                                setComplementaryColour(colour);
-                            }}
-                        />
+                        <Suspense fallback={<SuspenseSpinner />}>
+                            <ProfilePage
+                                user={user}
+                                targetUserId={pubProfileUserId}
+                                pageChanger={pageChanger}
+                                hideTopGradientCb={(hide: boolean) => {
+                                    setHideTopGradient(hide);
+                                }}
+                                setComplementaryColour={(colour: string) => {
+                                    setComplementaryColour(colour);
+                                }}
+                            />
+                        </Suspense>
                     )}
                 </Box>
             </Box>

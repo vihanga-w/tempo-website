@@ -8,7 +8,7 @@ import { InteractiveButtonBox } from "./interactive-btn-box";
 import { UserLookupResult, UserLookupResultType } from "@/components/user-lookup-result";
 import User from "@/lib/usrlib";
 
-export function AddFriendsPage({
+export default function AddFriendsPage({
     user,
 }: {
     user: User;
