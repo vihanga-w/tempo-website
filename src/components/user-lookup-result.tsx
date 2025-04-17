@@ -85,7 +85,7 @@ export function UserLookupResult({
         if (overflow == -1)
             setTimeout(() => { process() }, 2500);
 
-        setTimeout(() => { process() }, 10e3);
+        setTimeout(() => { process() }, 5e3);
     }, [scrollItemRef, overflow, textWidth]);
 
     useEffect(() => {
