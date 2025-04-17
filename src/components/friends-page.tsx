@@ -72,7 +72,7 @@ export default function FriendsPage({
                     friendState={friend.friendship.state}
                     friendshipId={friend.friendship.id}
                     user={user}
-                    // streamer={streamer}
+                    streamer={streamer}
                     key={i}
                     
                     friendsView
