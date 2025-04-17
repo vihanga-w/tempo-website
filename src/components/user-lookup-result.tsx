@@ -66,12 +66,12 @@ export function UserLookupResult({
         if (textWidth == -1)
             return;
 
-        if (textWidth <= window.innerWidth - 145)
+        if (textWidth <= window.innerWidth - 135)
             return;
 
         const process = () => {
             if (scrollItemRef.current && overflow <= 0)
-                setOverflow(textWidth - (window.innerWidth - 135));
+                setOverflow(textWidth - (window.innerWidth - 125));
             else
                 setOverflow(0);
         }
