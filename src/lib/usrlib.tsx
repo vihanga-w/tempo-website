@@ -46,6 +46,7 @@ export type ClientUserAccount = {
         href: any
         total: number
     }
+    listenerTypeClassification: string
     href: string
     id: string
     images: Array<{

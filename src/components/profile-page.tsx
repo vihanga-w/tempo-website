@@ -3,7 +3,7 @@ import User, { ClientUserAccount } from "@/lib/usrlib";
 import { HStack, Stack, Box, Image, Text, Avatar, Tabs, TabList, Tab, TabPanels, TabPanel, Center, Spinner } from "@chakra-ui/react";
 import { useEffect, useRef, useState } from "react";
 import ReactTimeAgo from "react-time-ago";
-import { getSpotifyDeeplink, PlaybackState } from "./playback-state";
+import { formatTimeToMinAndHour, getSpotifyDeeplink, PlaybackState } from "./playback-state";
 import { FastAverageColor } from 'fast-average-color';
 import { apcach, crToBg } from "apcach";
 import { oklch, formatHex } from 'culori';
@@ -396,28 +396,31 @@ export default function ProfilePage({
         />
         <Stack gap="26px" width="100%" pos="relative" zIndex="1" marginTop="-15px">
             <HStack gap="24px" marginTop="24px">
-                {((profileData?.images.length ?? 0) > 0 && !pfpLoadFailed) ? (
-                    <Image
-                        width="82px"
-                        height="82px"
-                        objectFit="cover"
-                        borderRadius="12px"
-                        // We are using the first image for now, need to write a method to use most optimal image
-                        src={getSizedImageUrl(profileData?.images[0].url ?? "", 82, 82)}
-                        draggable={false}
-                        onError={() => {
-                            setPfpLoadFailed(true);
-                        }}
-                    />
-                ) : (
-                    <Avatar
-                        // Append user id so that different users potentially with same name has different bg colours
-                        name={profileData?.displayName ?? "" + profileData?.id ?? ""}
-                        borderRadius="12px"
-                        width="82px"
-                        height="82px"
-                    />
-                )}
+                <Box width="88px" height="88px" border={playbackState ? "3px solid #A480FF" : "0px"} borderRadius="17px">
+                    {((profileData?.images.length ?? 0) > 0 && !pfpLoadFailed) ? (
+                        <Image
+                            width={playbackState ? "82px" : "88px"}
+                            height={playbackState ? "82px" : "88px"}
+                            objectFit="cover"
+                            borderRadius="14px"
+                            border={playbackState ? "2px solid transparent" : "0px"}
+                            // We are using the first image for now, need to write a method to use most optimal image
+                            src={getSizedImageUrl(profileData?.images[0].url ?? "", 82, 82)}
+                            draggable={false}
+                            onError={() => {
+                                setPfpLoadFailed(true);
+                            }}
+                        />
+                    ) : (
+                        <Avatar
+                            // Append user id so that different users potentially with same name has different bg colours
+                            name={profileData?.displayName ?? "" + profileData?.id ?? ""}
+                            borderRadius="14px"
+                            width="82px"
+                            height="82px"
+                        />
+                    )}
+                </Box>
                 <Stack gap="0" marginTop="-5px">
                     <Text
                         fontFamily="Inter"
@@ -442,27 +445,27 @@ export default function ProfilePage({
                             pageChanger("edit-profile", "settings");
                         }}
                     >
-                    Last active{" "}
-                    {new Date().getTime() - lastActive <= 3600e3 * 12 ? (
-                        <ReactTimeAgo date={lastActive} locale="en-GB" />
+                    {profileData?.listenerTypeClassification ?? "Casual Listener"}
+                    </Text>
+                    {(playbackState?.data.state?.playSessionStart && playbackState.data.state.playSessionStart !== -1) ? (
+                        <Text>{`🔥 ${formatTimeToMinAndHour(new Date().getTime() - playbackState?.data.state.playSessionStart, true)}`}</Text>
                     ) : (
-                        new Date(lastActive).toLocaleDateString("en-GB")
+                        <Text>No active streak</Text>
                     )}
-                    </Text>
-                    {!targetUserId && (
-                    <Text
-                        fontFamily="Inter"
-                        fontWeight="regular"
-                        fontSize="14px"
-                        color="skyblue"
-                        opacity="0.75"
-                        onClick={() => {
-                            window.location.pathname = "/success";
-                        }}
-                    >
-                    Play with Card
-                    </Text>
-                    )}
+                    {/* {!targetUserId && (
+                        <Text
+                            fontFamily="Inter"
+                            fontWeight="regular"
+                            fontSize="14px"
+                            color="skyblue"
+                            opacity="0.75"
+                            onClick={() => {
+                                window.location.pathname = "/success";
+                            }}
+                        >
+                        Play with Card
+                        </Text>
+                    )} */}
                 </Stack>
             </HStack>
             <Stack gap="1px" opacity={playbackState ? "1" : "0"} height={playbackState ? "auto" : "0"} overflow="hidden" transition=".5s">
