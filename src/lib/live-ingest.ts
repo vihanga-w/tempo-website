@@ -247,6 +247,14 @@ export class DataStreamer extends EventEmitter {
                                 }
                             };
 
+                            if (parsed.state && parsed.state.imageUrl.includes("https://i.scdn.co/image/")) {
+                                parsed.state.imageUrl = parsed.state.imageUrl.replace("https://i.scdn.co/image/", "https://imgcdn.tempo-music.co/scdn/");
+                            }
+
+                            if (parsed.state && parsed.state.pfpUrl.includes("https://i.scdn.co/image/")) {
+                                parsed.state.pfpUrl = parsed.state.pfpUrl.replace("https://i.scdn.co/image/", "https://imgcdn.tempo-music.co/scdn/");
+                            }
+
                             const intervalId = (parsed.state?.userId ?? "");
 
                             if (userIntervals[intervalId])

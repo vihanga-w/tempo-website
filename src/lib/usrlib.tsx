@@ -393,13 +393,23 @@ export default class User extends EventEmitter {
 
             if (req.status == 429)
                 window.location.reload();
-            
+
             const res = (await req.json()) as {
                 error: boolean;
                 message?: string;
                 data: FriendListenershipItem[];
                 isFinalPage: boolean;
             };
+
+            for (let i = 0; i < res.data.length; i++) {
+                const d = res.data[i];
+
+                if (d.item.track.album.artUrl.startsWith("https://i.scdn.co/image/"))
+                    res.data[i].item.track.album.artUrl = res.data[i].item.track.album.artUrl.replace("https://i.scdn.co/image/", "https://imgcdn.tempo-music.co/scdn/");
+
+                if (d.pfpUrl.startsWith("https://i.scdn.co/image/"))
+                    res.data[i].pfpUrl = res.data[i].pfpUrl.replace("https://i.scdn.co/image/", "https://imgcdn.tempo-music.co/scdn/");
+            }
 
             if (res.error) {
                 console.warn("Failed to load friends listenership data, res:", res);
