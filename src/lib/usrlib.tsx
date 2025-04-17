@@ -186,13 +186,15 @@ export default class User extends EventEmitter {
         const res = await req.json() as {
             error: boolean;
             message?: string;
-            data: ClientUserAccount;
+            data: {
+                me: ClientUserAccount
+            };
         };
 
-        if (res.error || !res.data)
+        if (res.error || !res.data.me)
             throw new Error("Failed to fetch top songs for user: " + userId + ", error: " + (res.message ?? "unknown error (check network logs)"));
 
-        return res.data;
+        return res.data.me;
     }
 
     public async getFriends(filter?: ("friends" | "incoming" | "request" | "blocked")[]) {
@@ -423,18 +425,25 @@ export default class User extends EventEmitter {
             if (this.id !== "") {
                 const friends = await this.getFriends(["friends"]);
 
-                friends.forEach(async f => {
+                const frtemp: typeof this.friends = [];
+
+                for (let i = 0; i < friends.length; i++) {
+                    const f = friends[i];
+                    
                     const user = await this.getRemoteUser(f.u1Id == this.id ? f.u2Id : f.u1Id);
 
-                    if (!this.friends.find(v => v.user.id == user.id)) {
-                        this.friends.push({
-                            user,
+                    const uniqueUserIds = new Set();
+                    
+                    if (!uniqueUserIds.has(user.id)) {
+                        frtemp.push({
+                            user: user,
                             friendship: f,
                         });
+                        uniqueUserIds.add(user.id);
                     }
-                });
+                }
 
-                // alert(friends.map(v => v.id).join(", "))
+                this.friends = frtemp;
 
                 this.emit("friends-updated", this.friends);
             }

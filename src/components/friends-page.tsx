@@ -39,6 +39,7 @@ export default function FriendsPage({
     }, [user.friends]);
 
     useEffect(() => {
+        // console.log(friends)
         if (friends.length > 0) {
             setTimeout(() => {
                 setIsLoading(false);
@@ -60,22 +61,23 @@ export default function FriendsPage({
             size="lg"
         />
         {friends.length > 0 ? (
-            friends.map((friend, i) => (
+            friends.map((friend, i) => {
+                return (
                 <UserLookupResult
                     userId={friend.user.id}
                     username={friend.user.displayName}
-                    pfpUrl={friend.user.images.length > 0 ? friend.user.images[0].url : undefined}
+                    pfpUrl={friend.user.images?.length > 0 ? friend.user.images[0].url : undefined}
                     firstItem={i === 0}
                     mutualFriends={[]}
                     friendState={friend.friendship.state}
                     friendshipId={friend.friendship.id}
                     user={user}
-                    streamer={streamer}
+                    // streamer={streamer}
+                    key={i}
                     
                     friendsView
-                    // isListening={playingItem?.data.state !== undefined}
                 />
-            ))
+            )})
         ) : (<Box display={isLoading ? "none" : "block"}>
             <Image
                 src={`/add-new-case-indication-arrow.svg`}
