@@ -34,7 +34,7 @@ export function UserLookupResult({
     friendshipId?: string;
     friendsView?: boolean;
     user: User;
-    streamer: DataStreamer | null;
+    streamer?: DataStreamer | null;
 }>) {
     const [pfpLoadFailed, setPfpLoadFailed] = useState<boolean>(false);
     const [processing, setProcessing] = useState<boolean>(false);
