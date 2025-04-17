@@ -449,6 +449,8 @@ export default function ProfilePage({
                     </Text>
                     {(playbackState?.data.state?.playSessionStart && new Date().getTime() - playbackState.data.state.playSessionStart <= 60e3) ? (
                         <Text>{`🔥 ${formatTimeToMinAndHour(new Date().getTime() - playbackState?.data.state.playSessionStart, true)}`}</Text>
+                    ) : playbackState ? (
+                        <Text>Started listening recently</Text>
                     ) : (
                         <Text>No active streak</Text>
                     )}
