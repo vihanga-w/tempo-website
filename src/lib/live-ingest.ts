@@ -153,7 +153,7 @@ export class DataStreamer extends EventEmitter {
         const connect = async () => {
             try {
                 // Setup connection to server
-                let sessions = await this.fetchPublicStreams();
+                let sessions = await this.fetchFriendsStreams();
 
                 if (this.userFilters?.some(v => !sessions.includes(v)))
                     this.emit("not-listening", this.userFilters.filter(v => !sessions.includes(v.replace("!", ""))));
@@ -176,7 +176,7 @@ export class DataStreamer extends EventEmitter {
                     if (sessionReadyCb || !this.sock || !this.sock.OPEN)
                         return;
 
-                    const newSessions = await this.fetchPublicStreams();
+                    const newSessions = await this.fetchFriendsStreams();
                     const currentListeners = await this.getListeners();
 
                     const expiredListeners = currentListeners.filter(v => !newSessions.includes(v));
@@ -369,7 +369,7 @@ export class DataStreamer extends EventEmitter {
         return headers;
     }
 
-    private async fetchPublicStreams() {
+    private async fetchFriendsStreams() {
         const req = await fetch(API_URL + "/spotify/friends/sessions", {
             headers: {
                 ...(this.getAuthHeaders())

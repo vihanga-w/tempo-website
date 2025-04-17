@@ -156,6 +156,10 @@ export default class User extends EventEmitter {
             },
             credentials: "include",
         });
+        
+        if (req.status == 429)
+            window.location.reload();
+
         const res = await req.json() as {
             error: boolean;
             message?: string;
@@ -184,6 +188,10 @@ export default class User extends EventEmitter {
             },
             credentials: "include",
         });
+
+        if (req.status == 429)
+            window.location.reload();
+
         const res = await req.json() as {
             error: boolean;
             message?: string;
@@ -205,6 +213,10 @@ export default class User extends EventEmitter {
             },
             credentials: "include",
         });
+
+        if (req.status == 429)
+            window.location.reload();
+
         const res = await req.json() as {
             error: boolean;
             message?: string;
@@ -238,6 +250,9 @@ export default class User extends EventEmitter {
             credentials: "include",
         });
 
+        if (req.status == 429)
+            window.location.reload();
+
         if (req.status === 409)
             throw new Error("Failed to send friend request, user already a friend");
 
@@ -269,6 +284,10 @@ export default class User extends EventEmitter {
             },
             credentials: "include",
         });
+
+        if (req.status == 429)
+            window.location.reload();
+
         const res = await req.json() as {
             error: boolean;
             message?: string;
@@ -293,6 +312,10 @@ export default class User extends EventEmitter {
             }),
             credentials: "include",
         });
+
+        if (req.status == 429)
+            window.location.reload();
+
         const res = await req.json() as {
             error: boolean;
             data: {
@@ -316,6 +339,10 @@ export default class User extends EventEmitter {
                     ...(this.getAuthHeaders())
                 }
             });
+
+            if (req.status == 429)
+                window.location.reload();
+
             const res = await req.json() as {
                 active: boolean;
                 message: string;
@@ -363,6 +390,10 @@ export default class User extends EventEmitter {
                 },
                 credentials: "include"
             });
+
+            if (req.status == 429)
+                window.location.reload();
+            
             const res = (await req.json()) as {
                 error: boolean;
                 message?: string;
@@ -410,6 +441,10 @@ export default class User extends EventEmitter {
                 },
                 credentials: "include"
             });
+
+            if (req.status == 429)
+                window.location.reload();
+
             const res = await req.json() as {
                 error: boolean;
                 data?: ClientUserAccount;
@@ -471,6 +506,11 @@ export default class User extends EventEmitter {
             },
             credentials: "include",
         });
+            
+        if (req.status == 429)
+            window.location.reload();
+
+        
         const res = (await req.json()) as {
             error: boolean;
             message?: string;
@@ -500,6 +540,9 @@ export default class User extends EventEmitter {
             },
             credentials: "include",
         });
+
+        if (req.status == 429)
+            window.location.reload();
         
         // This is not a definite indicator of success as the server does not return a success validated state
         return (req.status == 200);
