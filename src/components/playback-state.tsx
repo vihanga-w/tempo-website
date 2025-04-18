@@ -164,10 +164,18 @@ export function PlaybackState({
                     });
 
                     makeULFV = true;
+                // (playbackState?.data.state?.playSessionStart && playbackState?.data.state?.playSessionStart !== -1 && new Date().getTime() - playbackState.data.state.playSessionStart >= (60e3 * 5))
+                } else if (data.data.state.playSessionStart !== -1 && new Date().getTime() - data.data.state.playSessionStart >= (60e3 * 5)) {
+                    setUserListenershipFact({
+                        sid: data.data.state?.songId ?? "",
+                        text: `🔥 ${formatTimeToMinAndHour(new Date().getTime() - data.data.state.playSessionStart, true)}`,
+                    });
+
+                    makeULFV = true;
                 } else if (data.data.state.playSessionStart !== -1) {
                     setUserListenershipFact({
                         sid: data.data.state?.songId ?? "",
-                        text: (new Date().getTime() - data.data.state.playSessionStart >= (60e3 * 5) ? `🔥 ${formatTimeToMinAndHour(new Date().getTime() - data.data.state.playSessionStart, true)}` : "Started listening recently"),
+                        text: "Started listening recently",
                     });
 
                     makeULFV = true;
