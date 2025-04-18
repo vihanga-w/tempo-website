@@ -41,8 +41,22 @@ export default function FriendsPage({
     }, [user.friends]);
 
     useEffect(() => {
-        // console.log(friends)
-        if (friends.length > 0) {
+        // Sort friends whenever the list changes
+        const sortedFriends = [...friends].sort((a, b) =>
+            a.user.displayName.toLowerCase() < b.user.displayName.toLowerCase() ? -1 : 1
+        ).sort((a, b) => {
+            const aIsPlaying = streamer?.getPrevState(a.user.id);
+            const bIsPlaying = streamer?.getPrevState(b.user.id);
+
+            if (aIsPlaying && !bIsPlaying)
+                return -1;
+            else
+                return 1;
+        });
+
+        setFriends(sortedFriends);
+
+        if (sortedFriends.length > 0) {
             setTimeout(() => {
                 setIsLoading(false);
             }, 1e3);
