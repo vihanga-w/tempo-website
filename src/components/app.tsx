@@ -91,7 +91,7 @@ export default function UIApp({
     const [weeklyRecap, setWeeklyRecap] = useState<Recap | null>(null);
 
     // Lazy loading: how many history items to show at first
-    const ITEMS_PER_BATCH = 100;
+    const ITEMS_PER_BATCH = 25;
     const [visibleHistoryCount, setVisibleHistoryCount] = useState<number>(ITEMS_PER_BATCH);
     const historyEndRef = useRef<HTMLDivElement | null>(null);
 
