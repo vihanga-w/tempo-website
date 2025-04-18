@@ -63,7 +63,15 @@ export default function FriendsPage({
             size="lg"
         />
         {friends.length > 0 ? (
-            friends.map((friend, i) => (<UserLookupResult
+            friends.sort((a, b) => a.user.displayName.toLowerCase() < b.user.displayName.toLowerCase() ? -1 : 1).sort((a, b) => {
+                const aIsPlaying = streamer?.getPrevState(a.user.id);
+                const bIsPlaying = streamer?.getPrevState(b.user.id);
+
+                if (aIsPlaying && !bIsPlaying)
+                    return -1;
+                else
+                    return 1;
+            }).map((friend, i) => (<UserLookupResult
                     userId={friend.user.id}
                     username={friend.user.displayName}
                     pfpUrl={friend.user.images?.length > 0 ? friend.user.images[0].url : undefined}
