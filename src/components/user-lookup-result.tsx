@@ -149,7 +149,7 @@ export function UserLookupResult({
             <Box
                 minWidth={friendsView ? "52px" : "36px"}
                 minHeight={friendsView ? "52px" : "36px"}
-                borderRadius="10px"
+                borderRadius="12px"
                 border={livePlaybackState ? "2px solid #A480FF" : "0px"}
                 transition=".3s"
                 onClick={() => {
@@ -164,7 +164,7 @@ export function UserLookupResult({
                         border={livePlaybackState ? "2px solid #0D0D0E" : "0px"}
                         transition=".3s"
                         objectFit="cover"
-                        borderRadius="8px"
+                        borderRadius="10px"
                         src={getSizedImageUrl(pfpUrl, !friendsView ? 36 : 56, !friendsView ? 36 : 56)}
                         draggable={false}
                         onError={() => {
@@ -175,7 +175,7 @@ export function UserLookupResult({
                     <Avatar
                         // Append user id so that different users potentially with same name has different bg colours
                         name={username + userId}
-                        borderRadius="8px"
+                        borderRadius="10px"
                         width={friendsView ? (livePlaybackState ? "48px" : "52px") : "36px"}
                         height={friendsView ? (livePlaybackState ? "48px" : "52px") : "36px"}
                         border={livePlaybackState ? "2px solid #0D0D0E" : ""}
