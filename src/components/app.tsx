@@ -236,6 +236,8 @@ export default function UIApp({
         setStreamer(newStreamer);
 
         newStreamer.on("construct", () => {
+            setShowLivePlaybackStates(false);
+            
             newStreamer.fetchFriendsStreams()
             .then(s => {
                 if (s.includes(user.id))
