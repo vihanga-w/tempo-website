@@ -151,7 +151,7 @@ export function UserLookupResult({
                 minHeight={friendsView ? "52px" : "36px"}
                 borderRadius="12px"
                 border={livePlaybackState ? "2px solid #A480FF" : "0px"}
-                transition=".3s"
+                transition=".15s"
                 onClick={() => {
                     if (openPubProfile)
                         openPubProfile(userId);
@@ -162,7 +162,7 @@ export function UserLookupResult({
                         width={friendsView ? (livePlaybackState ? "48px" : "52px") : "36px"}
                         height={friendsView ? (livePlaybackState ? "48px" : "52px") : "36px"}
                         border={livePlaybackState ? "2px solid #0D0D0E" : "0px"}
-                        transition=".3s"
+                        transition=".15s"
                         objectFit="cover"
                         borderRadius="10px"
                         src={getSizedImageUrl(pfpUrl, !friendsView ? 36 : 56, !friendsView ? 36 : 56)}
@@ -179,7 +179,7 @@ export function UserLookupResult({
                         width={friendsView ? (livePlaybackState ? "48px" : "52px") : "36px"}
                         height={friendsView ? (livePlaybackState ? "48px" : "52px") : "36px"}
                         border={livePlaybackState ? "2px solid #0D0D0E" : ""}
-                        transition=".3s"
+                        transition=".15s"
                     />
                 )}
             </Box>
