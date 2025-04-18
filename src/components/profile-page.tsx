@@ -68,6 +68,11 @@ export default function ProfilePage({
     const [topSongOverflow, setTopSongOverflow] = useState<number>(-1);
     const [topSongsLoading, setTopSongsLoading] = useState<boolean>(true);
     const [pageLoaded, setPageLoaded] = useState<boolean>(false);
+    const [pastWeekStats, setPastWeekStats] = useState<{
+        totalListeningDuration: number;
+        uniqueSongsPlayedCount: number;
+        longestStreak: number;
+    } | undefined>();
 
     const scrollItemRef = useRef<HTMLDivElement>(null);
 
@@ -79,6 +84,14 @@ export default function ProfilePage({
     }
 
     useEffect(() => {
+        user.getRemoteUserPastWeekStats(targetUserId ?? user.id)
+        .then(d => {
+            setPastWeekStats(d);
+        })
+        .catch(e => {
+            console.error("Failed to fetch past week stats, error:", e);
+        });
+
         if (!targetUserId)
             return;
 
@@ -485,7 +498,7 @@ export default function ProfilePage({
                     hideProfile
                 />
             </Stack>
-            <Stack gap="1px" opacity={true ? "1" : "0"} height={true ? "auto" : "0"} overflow="hidden" transition=".5s">
+            <Stack gap="1px" opacity={pastWeekStats ? "1" : "0"} height={pastWeekStats ? "auto" : "0"} overflow="hidden" transition=".5s">
                 <Text
                     fontFamily="Inter"
                     fontWeight="bold"
@@ -502,13 +515,12 @@ export default function ProfilePage({
                     gap="0"
                     pos="relative"
                 >
-                    {/* Stat Box 1 */}
                     <Box
                         flex="1"
                         textAlign="center"
                         padding="16px"
                     >
-                        <Text fontFamily="Libre Franklin" fontSize="19px" fontWeight="bold" color="text.dark" isTruncated>0</Text>
+                        <Text fontFamily="Libre Franklin" fontSize="19px" fontWeight="bold" color="text.dark" isTruncated>{Math.round((pastWeekStats?.totalListeningDuration ?? 0) / 60e3)}</Text>
                         <Text fontSize="12px" color="text.dark" opacity="0.8" isTruncated>min. played</Text>
                     </Box>
                     <Box height="100%" width="1px" background="rgba(255, 255, 255, 0.2)" />
@@ -518,7 +530,7 @@ export default function ProfilePage({
                         textAlign="center"
                         padding="16px"
                     >
-                        <Text fontFamily="Libre Franklin" fontSize="19px" fontWeight="bold" color="text.dark" isTruncated>0</Text>
+                        <Text fontFamily="Libre Franklin" fontSize="19px" fontWeight="bold" color="text.dark" isTruncated>{pastWeekStats?.uniqueSongsPlayedCount}</Text>
                         <Text fontSize="12px" color="text.dark" opacity="0.8" isTruncated>songs played</Text>
                     </Box>
                     <Box height="100%" width="1px" background="rgba(255, 255, 255, 0.2)" />
@@ -528,7 +540,7 @@ export default function ProfilePage({
                         textAlign="center"
                         padding="16px"
                     >
-                        <Text fontFamily="Libre Franklin" fontSize="19px" fontWeight="bold" color="text.dark" isTruncated>0m</Text>
+                        <Text fontFamily="Libre Franklin" fontSize="19px" fontWeight="bold" color="text.dark" isTruncated>{formatTimeToMinAndHour(pastWeekStats?.longestStreak ?? 0, false)}</Text>
                         <Text fontSize="12px" color="text.dark" opacity="0.8" isTruncated>longest streak</Text>
                     </Box>
                 </HStack>

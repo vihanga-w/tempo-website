@@ -26,13 +26,13 @@ export function formatTimeToMinAndHour(ms: number, fullText?: boolean) {
     const mins = Math.floor(minutes % 60);
 
     if (minutes < 60)
-        return `${minutes} minute${minutes !== 1 ? "s" : ""}`;
+        return `${minutes}${fullText ? " minute" : "m"}${minutes !== 1 && fullText ? "s" : ""}`;
     else if (minutes == 60)
-        return "1 hour";
+        return (!fullText ? "1hr" : "1 hour");
     else if (mins == 0)
         return `${hours}${fullText ? " hour" : "hr"}${hours !== 1 ? "s" : ""}`;
     else
-        return `${hours}${fullText ? " hour" : "hr"}${hours !== 1 ? "s" : ""} ${mins}${fullText ? " minute" : "min"}${mins !== 1 ? "s" : ""}`;
+        return `${hours}${fullText ? " hour" : "hr"}${hours !== 1 ? "s" : ""} ${mins}${fullText ? " minute" : "m"}${mins !== 1 && fullText ? "s" : ""}`;
 }
 
 export function getSpotifyDeeplink(trackId: string) {

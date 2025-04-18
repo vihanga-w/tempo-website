@@ -153,6 +153,34 @@ export default class User extends EventEmitter {
         return headers;
     }
 
+    public async getRemoteUserPastWeekStats(userId: string) {
+        const req = await fetch(API_URL + `/profile/${userId}/pastWeekStats`, {
+            method: "GET",
+            headers: {
+                ...(this.getAuthHeaders())
+            },
+            credentials: "include",
+        });
+        
+        if (req.status == 429)
+            window.location.reload();
+
+        const res = await req.json() as {
+            error: boolean;
+            message?: string;
+            data: {
+                totalListeningDuration: number;     // in ms
+                uniqueSongsPlayedCount: number;
+                longestStreak: number;              // in ms
+            };
+        }
+
+        if (res.error || !res.data)
+            throw new Error("Failed to fetch past week stats for user: " + userId + ", error: " + (res.message ?? "unknown error (check network logs)"));
+
+        return res.data;
+    }
+
     public async getRemoteUserTopSongs(userId: string, period: "day" | "week" | "month" | "year" | "all") {
         const req = await fetch(API_URL + `/profile/${userId}/topSongs/${period}`, {
             method: "GET",
