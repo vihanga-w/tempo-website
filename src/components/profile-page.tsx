@@ -409,13 +409,14 @@ export default function ProfilePage({
         />
         <Stack gap="26px" width="100%" pos="relative" zIndex="1" marginTop="-15px">
             <HStack gap="14px" marginTop="24px">
-                <Box width="88px" height="88px" border={playbackState ? "3px solid #A480FF" : "0px"} borderRadius="17px">
+                <Box width="88px" height="88px" border={playbackState ? "3px solid #A480FF" : "0px"} borderRadius="17px" transition=".3s">
                     {((profileData?.images.length ?? 0) > 0 && !pfpLoadFailed) ? (
                         <Image
                             width={playbackState ? "82px" : "88px"}
                             height={playbackState ? "82px" : "88px"}
                             objectFit="cover"
                             borderRadius="14px"
+                            transition=".3s"
                             border={playbackState ? "2px solid transparent" : "0px"}
                             // We are using the first image for now, need to write a method to use most optimal image
                             src={getSizedImageUrl(profileData?.images[0].url ?? "", 82, 82)}
@@ -429,8 +430,10 @@ export default function ProfilePage({
                             // Append user id so that different users potentially with same name has different bg colours
                             name={profileData?.displayName ?? "" + profileData?.id ?? ""}
                             borderRadius="14px"
-                            width="82px"
-                            height="82px"
+                            transition=".3s"
+                            border={playbackState ? "2px solid transparent" : "0px"}
+                            width={playbackState ? "82px" : "88px"}
+                            height={playbackState ? "82px" : "88px"}
                         />
                     )}
                 </Box>
