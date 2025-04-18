@@ -189,7 +189,7 @@ export function PlaybackState({
 
     return (<>
         {data?.action.type !== "STOPPED" && (<>
-            <Stack gap="8px" height="135px">
+            <Stack gap="8px" maxHeight="135px" height="135px">
                 {!hideProfile && (
                     <HStack justifyContent="space-between">
                         <HStack onClick={profileClickCb}>
@@ -287,7 +287,7 @@ export function PlaybackState({
                         )}
                     </Box>
                     {!isPlaceholder && data?.state ? (<>
-                        <Stack height="100%" width="100%" gap="0" fontFamily="arial, helvetica" lineHeight="18px">
+                        <Stack height="72px" width="100%" gap="0" fontFamily="arial, helvetica" lineHeight="18px">
                             <HStack pos="relative" gap="5px" justifyContent="space-between">
                                 <HStack width="100%" gap="5px">
                                     {/* TODO: Make this text scroll with a fixed width */}
@@ -320,7 +320,7 @@ export function PlaybackState({
                             </HStack>
                         </Stack>
                     </>) : (<>
-                        <Stack height="100%" width="100%" gap="4px" fontFamily="arial, helvetica" lineHeight="18px">
+                        <Stack width="100%" height="72px" gap="4px">
                             <Skeleton height="14px" width="175px" borderRadius="2px" />
                             <Skeleton height="14px" width="80px" borderRadius="2px" />
                             <HStack justifyContent="space-between" marginTop="16px">

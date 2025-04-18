@@ -2,12 +2,14 @@
 
 import { E404 } from "@/components/404";
 import { EventEmitter } from "events";
-import React from "react";
-import { UIApp } from "@/components/app";
+import React, { lazy, Suspense } from "react";
 import User from "./usrlib";
-import LegalPage from "@/components/legal";
+import { SuspenseSpinner } from "@/components/app";
 
 const LSNavigationKey = "tempo-navigation";
+
+const LegalPage = lazy(() => import("@/components/legal"));
+const UIApp = lazy(() => import("@/components/app"));
 
 export default class PageRouter extends EventEmitter {
     // private uplink: Uplink;
@@ -49,24 +51,25 @@ export default class PageRouter extends EventEmitter {
     }
 
     private navigate(pageId?: string) {
-        const page = (pageId ?? window.localStorage.getItem(LSNavigationKey));
+        const page = (pageId ?? "load");
 
         switch (page) {
-            // case "signup": {
-            //     return this.emit("page-navigate", (<Signup uplink={this.uplink} prouter={this} flowCompleteCb={() => {
-            //         this.user.init();
-            //     }} />));
-            // }
+            case "load": {
+                return this.emit("page-navigate", (<SuspenseSpinner />));
+            }
             case "legal": {
-                return this.emit("page-navigate", (<LegalPage
-                    prouter={this}
-                />))
+                return this.emit("page-navigate", (
+                    <Suspense fallback={<SuspenseSpinner />}>
+                        <LegalPage prouter={this} />
+                    </Suspense>
+                ));
             }
             case "app": {
-                return this.emit("page-navigate", (<UIApp
-                    prouter={this}
-                    user={this.user}
-                />))
+                return this.emit("page-navigate", (
+                    <Suspense fallback={<SuspenseSpinner />}>
+                        <UIApp prouter={this} user={this.user} />
+                    </Suspense>
+                ));
             }
             default: {
                 return this.emit("page-navigate", (<E404 />));

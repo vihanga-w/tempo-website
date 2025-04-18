@@ -31,7 +31,7 @@ const ReactionDrawer = lazy(() => import("./reaction-drawer"));
 
 const updateMutex = new Mutex();
 
-const SuspenseSpinner = () => {
+export const SuspenseSpinner = () => {
     return(<Box
         position="absolute"
         top="0"
@@ -50,7 +50,7 @@ const generateEndOfHistoryMessage = () => {
     return (Math.random() <= 0.1 ? "~ End of historussy ~" : "You've seen it all! 😉");
 };
 
-export function UIApp({
+export default function UIApp({
     prouter,
     user,
 }: Readonly<{
@@ -64,8 +64,9 @@ export function UIApp({
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [isFading, setIsFading] = useState<boolean>(false);
     const [activityPageLoading, setActivityPageLoading] = useState<boolean>(true);
+    const [showLivePlaybackStates, setShowLivePlaybackStates] = useState<boolean>(false);
     const [livePlaybackStates, setLivePlaybackStates] = useState<UpdateEvent[]>([]);
-    const [livePlaybackStatesPlaceholderCount, setLivePlaybackStatesPlaceholderCount] = useState<number>(0);
+    const [livePlaybackStatesPlaceholderCount, setLivePlaybackStatesPlaceholderCount] = useState<number>(user.friendsSessionsCount);
     const [streamer, setStreamer] = useState<DataStreamer | null>(null);
     const [streamerReset, setStreamerReset] = useState<boolean>(false);
     const [hideTopGradient, setHideTopGradient] = useState<boolean>(false);
@@ -356,8 +357,12 @@ export function UIApp({
     }, [streamer, friendsListenershipPage]);
 
     useEffect(() => {
-        if (livePlaybackStates.filter(v => v.userId !== user.id).length == livePlaybackStatesPlaceholderCount)
-            setLivePlaybackStatesPlaceholderCount(0);
+        console.log("uifsc", livePlaybackStatesPlaceholderCount)
+        if (livePlaybackStates.filter(v => v.userId !== user.id).length == livePlaybackStatesPlaceholderCount) {
+            setTimeout(() => {
+                setShowLivePlaybackStates(true);
+            }, 120);
+        }
     }, [livePlaybackStates, livePlaybackStatesPlaceholderCount])
 
     useEffect(() => {
@@ -706,7 +711,7 @@ export function UIApp({
                                 </Center>
                             ) : (
                                 <Stack gap="28px" overflowY="auto" paddingBottom="18px" width="100%">
-                                    <Stack gap="18px" overflowY="auto" width="100%" display={livePlaybackStates.filter(v => v.userId !== user.id).length > 0 || livePlaybackStatesPlaceholderCount > 0 ? "flex" : "none"}>
+                                    <Stack gap="18px" overflowY="auto" width="100%" display={livePlaybackStatesPlaceholderCount > 0 || livePlaybackStates.filter(v => v.userId !== user.id).length > 0 ? "flex" : "none"}>
                                         <Text
                                             fontFamily="arial, helvetica"
                                             fontWeight="bold"
@@ -714,7 +719,7 @@ export function UIApp({
                                         >
                                             Latest
                                         </Text>
-                                        {Array.from({ length: livePlaybackStatesPlaceholderCount }).map((_, i) => {
+                                        {!showLivePlaybackStates ? (Array.from({ length: livePlaybackStatesPlaceholderCount }).map((_, i) => {
                                             return (
                                                 <>
                                                     {i !== 0 && (
@@ -734,8 +739,8 @@ export function UIApp({
                                                     </Box>
                                                 </>
                                             );
-                                        })}
-                                        {livePlaybackStates.filter(v => v.userId !== user.object?.id).map((v, i) => {
+                                        })) : (<></>)}
+                                        {showLivePlaybackStates ? (livePlaybackStates.filter(v => v.userId !== user.object?.id).map((v, i) => {
                                             const data = v.data;
                                             
                                             return (
@@ -769,7 +774,7 @@ export function UIApp({
                                                     </Box>
                                                 </>
                                             );
-                                        })}
+                                        })): (<></>)}
                                     </Stack>
                                     <Stack gap="12px" overflowY="auto" width="100%" display={friendsListenershipData.length > 0 ? "flex" : "none"}>
                                         <Text

@@ -2,6 +2,7 @@ import EventEmitter from "events";
 import { API_URL } from "./const";
 import { Recap } from "@/components/recap-drawer";
 import { FaF } from "react-icons/fa6";
+import { DataStreamer } from "./live-ingest";
 
 // export type PublicUserAccount = {
 //     id: string;
@@ -112,6 +113,7 @@ export default class User extends EventEmitter {
         user: ClientUserAccount;
         friendship: UserFriendship;
     }[] = [];
+    public friendsSessionsCount: number;
 
     constructor() {
         super();
@@ -120,6 +122,8 @@ export default class User extends EventEmitter {
 
         if (storedToken)
             this.storedToken = storedToken;
+
+        this.friendsSessionsCount = 0;
     }
 
     async init(storedToken?: string): Promise<void> {
@@ -367,6 +371,12 @@ export default class User extends EventEmitter {
         // If we are logged in, load the user details
         if (loggedIn) {
             const details = await this.getDetails();
+            
+            const friendsSessions = (await new DataStreamer(this.storedToken).fetchFriendsStreams()).filter(v => v !== details?.id);
+
+            this.friendsSessionsCount = friendsSessions.length;
+
+            console.log("fsc", this.friendsSessionsCount)
 
             // Expose the raw user object
             this.object = details;

@@ -527,6 +527,8 @@ export default function Home() {
           .then(showWelcomeMsg);
         });
 
+        console.log(user.friendsSessionsCount)
+
         // TODO: Check if the timestamp stored here is newer than the last t&c or privacy policy update date
         if (window.localStorage.getItem("tempo-legal-agreed") !== null)
           prouter.setPage("app");
