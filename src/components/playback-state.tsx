@@ -189,7 +189,7 @@ export function PlaybackState({
 
     return (<>
         {data?.action.type !== "STOPPED" && (<>
-            <Stack gap="8px" maxHeight={hideProfile ? "80px" : "135px"} height={hideProfile ? "80px" : "135px"}>
+            <Stack gap="8px" maxHeight={hideProfile ? "84px" : "135px"} height={hideProfile ? "84px" : "135px"}>
                 {!hideProfile && (
                     <HStack justifyContent="space-between">
                         <HStack onClick={profileClickCb}>
