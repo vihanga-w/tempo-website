@@ -507,43 +507,71 @@ export default function ProfilePage({
                     transition=".3s"
                 >Past Week</Text>
                 <HStack
-                    width="100%"
-                    minHeight="60px"
-                    padding="12px"
-                    borderRadius="12px"
-                    background={reactiveDesignColour ? reactiveDesignColour.replace("b(", "ba(").replace(")", ",0.25)") : "rgba(255, 255, 255, 0.04)"}
-                    gap="0"
-                    pos="relative"
+    width="100%"
+    minHeight="70px"
+    padding={{ base: "12px", md: "16px" }}
+    borderRadius="20px"
+    background={
+        reactiveDesignColour
+            ? `linear-gradient(135deg, ${reactiveDesignColour.replace("b(", "ba(").replace(")", ",0.25)")}, rgba(255, 255, 255, 0.03))`
+            : "linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02))"
+    }
+    spacing={0}
+    pos="relative"
+    boxShadow="0 4px 12px rgba(0, 0, 0, 0.15)"
+>
+    {[{
+        label: "Minutes Played",
+        value: Math.round((pastWeekStats?.totalListeningDuration ?? 0) / 60e3),
+    }, {
+        label: "Songs Played",
+        value: pastWeekStats?.uniqueSongsPlayedCount,
+    }, {
+        label: "Longest Streak",
+        value: formatTimeToMinAndHour(pastWeekStats?.longestStreak ?? 0, false),
+    }].map((item, index) => (
+        <>
+            <Box
+                flex="1"
+                textAlign="center"
+                px={{ base: "6px", md: "10px" }}
+                py="6px"
+                minWidth="0"
+            >
+                <Text
+                    fontFamily="Libre Franklin"
+                    fontSize={{ base: "22px", sm: "26px", md: "30px" }}
+                    fontWeight="extrabold"
+                    color="text.dark"
+                    letterSpacing="tight"
+                    whiteSpace="normal"
                 >
-                    <Box
-                        flex="1"
-                        textAlign="center"
-                        padding="16px"
-                    >
-                        <Text fontFamily="Libre Franklin" fontSize="19px" fontWeight="bold" color="text.dark" isTruncated>{Math.round((pastWeekStats?.totalListeningDuration ?? 0) / 60e3)}</Text>
-                        <Text fontSize="12px" color="text.dark" opacity="0.8" isTruncated>min. played</Text>
-                    </Box>
-                    <Box height="100%" width="1px" background="rgba(255, 255, 255, 0.2)" />
-                    {/* Stat Box 2 */}
-                    <Box
-                        flex="1"
-                        textAlign="center"
-                        padding="16px"
-                    >
-                        <Text fontFamily="Libre Franklin" fontSize="19px" fontWeight="bold" color="text.dark" isTruncated>{pastWeekStats?.uniqueSongsPlayedCount}</Text>
-                        <Text fontSize="12px" color="text.dark" opacity="0.8" isTruncated>songs played</Text>
-                    </Box>
-                    <Box height="100%" width="1px" background="rgba(255, 255, 255, 0.2)" />
-                    {/* Stat Box 3 */}
-                    <Box
-                        flex="1"
-                        textAlign="center"
-                        padding="16px"
-                    >
-                        <Text fontFamily="Libre Franklin" fontSize="19px" fontWeight="bold" color="text.dark" isTruncated>{formatTimeToMinAndHour(pastWeekStats?.longestStreak ?? 0, false)}</Text>
-                        <Text fontSize="12px" color="text.dark" opacity="0.8" isTruncated>longest streak</Text>
-                    </Box>
-                </HStack>
+                    {item.value}
+                </Text>
+                <Text
+                    fontSize="12px"
+                    color="text.dark"
+                    opacity="0.7"
+                    mt="2px"
+                    whiteSpace="nowrap"
+                >
+                    {item.label}
+                </Text>
+            </Box>
+
+            {index < 2 && (
+                <Box
+                    height="60%"
+                    width="1px"
+                    background="rgba(255, 255, 255, 0.12)"
+                    borderRadius="full"
+                />
+            )}
+        </>
+    ))}
+</HStack>
+
+
             </Stack>
             <Stack
                 transition=".3s"
@@ -583,7 +611,11 @@ export default function ProfilePage({
                     minHeight="356px"
                     padding="12px"
                     borderRadius="12px"
-                    background={reactiveDesignColour ? reactiveDesignColour.replace("b(", "ba(").replace(")", ",0.25)") : "rgba(255, 255, 255, 0.04)"}
+                    background={
+                        reactiveDesignColour
+                            ? `linear-gradient(135deg, ${reactiveDesignColour.replace("b(", "ba(").replace(")", ",0.25)")}, rgba(255, 255, 255, 0.03))`
+                            : "linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02))"
+                    }
                     gap="12px"
                     pos="relative"
                 >
