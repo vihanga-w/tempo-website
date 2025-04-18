@@ -20,7 +20,7 @@ export function Loader() {
             </style>
             <Box background="#0D0D0E">
                 <Center width="100vw" height="100vh">
-                    <Image width="100px" src="/icons/ui/logo-clear.svg" loading="lazy" />
+                    <Image width="100px" height="100px" src="/icons/ui/logo-clear.svg" loading="lazy" />
                 </Center>
                 <Box pos="absolute" bottom="0" left="0" className="loader" />
             </Box>

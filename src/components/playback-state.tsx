@@ -79,7 +79,6 @@ const SkeletonImage = ({
             onLoad={() => {
                 setIsLoaded(true);
             }}
-            loading="lazy"
         />
     </Box>);
 }
