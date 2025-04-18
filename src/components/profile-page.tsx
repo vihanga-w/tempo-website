@@ -485,6 +485,54 @@ export default function ProfilePage({
                     hideProfile
                 />
             </Stack>
+            <Stack gap="1px" opacity={true ? "1" : "0"} height={true ? "auto" : "0"} overflow="hidden" transition=".5s">
+                <Text
+                    fontFamily="Inter"
+                    fontWeight="bold"
+                    fontSize="24px"
+                    color={reactiveDesignComplementaryColour ?? "text.dark"}
+                    transition=".3s"
+                >Past Week</Text>
+                <HStack
+                    width="100%"
+                    minHeight="60px"
+                    padding="12px"
+                    borderRadius="12px"
+                    background={reactiveDesignColour ? reactiveDesignColour.replace("b(", "ba(").replace(")", ",0.25)") : "rgba(255, 255, 255, 0.04)"}
+                    gap="0"
+                    pos="relative"
+                >
+                    {/* Stat Box 1 */}
+                    <Box
+                        flex="1"
+                        textAlign="center"
+                        padding="16px"
+                    >
+                        <Text fontFamily="Libre Franklin" fontSize="19px" fontWeight="bold" color="text.dark" isTruncated>0</Text>
+                        <Text fontSize="12px" color="text.dark" opacity="0.8" isTruncated>min. played</Text>
+                    </Box>
+                    <Box height="100%" width="1px" background="rgba(255, 255, 255, 0.2)" />
+                    {/* Stat Box 2 */}
+                    <Box
+                        flex="1"
+                        textAlign="center"
+                        padding="16px"
+                    >
+                        <Text fontFamily="Libre Franklin" fontSize="19px" fontWeight="bold" color="text.dark" isTruncated>0</Text>
+                        <Text fontSize="12px" color="text.dark" opacity="0.8" isTruncated>songs played</Text>
+                    </Box>
+                    <Box height="100%" width="1px" background="rgba(255, 255, 255, 0.2)" />
+                    {/* Stat Box 3 */}
+                    <Box
+                        flex="1"
+                        textAlign="center"
+                        padding="16px"
+                    >
+                        <Text fontFamily="Libre Franklin" fontSize="19px" fontWeight="bold" color="text.dark" isTruncated>0m</Text>
+                        <Text fontSize="12px" color="text.dark" opacity="0.8" isTruncated>longest streak</Text>
+                    </Box>
+                </HStack>
+            </Stack>
             <Stack
                 transition=".3s"
                 opacity={userTopSongs.length > 0 && userTopSongs.find(v => v.index == 0) ? 1 : 0}

@@ -151,6 +151,7 @@ export class DataStreamer extends EventEmitter {
         const retryInterval = 6e3;
         const maxRetries = 50;
         let attempts = 0;
+        let seshReqInProgress = false;
 
         const connect = async () => {
             try {
@@ -175,11 +176,15 @@ export class DataStreamer extends EventEmitter {
                 this.sock = new WebSocket(API_URL_SOCK + "/stream/sessions" + (this.storedToken ? "/lazy" : ""));
 
                 this.interval = setInterval(async () => {
-                    if (sessionReadyCb || !this.sock || !this.sock.OPEN)
+                    if (sessionReadyCb || !this.sock || !this.sock.OPEN || seshReqInProgress)
                         return;
+
+                    seshReqInProgress = true;
 
                     const newSessions = await this.fetchFriendsStreams();
                     const currentListeners = await this.getListeners();
+
+                    seshReqInProgress = false;
 
                     const expiredListeners = currentListeners.filter(v => !newSessions.includes(v));
                     

@@ -528,6 +528,22 @@ export default function UIApp({
                     transition=".3s"
                 />
 
+                <Box
+                    width="100vw"
+                    height="85px"
+                    pos="fixed"
+                    top="0"
+                    left="0"
+                    opacity={!hideTopGradient ? "0" : "1"}
+                    style={{ WebkitMask: "linear-gradient(180deg,rgb(0,0,0) 25%, rgba(0,0,0,0) 100%)" }}
+                    background="linear-gradient(180deg,rgba(13, 13, 14, 0.2) 0%, rgba(13,13,14,0) 100%)"
+                    backdropFilter="blur(12px)"
+                    zIndex="999"
+                    pointerEvents="none"
+                    marginTop="env(safe-area-inset-top)"
+                    transition=".3s"
+                />
+
                 <HStack
                     width="100%"
                     height="100%"
@@ -820,7 +836,7 @@ export default function UIApp({
                                             </>
                                         )}
                                     </Stack>
-                                    {friendsListenershipData.length == 0 && livePlaybackStates.length == 0 && (
+                                    {friendsListenershipData.length == 0 && livePlaybackStates.length == 0 && livePlaybackStatesPlaceholderCount == 0 && (
                                         <Text
                                             position="absolute"
                                             top="0"
