@@ -65,6 +65,7 @@ export function UIApp({
     const [isFading, setIsFading] = useState<boolean>(false);
     const [activityPageLoading, setActivityPageLoading] = useState<boolean>(true);
     const [livePlaybackStates, setLivePlaybackStates] = useState<UpdateEvent[]>([]);
+    const [livePlaybackStatesPlaceholderCount, setLivePlaybackStatesPlaceholderCount] = useState<number>(0);
     const [streamer, setStreamer] = useState<DataStreamer | null>(null);
     const [streamerReset, setStreamerReset] = useState<boolean>(false);
     const [hideTopGradient, setHideTopGradient] = useState<boolean>(false);
@@ -233,6 +234,16 @@ export function UIApp({
 
         setStreamer(newStreamer);
 
+        newStreamer.on("construct", () => {
+            newStreamer.fetchFriendsStreams()
+            .then(s => {
+                if (s.includes(user.id))
+                    s.splice(s.indexOf(user.id), 1);
+                
+                setLivePlaybackStatesPlaceholderCount(s.length);
+            });
+        });
+
         newStreamer.on("open", () => {
             setActivityPageLoading(false);
         });
@@ -345,12 +356,17 @@ export function UIApp({
     }, [streamer, friendsListenershipPage]);
 
     useEffect(() => {
+        if (livePlaybackStates.filter(v => v.userId !== user.id).length == livePlaybackStatesPlaceholderCount)
+            setLivePlaybackStatesPlaceholderCount(0);
+    }, [livePlaybackStates, livePlaybackStatesPlaceholderCount])
+
+    useEffect(() => {
         if (streamerReset && streamer && livePlaybackStates.length == 0) {
             streamer.cleanup();
             streamer.init();
             setStreamerReset(false);
         }
-    }, [livePlaybackStates, streamer, streamerReset]);
+    }, [livePlaybackStates, streamer, streamerReset, livePlaybackStatesPlaceholderCount]);
 
     const pages: { name: string; menuName?: string; id: string; indexed: boolean }[] = [
         {
@@ -690,7 +706,7 @@ export function UIApp({
                                 </Center>
                             ) : (
                                 <Stack gap="28px" overflowY="auto" paddingBottom="18px" width="100%">
-                                    <Stack gap="18px" overflowY="auto" width="100%" display={livePlaybackStates.filter(v => v.userId !== user.id).length > 0 ? "flex" : "none"}>
+                                    <Stack gap="18px" overflowY="auto" width="100%" display={livePlaybackStates.filter(v => v.userId !== user.id).length > 0 || livePlaybackStatesPlaceholderCount > 0 ? "flex" : "none"}>
                                         <Text
                                             fontFamily="arial, helvetica"
                                             fontWeight="bold"
@@ -698,8 +714,30 @@ export function UIApp({
                                         >
                                             Latest
                                         </Text>
+                                        {Array.from({ length: livePlaybackStatesPlaceholderCount }).map((_, i) => {
+                                            return (
+                                                <>
+                                                    {i !== 0 && (
+                                                        <Box
+                                                            width="100%"
+                                                            height="1px"
+                                                            background="rgba(255, 255, 255, 0.2)"
+                                                        />
+                                                    )}
+                                                    <Box>
+                                                        <PlaybackState
+                                                            key={"lpspc-" + i}
+                                                            stream={streamer}
+                                                            userId=""
+                                                            isPlaceholder
+                                                        />
+                                                    </Box>
+                                                </>
+                                            );
+                                        })}
                                         {livePlaybackStates.filter(v => v.userId !== user.object?.id).map((v, i) => {
                                             const data = v.data;
+                                            
                                             return (
                                                 <>
                                                     {i !== 0 && (

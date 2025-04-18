@@ -144,6 +144,8 @@ export class DataStreamer extends EventEmitter {
     }
 
     async init(prevUserIds?: string[]) {
+        this.emit("construct");
+
         this.cleanup();
 
         const retryInterval = 6e3;
@@ -377,7 +379,7 @@ export class DataStreamer extends EventEmitter {
         return headers;
     }
 
-    private async fetchFriendsStreams() {
+    public async fetchFriendsStreams() {
         const req = await fetch(API_URL + "/spotify/friends/sessions", {
             headers: {
                 ...(this.getAuthHeaders())
