@@ -543,7 +543,7 @@ export default function ProfilePage({
                             >
                                 <Text
                                     fontFamily="Libre Franklin"
-                                    fontSize={{ base: "22px", sm: "26px", md: "30px" }}
+                                    fontSize={{ base: "20px", sm: "24px", md: "28px" }}
                                     fontWeight="extrabold"
                                     color="text.dark"
                                     letterSpacing="tight"
