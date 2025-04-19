@@ -179,32 +179,36 @@ export class DataStreamer extends EventEmitter {
                     if (sessionReadyCb || !this.sock || !this.sock.OPEN || seshReqInProgress)
                         return;
 
-                    seshReqInProgress = true;
+                    try {
+                        seshReqInProgress = true;
 
-                    const newSessions = await this.fetchFriendsStreams();
-                    const currentListeners = await this.getListeners();
+                        const newSessions = await this.fetchFriendsStreams();
+                        const currentListeners = await this.getListeners();
 
-                    seshReqInProgress = false;
+                        seshReqInProgress = false;
 
-                    const expiredListeners = currentListeners.filter(v => !newSessions.includes(v));
-                    
-                    for (const id of expiredListeners) {
-                        if (!this.sock || !this.sock.OPEN)
-                            return;
+                        const expiredListeners = currentListeners.filter(v => !newSessions.includes(v));
+                        
+                        for (const id of expiredListeners) {
+                            if (!this.sock || !this.sock.OPEN)
+                                return;
 
-                        this.sock.send(JSON.stringify([
-                            "RM",
-                            id,
-                            "nocb",
-                        ]));
+                            this.sock.send(JSON.stringify([
+                                "RM",
+                                id,
+                                "nocb",
+                            ]));
 
-                        if (this._isUserIdInFilter(id))
-                            this.emit("remove", id);
-                    }
+                            if (this._isUserIdInFilter(id))
+                                this.emit("remove", id);
+                        }
 
-                    if (currentListeners.sort().join("") !== newSessions.join("") && this.sock && this.sock.OPEN) {
-                        console.log("Sending new sessions:", newSessions);
-                        this.sock.send(JSON.stringify(newSessions));
+                        if (currentListeners.sort().join("") !== newSessions.join("") && this.sock && this.sock.OPEN) {
+                            console.log("Sending new sessions:", newSessions);
+                            this.sock.send(JSON.stringify(newSessions));
+                        }
+                    } catch {
+                        seshReqInProgress = false;
                     }
                 }, 5e3);
 
