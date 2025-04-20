@@ -44,36 +44,45 @@ const scrollText = keyframes`
   100% { transform: translateX(-100%); }
 `;
 
-const SkeletonImage = ({
+export const SkeletonImage = ({
     src,
     onError,
     width,
     height,
     borderRadius,
+    transition,
+    border,
 }: {
     src: string;
-    onError: ReactEventHandler<HTMLImageElement>;
+    onError?: ReactEventHandler<HTMLImageElement>;
     width: string;
     height: string;
     borderRadius: string;
+    transition?: string;
+    border?: string;
 }) => {
     const [isLoaded, setIsLoaded] = useState<boolean>(false);
 
-    return (<Box pos="relative" height={height} width={width}>
+    return (<Box pos="relative" height={height} minHeight={height} width={width} minWidth={width}>
         <Skeleton pos="absolute" height={height} width={width} borderRadius={borderRadius} />
         <Image
             pos="absolute"
             width={width}
+            minWidth={width}
             height={height}
+            minHeight={height}
             objectFit="cover"
             borderRadius={borderRadius}
+            transition={transition}
+            border={border}
             src={src}
             draggable={false}
             onError={(e) => {
                 if (src == "null")
                     return;
 
-                onError(e);
+                if (onError)
+                    onError(e);
             }}
             opacity={isLoaded ? 1 : 0}
             onLoad={() => {

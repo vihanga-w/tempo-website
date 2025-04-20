@@ -7,6 +7,7 @@ import { StyledBtn } from "./button";
 import { InteractiveButtonBox } from "./interactive-btn-box";
 import { UserLookupResult, UserLookupResultType } from "@/components/user-lookup-result";
 import User from "@/lib/usrlib";
+import { findBestSCDNImageSize } from "@/lib/utils";
 
 export default function AddFriendsPage({
     user,
@@ -40,7 +41,7 @@ export default function AddFriendsPage({
 
                 return {
                     id: u[0].user.id,
-                    pfpUrl: u[0].user.images.length > 0 ? u[0].user.images[0].url : undefined,
+                    pfpUrl: u[0].user.images.length > 0 ? findBestSCDNImageSize(u[0].user.images, 56, 56) : undefined,
                     username: u[0].user.displayName,
                     mutual: u[0].mutualFriends,
                     frState: u[0].friendState,
@@ -63,7 +64,7 @@ export default function AddFriendsPage({
                 
                 return {
                     id: v.user.id,
-                    pfpUrl: idealImage.length > 0 ? idealImage[0].url : v.user.images.length > 0 ? v.user.images[0].url : undefined,
+                    pfpUrl: idealImage.length > 0 ? findBestSCDNImageSize(idealImage, 56, 56) ?? undefined : v.user.images.length > 0 ? findBestSCDNImageSize(v.user.images, 56, 56) ?? undefined : undefined,
                     username: v.user.displayName,
                     mutual: v.mutualFriends,
                     frState: v.friendState,

@@ -3,6 +3,7 @@ import { Box, Image, Spinner, Text } from "@chakra-ui/react";
 import { use, useEffect, useState } from "react";
 import { UserLookupResult } from "./user-lookup-result";
 import { DataStreamer, UpdateEvent } from "@/lib/live-ingest";
+import { findBestSCDNImageSize } from "@/lib/utils";
 
 export default function FriendsPage({
     user,
@@ -88,7 +89,7 @@ export default function FriendsPage({
             }).map((friend, i) => (<UserLookupResult
                     userId={friend.user.id}
                     username={friend.user.displayName}
-                    pfpUrl={friend.user.images?.length > 0 ? friend.user.images[0].url : undefined}
+                    pfpUrl={friend.user.images?.length > 0 ? findBestSCDNImageSize(friend.user.images, 56, 56) ?? undefined : undefined}
                     firstItem={i === 0}
                     mutualFriends={[]}
                     friendState={friend.friendship.state}
