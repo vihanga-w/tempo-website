@@ -52,6 +52,7 @@ export const SkeletonImage = ({
     borderRadius,
     transition,
     border,
+    loading,
 }: {
     src: string;
     onError?: ReactEventHandler<HTMLImageElement>;
@@ -60,6 +61,7 @@ export const SkeletonImage = ({
     borderRadius: string;
     transition?: string;
     border?: string;
+    loading?: "eager" | "lazy" | undefined;
 }) => {
     const [isLoaded, setIsLoaded] = useState<boolean>(false);
 
@@ -77,6 +79,7 @@ export const SkeletonImage = ({
             border={border}
             src={src}
             draggable={false}
+            loading={loading}
             onError={(e) => {
                 if (src == "null")
                     return;

@@ -548,8 +548,8 @@ export default class User extends EventEmitter {
         }
     }
 
-    public async getRecaps() {
-        const req = await fetch(API_URL + "/me/recap", {
+    public async getRecaps(showAlreadySeen?: boolean) {
+        const req = await fetch(API_URL + "/me/recap" + (showAlreadySeen ? "?seen=true" : ""), {
             headers: {
                 ...(this.getAuthHeaders())
             },

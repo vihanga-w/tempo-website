@@ -4,6 +4,8 @@ import ReactTimeAgo from "react-time-ago";
 import { FriendListenershipItem } from "@/lib/usrlib";
 import { getSizedImageUrl } from "@/lib/sized-img";
 import React, { memo } from "react";
+import { SkeletonImage } from "./playback-state";
+import { FaHistory } from "react-icons/fa";
 
 function formatTime(ms: number) {
   if (ms < 0) ms = 0;
@@ -57,13 +59,11 @@ export const PlaybackHistoryItem = memo(function PlaybackHistoryItem({
 
       {/* Song details */}
       <HStack alignItems="flex-start" spacing="3">
-        <Image
+        <SkeletonImage
           width="64px"
           height="64px"
-          objectFit="cover"
           borderRadius="6px"
           src={getSizedImageUrl(data.item.track.album.artUrl, 64, 64)}
-          draggable={false}
           loading="lazy"
         />
         <Stack spacing="0" flex="1">

@@ -11,6 +11,8 @@ import LeaderboardSongItem from "./leaderboard-song-item";
 import { MdExplicit } from "react-icons/md";
 import { getSizedImageUrl } from "@/lib/sized-img";
 import { findBestSCDNImageSize } from "@/lib/utils";
+import { FaCog, FaHistory } from "react-icons/fa";
+import { Recap } from "./recap-drawer";
 
 const loadTracker = (expectedCount: number, onComplete: () => void) => {
     let count = 0;
@@ -39,6 +41,8 @@ export default function ProfilePage({
     admin,
     hideTopGradientCb,
     setComplementaryColour,
+    setRecaps,
+    openRecapDrawer,
 }: Readonly<{
     user: User;
     targetUserId?: string;
@@ -46,6 +50,11 @@ export default function ProfilePage({
     admin?: boolean;
     hideTopGradientCb: (hide: boolean) => void;
     setComplementaryColour: (hex: string) => void;
+    setRecaps:(data: {
+        daily: Recap | null;
+        weekly: Recap | null;
+    }) => void;
+    openRecapDrawer: () => void;
 }>) {
     const [profileData, setProfileData] = useState<ClientUserAccount | undefined>(user.object);
     const [pfpLoadFailed, setPfpLoadFailed] = useState(false);
@@ -74,6 +83,13 @@ export default function ProfilePage({
         uniqueSongsPlayedCount: number;
         longestStreak: number;
     } | undefined>();
+    const [recapState, setRecapsState] = useState<{
+        daily: Recap | null;
+        weekly: Recap | null;
+    }>({
+        daily: null,
+        weekly: null,
+    });
 
     const scrollItemRef = useRef<HTMLDivElement>(null);
 
@@ -85,6 +101,14 @@ export default function ProfilePage({
     }
 
     useEffect(() => {
+        user.getRecaps(true)
+        .then(recaps => {
+            setRecapsState(recaps);
+        })
+        .catch(ex => {
+            console.error("Failed to fetch latest user recaps, error:", ex);
+        });
+
         user.getRemoteUserPastWeekStats(targetUserId ?? user.id)
         .then(d => {
             setPastWeekStats(d);
@@ -369,6 +393,30 @@ export default function ProfilePage({
     }, [reactiveDesignColourCommited]);
 
     return (<>
+        {!targetUserId && (
+            <HStack
+                pos="fixed"
+                height="48px"
+                top="5px"
+                right="20px"
+                zIndex="99999"
+                display="flex"
+                justifyContent="center"
+                alignItems="center"
+                gap="10px"
+            >
+                {(recapState.daily || recapState.weekly) && (
+                    <FaHistory size="26px" color={reactiveDesignComplementaryColour ?? "text.dark"} onClick={() => {
+                        setRecaps(recapState);
+                        openRecapDrawer();
+                    }} />
+                )}
+                <FaCog size="26px" color={reactiveDesignComplementaryColour ?? "text.dark"} onClick={() => {
+                    alert("Sorry, the settings page is not available at the moment!")
+                }} />
+            </HStack>
+        )}
+
         <Box
             display={pageLoaded ? "none" : "block"}
             width="100vw"

@@ -488,7 +488,7 @@ export default function UIApp({
             </Box>
 
             {/* The main user interface */}
-            <Box padding="20px" width="100%">
+            <Box padding="20px" width="100%" opacity={isRecapDrawerVisible ? 0 : 1} pointerEvents={isRecapDrawerVisible ? "none" : "all"}>
                 <Image
                     src="/menu-bg.webp"
                     position="absolute"
@@ -525,12 +525,12 @@ export default function UIApp({
 
                 <Box
                     width="100vw"
-                    height="100px"
+                    height="85px"
                     pos="fixed"
                     top="0"
                     left="0"
                     opacity={hideTopGradient ? "0" : "1"}
-                    background="linear-gradient(180deg,rgb(13, 13, 14) 10%, rgba(13,13,14,0) 100%)"
+                    background="linear-gradient(180deg,rgb(13, 13, 14) 15%, rgba(13,13,14,0) 100%)"
                     zIndex="999"
                     pointerEvents="none"
                     marginTop="env(safe-area-inset-top)"
@@ -559,6 +559,7 @@ export default function UIApp({
                     marginLeft="0"
                     marginRight="0"
                     marginTop="-15px"
+                    marginBottom="48px"
                     opacity={(dailyRecap || weeklyRecap || (currentPage == "activity" && activityPageLoading)) ? 0 : 1}
                 >
                     <Box position="fixed" overflow="hidden" zIndex={(isReactionDrawerVisible || isRecapDrawerVisible) ? "999" : "999999999"} top="env(safe-area-inset-top)">
@@ -669,7 +670,7 @@ export default function UIApp({
                             hideSpotifyCallout
                         />
                     </Box>
-                    <Box zIndex="9999999" marginTop="-8px" width="100vw" pointerEvents={prevPage || !addNewItemPossiblePages.includes(currentPage) ? "none" : "all"}>
+                    <Box pos="fixed" zIndex="9999999" top="-6px" right="20px" width="100vw" pointerEvents={prevPage || !addNewItemPossiblePages.includes(currentPage) ? "none" : "all"}>
                         <SmallAddButton
                             onClick={() => {
                                 if (pageSwitcherActive) return;
@@ -910,6 +911,14 @@ export default function UIApp({
                                 hideTopGradientCb={(hide: boolean) => {
                                     setHideTopGradient(hide);
                                 }}
+                                setRecaps={recap => {
+                                    if (recap.daily)
+                                        setDailyRecap(recap.daily);
+                                    
+                                    if (recap.weekly)
+                                        setWeeklyRecap(recap.weekly);
+                                }}
+                                openRecapDrawer={openRecapDrawer}
                                 setComplementaryColour={(colour: string) => {
                                     setComplementaryColour(colour);
                                 }}
@@ -927,6 +936,8 @@ export default function UIApp({
                                 hideTopGradientCb={(hide: boolean) => {
                                     setHideTopGradient(hide);
                                 }}
+                                setRecaps={() => { }}
+                                openRecapDrawer={() => { }}
                                 setComplementaryColour={(colour: string) => {
                                     setComplementaryColour(colour);
                                 }}
