@@ -22,6 +22,7 @@ import { API_URL } from "@/lib/const";
 import { PlaybackHistoryItem } from "./playback-history-item";
 import { UserLookupResult } from "./user-lookup-result";
 import RecapDrawer, { Recap } from "./recap-drawer";
+import FullLoader from "./full-loader";
 
 const MusicDiscoveryFeed = lazy(() => import("./music-discovery-feed"));
 const FriendsPage = lazy(() => import("./friends-page"));
@@ -31,7 +32,11 @@ const ReactionDrawer = lazy(() => import("./reaction-drawer"));
 
 const updateMutex = new Mutex();
 
-export const SuspenseSpinner = () => {
+export const SuspenseSpinner = ({
+    useNew,
+}: {
+    useNew?: boolean;
+}) => {
     return(<Box
         position="absolute"
         top="0"
@@ -42,7 +47,11 @@ export const SuspenseSpinner = () => {
         alignItems="center"
         justifyContent="center"
     >
-        <Spinner size="lg" />
+        {useNew ? (
+            <FullLoader />
+        ) : (
+            <Spinner size="lg" />
+        )}
     </Box>);
 }
 
@@ -530,7 +539,7 @@ export default function UIApp({
 
                 <Box
                     width="100vw"
-                    height="85px"
+                    height="75px"
                     pos="fixed"
                     top="0"
                     left="0"
@@ -550,7 +559,7 @@ export default function UIApp({
                     marginLeft="0"
                     marginRight="0"
                     marginTop="-15px"
-                    opacity={(dailyRecap || weeklyRecap) ? 0 : 1}
+                    opacity={(dailyRecap || weeklyRecap || (currentPage == "activity" && activityPageLoading)) ? 0 : 1}
                 >
                     <Box position="fixed" overflow="hidden" zIndex={(isReactionDrawerVisible || isRecapDrawerVisible) ? "999" : "999999999"} top="env(safe-area-inset-top)">
                         <HStack gap="10px" onClick={handlePageMenuClick}>
@@ -725,7 +734,7 @@ export default function UIApp({
                             </Suspense>
                             {activityPageLoading ? (
                                 <Center pos="absolute" width="100vw" height="100vh" top="0" left="0">
-                                    <Spinner size="lg" />
+                                    <FullLoader />
                                 </Center>
                             ) : (
                                 <Stack gap="28px" overflowY="auto" paddingBottom="18px" width="100%">

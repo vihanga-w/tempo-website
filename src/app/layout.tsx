@@ -105,8 +105,7 @@ export default function RootLayout({
         {/* Fonts */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,100..900&display=swap" rel="stylesheet" as="style" />
-        <link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" as="style" />
+        <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400..700&family=Gloria+Hallelujah&family=Gluten:wght@100..900&family=Indie+Flower&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Libre+Franklin:ital,wght@0,100..900;1,100..900&family=Nanum+Pen+Script&family=Nothing+You+Could+Do&family=Reenie+Beanie&family=Rock+Salt&family=Schoolbell&family=Shadows+Into+Light&family=Shadows+Into+Light+Two&family=Single+Day&display=swap" rel="stylesheet" as="style" />
       </head>
       <body style={{
         height: "100%",

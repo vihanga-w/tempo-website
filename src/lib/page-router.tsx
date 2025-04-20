@@ -4,7 +4,7 @@ import { E404 } from "@/components/404";
 import { EventEmitter } from "events";
 import React, { lazy, Suspense } from "react";
 import User from "./usrlib";
-import { SuspenseSpinner } from "@/components/app";
+import FullLoader from "@/components/full-loader";
 
 const LSNavigationKey = "tempo-navigation";
 
@@ -55,18 +55,18 @@ export default class PageRouter extends EventEmitter {
 
         switch (page) {
             case "load": {
-                return this.emit("page-navigate", (<SuspenseSpinner />));
+                return this.emit("page-navigate", (<FullLoader />));
             }
             case "legal": {
                 return this.emit("page-navigate", (
-                    <Suspense fallback={<SuspenseSpinner />}>
+                    <Suspense fallback={<FullLoader />}>
                         <LegalPage prouter={this} />
                     </Suspense>
                 ));
             }
             case "app": {
                 return this.emit("page-navigate", (
-                    <Suspense fallback={<SuspenseSpinner />}>
+                    <Suspense fallback={<FullLoader />}>
                         <UIApp prouter={this} user={this.user} />
                     </Suspense>
                 ));
