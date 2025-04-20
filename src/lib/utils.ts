@@ -4,7 +4,7 @@ type Image = {
     width: number;
   };
   
-function findClosestImageUrl(
+export function findBestSCDNImageSize(
     images: Image[],
     targetWidth: number,
     targetHeight: number
