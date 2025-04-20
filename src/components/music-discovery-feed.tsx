@@ -194,8 +194,6 @@ const MusicDiscoveryFeed: React.FC<{ user: User; feed: FeedItem[]; loadMore: (in
     if (current && current.type == "alert")
       user.markFYPAlertViewed((current.data as FeedItemAlert).id);
 
-    console.log(internalFeed[currentIndex])
-
     if (!current)
       return;
 
