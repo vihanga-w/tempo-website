@@ -82,11 +82,9 @@ export default function FullLoader() {
                     newIndex = Math.floor(Math.random() * fontLoop.length);
                 } while (newIndex === prev);
 
-                // console.log(fontLoop[newIndex])
-
                 return newIndex;
             });
-        }, 180);
+        }, 240);
 
         return () => clearInterval(intervalId);
     }, []);
