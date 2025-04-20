@@ -344,11 +344,11 @@ const MusicDiscoveryFeed: React.FC<{ user: User; feed: FeedItem[]; loadMore: (in
                   >
                     {internalFeed[index].type === "alert" &&
                       (internalFeed[index].data as FeedItemAlert).alertType === "ListenerTypeChange" && (() => {
-                          const alert = internalFeed[index].data as FeedItemAlert;
-                          const tierName = alert.content ?? "New Tier";
+                        const alert = internalFeed[index].data as FeedItemAlert;
+                        const tierName = alert.content ?? "New Tier";
 
-                          return (
-                            <Box
+                        return (
+                          <Box
                             width="100%"
                             height="100%"
                             position="relative"
@@ -360,70 +360,70 @@ const MusicDiscoveryFeed: React.FC<{ user: User; feed: FeedItem[]; loadMore: (in
                             alignItems="center"
                             padding="32px"
                             textAlign="center"
-                        >
+                          >
                             <Box
-                                position="absolute"
-                                top={0}
-                                left={0}
-                                width="100%"
-                                height="100%"
-                                zIndex={0}
-                                overflow="hidden"
-                                opacity={0.08}
-                                pointerEvents="none"
+                              position="absolute"
+                              top={0}
+                              left={0}
+                              width="100%"
+                              height="100%"
+                              zIndex={0}
+                              overflow="hidden"
+                              opacity={0.08}
+                              pointerEvents="none"
                             >
-                                <video
-                                    autoPlay
-                                    muted
-                                    loop
-                                    playsInline
-                                    style={{
-                                        height: "100%",
-                                        objectFit: "cover",
-                                        filter: "blur(5px) brightness(0.8)",
-                                    }}
-                                >
-                                    <source src="/assets/video/mdf-audio-addict-bg.mp4" type="video/mp4" />
-                                </video>
+                              <video
+                                autoPlay
+                                muted
+                                loop
+                                playsInline
+                                style={{
+                                  height: "100%",
+                                  objectFit: "cover",
+                                  filter: "blur(5px) brightness(0.8)",
+                                }}
+                              >
+                                <source src="/assets/video/mdf-audio-addict-bg.mp4" type="video/mp4" />
+                              </video>
                             </Box>
-                        
+                          
                             <VStack spacing={12} maxW="90%" zIndex={1}>
-                                <VStack gap="4px">
-                                    <Text fontSize="64px">🎉</Text>
-                                    <Text
-                                        fontSize={["md", "lg"]}
-                                        color="gray.400"
-                                        fontWeight="medium"
-                                        textTransform="uppercase"
-                                        letterSpacing="widest"
-                                    >
-                                        Milestone Unlocked
-                                    </Text>
-                                </VStack>
-                        
-                                <VStack spacing={6}>
-                                    <Text
-                                        fontSize={["4xl", "5xl", "6xl"]}
-                                        fontWeight="black"
-                                        color="white"
-                                        textTransform="uppercase"
-                                        lineHeight="1.1"
-                                    >
-                                        {tierName}
-                                    </Text>
-                        
-                                    <Text
-                                        fontSize={["md", "lg"]}
-                                        color="gray.300"
-                                        fontWeight="normal"
-                                        maxW="480px"
-                                    >
-                                        You’ve hit a new listening tier — a sign of your dedication and taste in music!
-                                    </Text>
-                                </VStack>
+                              <VStack gap="4px">
+                                <Text fontSize="64px">🎉</Text>
+                                <Text
+                                  fontSize={["md", "lg"]}
+                                  color="gray.400"
+                                  fontWeight="medium"
+                                  textTransform="uppercase"
+                                  letterSpacing="widest"
+                                >
+                                  Milestone Unlocked
+                                </Text>
+                              </VStack>
+                          
+                              <VStack spacing={6}>
+                                <Text
+                                  fontSize={["4xl", "5xl", "6xl"]}
+                                  fontWeight="black"
+                                  color="white"
+                                  textTransform="uppercase"
+                                  lineHeight="1.1"
+                                >
+                                  {tierName}
+                                </Text>
+                          
+                                <Text
+                                  fontSize={["md", "lg"]}
+                                  color="gray.300"
+                                  fontWeight="normal"
+                                  maxW="480px"
+                                >
+                                  You’ve hit a new listening tier — a sign of your dedication and taste in music!
+                                </Text>
+                              </VStack>
                             </VStack>
-                        </Box>                        
-                          );
+                          </Box>                        
+                        );
                       })()
                     }
                     {internalFeed[index].type == "discover" && (<>
