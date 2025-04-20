@@ -1,5 +1,5 @@
 import PageRouter from "@/lib/page-router";
-import User, { FriendListenershipItem } from "@/lib/usrlib";
+import User, { FeedItem, FriendListenershipItem } from "@/lib/usrlib";
 import {
     Text,
     Image,
@@ -80,14 +80,7 @@ export default function UIApp({
     const [streamerReset, setStreamerReset] = useState<boolean>(false);
     const [hideTopGradient, setHideTopGradient] = useState<boolean>(false);
     const [complementaryColour, setComplementaryColour] = useState<string>("#e9e7fb");
-    const [discoveryData, setDiscoveryData] = useState<{
-        id: string;
-        title: string;
-        artists: string[];
-        album: string;
-        imageUrl: string;
-        likeness: number;
-    }[]>([]);
+    const [discoveryData, setDiscoveryData] = useState<FeedItem[]>([]);
     const [friendsListenershipData, setFriendsListenershipData] = useState<FriendListenershipItem[]>([]);
     const [friendsListenershipPage, setFriendsListenershipPage] = useState<number>(0);
     const [friendsListenershipIsLastPage, setFriendsListenershipIsLastPage] = useState<boolean>(false);
@@ -98,6 +91,10 @@ export default function UIApp({
     const [friends, setFriends] = useState<User["friends"]>([]);
     const [dailyRecap, setDailyRecap] = useState<Recap | null>(null);
     const [weeklyRecap, setWeeklyRecap] = useState<Recap | null>(null);
+    const [currentFYPPageIndex, setCurrentFYPPageIndex] = useState<{
+        p: number;
+        t: number;
+    } | null>(null);
 
     // Lazy loading: how many history items to show at first
     const ITEMS_PER_BATCH = 25;
@@ -293,39 +290,10 @@ export default function UIApp({
 
         newStreamer.init();
 
-        // Fetch user discovery page data
-        fetch(API_URL + "/me/taste", {
-            headers: {
-                ...user.getAuthHeaders(),
-            },
-            credentials: "include",
-        })
-            .then((r) => r.json())
-            .then((r) => {
-                const data: {
-                    error: boolean;
-                    message?: string;
-                    data: {
-                        id: string;
-                        title: string;
-                        artists: string[];
-                        album: string;
-                        imageUrl: string;
-                        likeness: number;
-                    }[];
-                } = r;
-
-                if (data.error) {
-                    console.warn("Failed to fetch discovery data due to error response:", data);
-                    return;
-                }
-
-                console.log("Got discovery data:", data.data);
-                setDiscoveryData(data.data);
-            })
-            .catch((ex) => {
-                console.warn("Failed to fetch user discovery data due to request error:", ex);
-            });
+        setCurrentFYPPageIndex({
+            p: 1,
+            t: 0,
+        });
 
         // Fetch friends listenership history
         updateFriendsListenershipHistory();
@@ -336,6 +304,22 @@ export default function UIApp({
             newStreamer.cleanup();
         };
     }, [user.isLoggedIn]);
+
+    useEffect(() => {
+        if (!currentFYPPageIndex)
+            return;
+
+        // Fetch FYP
+        user.getMyFYP(currentFYPPageIndex.p)
+        .then(data => {
+            setDiscoveryData(prev => {
+                return [...(prev.slice(currentFYPPageIndex.t + 1, prev.length)), ...data];
+            });
+        })
+        .catch(ex => {
+            console.error("Failed to fetch user FYP, error:", ex);
+        });
+    }, [currentFYPPageIndex]);
 
     useEffect(() => {
         const handleFocus = async () => {
@@ -386,7 +370,7 @@ export default function UIApp({
 
     const pages: { name: string; menuName?: string; id: string; indexed: boolean }[] = [
         {
-            name: "Discover",
+            name: "For You",
             id: "discover",
             indexed: true,
         },
@@ -443,7 +427,7 @@ export default function UIApp({
         if (id !== "activity")
             closeReactionDrawer();
 
-        setStatusBarColour("€0d0d0e");
+        setStatusBarColour("#0d0d0e");
         setComplementaryColour("#e9e7fb");
         setCurrentPage(id);
         setCurrentPageTitle(title);
@@ -721,7 +705,18 @@ export default function UIApp({
                                 </Text>
                             ) : (
                                 <Suspense fallback={<SuspenseSpinner />}>
-                                    <MusicDiscoveryFeed songs={discoveryData.slice(0, 50)} />
+                                    <MusicDiscoveryFeed
+                                        user={user}
+                                        feed={discoveryData}
+                                        loadMore={(index) => {
+                                            setCurrentFYPPageIndex(prev => {
+                                                return {
+                                                    p: !prev?.p ? 1 : prev.p + 1,
+                                                    t: index,
+                                                }
+                                            });
+                                        }}
+                                    />
                                 </Suspense>
                             )}
                         </>

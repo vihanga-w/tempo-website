@@ -95,6 +95,9 @@ importers:
       async-mutex:
         specifier: ^0.5.0
         version: 0.5.0
+      canvas-confetti:
+        specifier: ^1.9.3
+        version: 1.9.3
       chakra-react-select:
         specifier: ^4.7.6
         version: 4.7.6(11d461b5e02ebfed37a755d3d30188fc)
@@ -192,6 +195,9 @@ importers:
       '@types/apca-w3':
         specifier: ^0.1.3
         version: 0.1.3
+      '@types/canvas-confetti':
+        specifier: ^1.9.0
+        version: 1.9.0
       '@types/cordova-plugin-inappbrowser':
         specifier: ^2.0.3
         version: 2.0.3
@@ -1737,6 +1743,9 @@ packages:
   '@types/apca-w3@0.1.3':
     resolution: {integrity: sha512-1C7e66xWCy1UOXHk/VXs4tjrY9hW3q3sykjJJxSC5TIIFt0lt9mh0ysdQxY0rVejTv4SW92G19j98PjqjCSz7Q==}
 
+  '@types/canvas-confetti@1.9.0':
+    resolution: {integrity: sha512-aBGj/dULrimR1XDZLtG9JwxX1b4HPRF6CX9Yfwh3NvstZEm1ZL7RBnel4keCPSqs1ANRu1u2Aoz9R+VmtjYuTg==}
+
   '@types/cordova-plugin-inappbrowser@2.0.3':
     resolution: {integrity: sha512-l/fWbgw6kf3m1L1qz/BzvSk0Q3xvDRVSRzn5tGP6tdpi/hdPonwIAJ+vFD+DuGoOcf6EfT0D+45nv7FKobuVxw==}
     deprecated: This is a stub types definition. cordova-plugin-inappbrowser provides its own type definitions, so you do not need this installed.
@@ -2228,6 +2237,9 @@ packages:
 
   caniuse-lite@1.0.30001690:
     resolution: {integrity: sha512-5ExiE3qQN6oF8Clf8ifIDcMRCRE/dMGcETG/XGMD8/XiXm6HXQgQTh1yZYLXXpSOsEUlJm1Xr7kGULZTuGtP/w==}
+
+  canvas-confetti@1.9.3:
+    resolution: {integrity: sha512-rFfTURMvmVEX1gyXFgn5QMn81bYk70qa0HLzcIOSVEyl57n6o9ItHeBtUSWdvKAPY0xlvBHno4/v3QPrT83q9g==}
 
   canvas-renderer@2.2.1:
     resolution: {integrity: sha512-RrBgVL5qCEDIXpJ6NrzyRNoTnXxYarqm/cS/W6ERhUJts5UQtt/XPEosGN3rqUkZ4fjBArlnCbsISJ+KCFnIAg==}
@@ -6995,6 +7007,8 @@ snapshots:
 
   '@types/apca-w3@0.1.3': {}
 
+  '@types/canvas-confetti@1.9.0': {}
+
   '@types/cordova-plugin-inappbrowser@2.0.3':
     dependencies:
       cordova-plugin-inappbrowser: 6.0.0
@@ -7524,6 +7538,8 @@ snapshots:
       three: 0.167.1
 
   caniuse-lite@1.0.30001690: {}
+
+  canvas-confetti@1.9.3: {}
 
   canvas-renderer@2.2.1:
     dependencies:

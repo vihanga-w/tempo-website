@@ -3,22 +3,31 @@ import { API_URL } from "./const";
 import { Recap } from "@/components/recap-drawer";
 import { FaF } from "react-icons/fa6";
 import { DataStreamer } from "./live-ingest";
+import { Song } from "@/components/music-discovery-feed";
 
-// export type PublicUserAccount = {
-//     id: string;
-//     firstName: string;
-//     lastName: string;
-//     profession: string;
-//     registeredAt: number;
-//     gravatarHash: string;
-//     encryption: {
-//         configured: boolean;
-//         keyId: string;
-//         publicKey: string; // May need to create a type for this
-//         primaryKey: string;
-//     };
-//     lastSeenString: "now" | string;
-// }
+export interface FeedItemAlert {
+    id: string;
+    alertType: "ListenerTypeChange";
+    content: any;
+}
+
+export interface FeedItemHistory {
+    userId: string;
+    username: string;
+    pfpUrl?: string;
+    item: {
+        track: SongData;
+        sessionDuration: number;
+        skipped: boolean;
+        replayed: boolean;
+    };
+    timestamp: number;
+};
+
+export interface FeedItem {
+    type: "history" | "discover" | "alert";
+    data: FeedItemHistory | Song | FeedItemAlert;
+}
 
 export interface UserFriendship {
     id: string;
@@ -61,7 +70,7 @@ export type ClientUserAccount = {
     displayName: string
 }
 
-export interface songData {
+export interface SongData {
     id: string;
     name: string;
     artists: {
@@ -89,7 +98,7 @@ export interface FriendListenershipItem {
     username: string;
     pfpUrl: string;
     item: {
-        track: songData;
+        track: SongData;
         sessionDuration: number;
         skipped: boolean;
         replayed: boolean;
@@ -153,6 +162,19 @@ export default class User extends EventEmitter {
         return headers;
     }
 
+    public async markFYPAlertViewed(alertId: string) {
+        const req = await fetch(API_URL + `/me/feed/alert/viewed/${alertId}`, {
+            method: "POST",
+            headers: {
+                ...(this.getAuthHeaders())
+            },
+            credentials: "include",
+        });
+        
+        if (req.status == 429)
+            window.location.reload();
+    }
+    
     public async getRemoteUserPastWeekStats(userId: string) {
         const req = await fetch(API_URL + `/profile/${userId}/pastWeekStats`, {
             method: "GET",
@@ -418,6 +440,35 @@ export default class User extends EventEmitter {
             // If we are not logged in, set the user object to undefined
             this.object = undefined;
             this.isLoggedIn = false;
+        }
+    }
+
+    public async getMyFYP(page: number) {
+        if (page < 1)
+            page = 1;
+
+        try {
+            const req = await fetch(API_URL + "/me/feed/" + page, {
+                headers: {
+                    ...(this.getAuthHeaders())
+                },
+                credentials: "include"
+            });
+
+            if (req.status == 429)
+                window.location.reload();
+
+            const res = (await req.json()) as {
+                error: boolean;
+                message?: string;
+                data: FeedItem[];
+            };
+
+            return res.data;
+        } catch (ex) {
+            console.error("getFriendsListenershipHistory failed with error:", ex);
+
+            return [];
         }
     }
 
