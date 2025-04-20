@@ -86,7 +86,7 @@ export default function FullLoader() {
 
                 return newIndex;
             });
-        }, 180);
+        }, 200);
 
         return () => clearInterval(intervalId);
     }, []);
