@@ -540,10 +540,13 @@ export default function ProfilePage({
                                 px={{ base: "6px", md: "10px" }}
                                 py="6px"
                                 minWidth="0"
+                                overflow="hidden"
+                                textOverflow="ellipsis"
+                                whiteSpace="nowrap"
                             >
                                 <Text
                                     fontFamily="Libre Franklin"
-                                    fontSize={{ base: "20px", sm: "24px", md: "28px" }}
+                                    fontSize={{ base: "18px", sm: "22px", md: "26px" }}
                                     fontWeight="extrabold"
                                     color="text.dark"
                                     letterSpacing="tight"
@@ -564,9 +567,9 @@ export default function ProfilePage({
 
                             {index < 2 && (
                                 <Box
-                                    height="60%"
+                                    height={{ base: "60%", md: "75%" }}
                                     width="1px"
-                                    background="rgba(255, 255, 255, 0.12)"
+                                    background="rgba(255, 255, 255, 0.2)"
                                     borderRadius="full"
                                 />
                             )}
