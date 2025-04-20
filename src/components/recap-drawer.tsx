@@ -310,7 +310,7 @@ export default function ReactionDrawer({
                         }} />
                     </Box>
                 </DrawerHeader>
-                <DrawerBody padding="0">
+                <DrawerBody padding="0" overflowX="hidden">
                     {(daily && weekly) ? (
                         <Tabs isFitted variant='line' defaultIndex={0} onChange={i => {
                             setOpenIndex(i);
