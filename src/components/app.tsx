@@ -708,7 +708,7 @@ export default function UIApp({
                                     <MusicDiscoveryFeed
                                         user={user}
                                         feed={discoveryData}
-                                        loadMore={(index) => {
+                                        loadMore={(index: number) => {
                                             setCurrentFYPPageIndex(prev => {
                                                 return {
                                                     p: !prev?.p ? 1 : prev.p + 1,

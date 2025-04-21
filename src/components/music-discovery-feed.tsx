@@ -1,6 +1,15 @@
 import { useState, useRef, useEffect } from "react";
-import { Box, VStack, Text, Image, IconButton, Progress, HStack, Avatar } from "@chakra-ui/react";
-import { FaHeart, FaRegHeart, FaCheckCircle } from "react-icons/fa"; // Replace FaMusic with FaCheckCircle
+import {
+    Box,
+    VStack,
+    Text,
+    Image,
+    IconButton,
+    Progress,
+    HStack,
+    Avatar
+} from "@chakra-ui/react";
+import { FaHeart, FaRegHeart } from "react-icons/fa";
 import { useDrag } from "react-use-gesture";
 import { motion, AnimatePresence } from "framer-motion";
 import { FastAverageColor } from "fast-average-color";
@@ -10,615 +19,646 @@ import confetti from "canvas-confetti";
 
 import { getSizedImageUrl } from "@/lib/sized-img";
 import User, { FeedItem, FeedItemAlert, FeedItemHistory } from "@/lib/usrlib";
-import { SkeletonImage } from "./playback-state";
+import { getSpotifyDeeplink, SkeletonImage } from "./playback-state";
 
 export interface Song {
-  id: string;
-  title: string;
-  artists: string[];
-  album: string;
-  imageUrl: string;
-  likeness: number;
-};
+    id: string;
+    title: string;
+    artists: string[];
+    album: string;
+    imageUrl: string;
+    likeness: number;
+}
 
-const MusicDiscoveryFeed: React.FC<{ user: User; feed: FeedItem[]; loadMore: (index: number) => void }> = ({ user, feed, loadMore }) => {
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [dragY, setDragY] = useState(0);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [showRefreshMessage, setShowRefreshMessage] = useState(false);
-  const refreshTimeout = useRef<NodeJS.Timeout | null>(null);
-  const [progress, setProgress] = useState(0);
-  const [loadingScrollOffset, setLoadingScrollOffset] = useState<number>(0);
-  const [reactiveDesignColour, setReactiveDesignColour] = useState<string | null>(null);
-  const [reactiveDesignComplementaryColour, setReactiveDesignComplementaryColour] = useState<string | null>(null);
-  const [loadingMore, setLoadingMore] = useState<boolean>(true);
-  const [internalFeed, setInternalFeed] = useState<FeedItem[]>([]);
+const MusicDiscoveryFeed: React.FC<{
+    user: User;
+    feed: FeedItem[];
+    loadMore: (index: number) => void;
+}> = ({ user, feed, loadMore }) => {
+    const [currentIndex, setCurrentIndex] = useState(0);
+    const [dragY, setDragY] = useState(0);
+    const [swipeX, setSwipeX] = useState(0);
+    const [swipingOut, setSwipingOut] = useState(false);
+    const [loadingMore, setLoadingMore] = useState<boolean>(true);
+    const [internalFeed, setInternalFeed] = useState<FeedItem[]>([]);
+    const [loadingScrollOffset, setLoadingScrollOffset] = useState<number>(0);
+    const [pendingSwipeDirection, setPendingSwipeDirection] = useState<"left" | "right" | null>(null);
+    const [lastSwipedIndex, setLastSwipedIndex] = useState<number | null>(null);
+    const [colorMap, setColorMap] = useState<Record<string, { bg: string; fg: string }>>({});
 
-  const handleRefresh = () => {
-    // Placeholder function for refresh logic
-    console.log("Refreshing...");
-  };
+    useEffect(() => {
+        setCurrentIndex(0 + loadingScrollOffset);
+        setLoadingScrollOffset(0);
+        setInternalFeed(feed);
+        setLoadingMore(false);
+    }, [feed]);
 
-  useEffect(() => {
-    let isDragging = false;
-    let startY = 0;
+    useEffect(() => {
+        const current = internalFeed[currentIndex];
 
-    const handleStart = (e: TouchEvent | MouseEvent) => {
-      isDragging = true;
-      startY = e instanceof TouchEvent ? e.touches[0].clientY : e.clientY;
-    };
+        if (current?.type === "alert") {
+            user.markFYPAlertViewed((current.data as FeedItemAlert).id);
 
-    const handleMove = (e: TouchEvent | MouseEvent) => {
-      if (!isDragging) return;
-
-      const currentY = e instanceof TouchEvent ? e.touches[0].clientY : e.clientY;
-      const deltaY = currentY - startY;
-
-      if (deltaY > 20 && window.scrollY === 0) {
-        e.preventDefault(); // Prevent upward scrolling
-        setShowRefreshMessage(true);
-
-        if (!refreshTimeout.current) {
-          const updateProgress = () => {
-            setProgress((prev) => {
-              if (prev >= 100) {
-                handleRefresh();
-                setShowRefreshMessage(false);
-                setProgress(0);
-                refreshTimeout.current = null;
-                return 0;
-              }
-              refreshTimeout.current = setTimeout(updateProgress, 20); // Smooth updates
-              return prev + 1;
-            });
-          };
-          updateProgress();
-        }
-      } else {
-        setShowRefreshMessage(false);
-        setProgress(0);
-        if (refreshTimeout.current) {
-          clearTimeout(refreshTimeout.current);
-          refreshTimeout.current = null;
-        }
-      }
-    };
-
-    const handleEnd = () => {
-      isDragging = false;
-      setShowRefreshMessage(false);
-      setProgress(0);
-      if (refreshTimeout.current) {
-        clearTimeout(refreshTimeout.current);
-        refreshTimeout.current = null;
-      }
-    };
-
-    document.addEventListener("touchstart", handleStart, { passive: false });
-    document.addEventListener("touchmove", handleMove, { passive: false });
-    document.addEventListener("touchend", handleEnd);
-    document.addEventListener("mousedown", handleStart);
-    document.addEventListener("mousemove", handleMove);
-    document.addEventListener("mouseup", handleEnd);
-
-    return () => {
-      document.removeEventListener("touchstart", handleStart);
-      document.removeEventListener("touchmove", handleMove);
-      document.removeEventListener("touchend", handleEnd);
-      document.removeEventListener("mousedown", handleStart);
-      document.removeEventListener("mousemove", handleMove);
-      document.removeEventListener("mouseup", handleEnd);
-    };
-  }, []);
-
-  const processReactiveColoursFromImage = (imageUrl: string) => {
-    const fac = new FastAverageColor();
-
-    fac.getColorAsync(imageUrl)
-    .then(color => {
-      setReactiveDesignColour(color.rgb);
-
-      const rgbValues = color.rgb
-        .match(/\d+/g)
-        ?.map(Number);
-
-      if (!rgbValues)
-        return;
-
-      function componentToHex(c: number) {
-        var hex = Math.ceil(Math.min(c, 255)).toString(16);
-        return hex.length == 1 ? "0" + hex : hex;
-      }
-
-      function rgbToHex(r: number, g: number, b: number) {
-        return "#" + componentToHex(r) + componentToHex(g) + componentToHex(b);
-      }
-
-      function hexToRgb(hex: string) {
-        var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-        return result ? {
-          r: parseInt(result[1], 16),
-          g: parseInt(result[2], 16),
-          b: parseInt(result[3], 16)
-        } : null;
-      }
-
-      const [r, g, b] = rgbValues;
-      let hex = rgbToHex(r, g, b);
-
-      const isShadeOfWhite = Math.abs(r - g) < 15 && Math.abs(g - b) < 15 && Math.abs(r - b) < 15 && r > 100 && g > 100 && b > 100;
-
-      if (isShadeOfWhite) {
-        setReactiveDesignComplementaryColour("#ffffff");
-        return;
-      }
-
-      let colourMultiplier = 1;
-
-      if (r > 175 && g > 175 && b > 175) {
-        colourMultiplier = 2.75;
-      } else if (r < 80 && g < 80 && b < 80) {
-        colourMultiplier = 1.25;
-      }
-
-      const h = oklch(hex);
-      const ideal = apcach(crToBg(hex, 60), h?.c ?? 0, h?.h ?? 0);
-      const idealHexPre = formatHex(oklch({
-        mode: "oklch",
-        l: 1,
-        c: ideal.chroma,
-        h: ideal.hue,
-      }));
-
-      const idealRgb = hexToRgb(idealHexPre);
-      const idealHex = rgbToHex((idealRgb?.r ?? 0) * colourMultiplier, (idealRgb?.g ?? 0) * colourMultiplier, (idealRgb?.b ?? 0) * colourMultiplier);
-
-      setReactiveDesignComplementaryColour(idealHex);
-    })
-    .catch(e => {
-        console.log(e);
-    });
-  };
-
-  useEffect(() => {
-    setCurrentIndex(0 + loadingScrollOffset);
-    setLoadingScrollOffset(0);
-    setInternalFeed(feed);
-    setLoadingMore(false);
-  }, [feed]);
-  
-  useEffect(() => {
-    const current = internalFeed[currentIndex];
-
-    // If this is an alert, mark it viewed
-    if (current && current.type == "alert")
-      user.markFYPAlertViewed((current.data as FeedItemAlert).id);
-
-    if (!current)
-      return;
-
-    if (
-      typeof window !== "undefined" &&
-      current &&
-      current.type === "alert" &&
-      (current.data as FeedItemAlert).alertType === "ListenerTypeChange"
-    ) {
-      console.log("confetti")
-      confetti({
-        particleCount: 550,
-        spread: 160,
-        origin: { y: 0.4 },
-        startVelocity: 90,
-        ticks: 600,
-        gravity: 2.5,
-      });
-    }
-  }, [currentIndex, internalFeed]);
-
-  const bind = useDrag(({ movement: [, my], velocity, down }) => {
-    if (loadingMore) {
-      setDragY(my);
-
-      if (!down && currentIndex + 1 >= internalFeed.length) {
-        setDragY(0);
-        return;
-      }
-
-      if (!down)
-        setLoadingScrollOffset(prev => prev + 1);
-    }
-
-    setDragY(my);
-
-    if (!down) {
-      const swipeThreshold = window.innerHeight * 0.3;
-      const speedThreshold = 0.5;
-
-      if (my < 0 && (Math.abs(my) > swipeThreshold || Math.abs(velocity) > speedThreshold)) {
-        // Only allow moving to the next item when swiping downwards
-        setCurrentIndex((prevIndex) => {
-          const v = Math.min(prevIndex + 1, internalFeed.length);
-
-          if (!internalFeed[v])
-            return v;
-
-          if (internalFeed.length - (currentIndex + 1) <= 5 && !loadingMore) {
-            console.log("Fetching next discover page", loadingMore);
-
-            setLoadingMore(true);
-            loadMore(currentIndex);
-          }
-
-          const nextItem = internalFeed[v];
-
-          if (nextItem.type == "discover") {
-            const song = nextItem.data as Song;
-
-            processReactiveColoursFromImage(song.imageUrl);
-          } else if (nextItem.type === "history") {
-            const history = nextItem.data as FeedItemHistory;
-
-            if (history.item.track.album.artUrl) {
-                processReactiveColoursFromImage(history.item.track.album.artUrl);
+            if ((current.data as FeedItemAlert).alertType === "ListenerTypeChange") {
+                confetti({
+                    particleCount: 550,
+                    spread: 160,
+                    origin: { y: 0.4 },
+                    startVelocity: 90,
+                    ticks: 600,
+                    gravity: 2.5
+                });
             }
-          } else {
-            setReactiveDesignColour(null);
-            setReactiveDesignComplementaryColour(null);
-          }
+        }
+    }, [currentIndex, internalFeed]);
 
-          return v;
-        });
-      }
-      setDragY(0);
+    useEffect(() => {
+        const current = internalFeed[currentIndex];
+        if (current?.type === "discover") {
+            const song = current.data as Song;
+            if (!colorMap[song.id]) {
+                processReactiveColoursFromImage(song.imageUrl, song.id);
+            }
+        }
+    }, [currentIndex, internalFeed, colorMap]);
+
+    const processReactiveColoursFromImage = (imageUrl: string, id: string) => {
+        const fac = new FastAverageColor();
+    
+        fac.getColorAsync(imageUrl).then(color => {
+            const rgbValues = color.rgb.match(/\d+/g)?.map(Number);
+            if (!rgbValues) return;
+    
+            const [r, g, b] = rgbValues;
+    
+            const componentToHex = (c: number) => {
+                const hex = Math.ceil(Math.min(c, 255)).toString(16);
+                return hex.length === 1 ? "0" + hex : hex;
+            };
+    
+            const rgbToHex = (r: number, g: number, b: number) =>
+                `#${componentToHex(r)}${componentToHex(g)}${componentToHex(b)}`;
+    
+            const hex = rgbToHex(r, g, b);
+            const isShadeOfWhite = Math.abs(r - g) < 15 && Math.abs(g - b) < 15 && r > 100;
+    
+            if (isShadeOfWhite) {
+                setColorMap(prev => ({
+                    ...prev,
+                    [id]: { bg: color.rgb, fg: "#ffffff" },
+                }));
+                return;
+            }
+    
+            const h = oklch(hex);
+    
+            // Determine light/dark based on lightness value
+            const isBright = (h?.l ?? 0.5) > 0.7;
+    
+            // If too bright, choose a much darker fg (low lightness)
+            let adjustedFgHex: string;
+            if (isBright) {
+                adjustedFgHex = formatHex(
+                    oklch({ mode: "oklch", l: 0.2, c: 0.03, h: h?.h ?? 0 }) // low lightness = dark gray
+                );
+            } else {
+                // Generate complementary color for fg using apcach
+                const ideal = apcach(crToBg(hex, 60), h?.c ?? 0, h?.h ?? 0);
+                adjustedFgHex = formatHex(
+                    oklch({ mode: "oklch", l: 1, c: ideal.chroma, h: ideal.hue })
+                );
+            }
+    
+            setColorMap(prev => ({
+                ...prev,
+                [id]: { bg: color.rgb, fg: adjustedFgHex },
+            }));
+        }).catch(console.log);
+    };
+
+    const songPreferenceUpdateCb = (songId: string, like: boolean) => {
+        console.log(
+            !like ? "Disliked" : "Liked",
+            songId
+        );
+
+        alert("Sorry, that feature is not yet available");
     }
-  }, { axis: 'y', rubberband: true });
 
-  return (
-    <>
-      {showRefreshMessage && (
-        <Box
-          position="fixed"
-          top="-6px"
-          left="0"
-          width="100vw"
-          height="50px"
-          backgroundColor="transparent"
-          color="white"
-          lineHeight="50px"
-          zIndex="9999999999999"
-          textAlign="right"
-          paddingRight="16px"
+    const bind = useDrag((state) => {
+        const { movement: [mx, my], velocity: vel, down } = state;
+
+        const vx = Array.isArray(vel) ? vel[0] : 0;
+        const vy = Array.isArray(vel) ? vel[1] : 0;
+
+        const currentItem = internalFeed[currentIndex];
+        const isDiscover = currentItem?.type === "discover";
+
+        if (swipingOut) return;
+
+        const swipeThreshold = 100;
+        const velocityThreshold = 0.3;
+        const isHorizontal = Math.abs(mx) > Math.abs(my);
+        const nextIndex = Math.min(currentIndex + 1, internalFeed.length - 1);
+
+        const processNextBatch = () => {
+            if (internalFeed.length - nextIndex <= 5 && !loadingMore) {
+                setLoadingScrollOffset(0);
+                setLoadingMore(true);
+                loadMore(currentIndex - 1);
+            }
+        }
+
+        if (isDiscover) {
+            if (!down) {
+                let direction: "left" | "right" | "up" | "down" | null = null;
+
+                if (isHorizontal && (Math.abs(mx) > swipeThreshold || Math.abs(vx) > velocityThreshold)) {
+                    direction = mx > 0 ? "right" : "left";
+                } else if (!isHorizontal && (Math.abs(my) > swipeThreshold || Math.abs(vy) > velocityThreshold)) {
+                    direction = my > 0 ? "down" : "up";
+                }
+
+                if (direction === "down") {
+                    setCurrentIndex((prev) => Math.max(prev - 1, 0));
+                    setSwipeX(0);
+                    setDragY(0);
+                    processNextBatch();
+                } else if (direction === "up") {
+                    setCurrentIndex((prev) => Math.min(prev + 1, internalFeed.length - 1));
+                    setSwipeX(0);
+                    setDragY(0);
+                } else if (direction === "left" || direction === "right") {
+                    songPreferenceUpdateCb((currentItem.data as Song).id, direction == "right");
+
+                    setPendingSwipeDirection(direction);
+                    setSwipingOut(true);
+                    setLastSwipedIndex(currentIndex);
+
+                    if (!loadingMore)
+                        setLoadingMore(true);
+
+                    setTimeout(() => {
+                        setCurrentIndex((prev) => Math.min(prev + 1, internalFeed.length - 1));
+                        setSwipeX(0);
+                        setDragY(0);
+                        setSwipingOut(false);
+                        setPendingSwipeDirection(null);
+                    }, 500);
+
+                    setTimeout(() => {
+                        setLastSwipedIndex(null);
+                        setLoadingMore(false);
+
+                        processNextBatch();
+                    }, 800);
+                } else {
+                    setSwipeX(0);
+                    setDragY(0);
+                }
+            } else {
+                setSwipeX(mx);
+                setDragY(my);
+            }
+        } else {
+            if (!down) {
+                if (my < -swipeThreshold || vy < -velocityThreshold) {
+                    setCurrentIndex(nextIndex);
+                    processNextBatch();
+                } else if (my > swipeThreshold || vy > velocityThreshold) {
+                    if (currentIndex > 0) {
+                        setCurrentIndex((prev) => prev - 1);
+                    } else {
+                        setDragY(0);
+                    }
+                }
+                setDragY(0);
+            } else {
+                setDragY(my);
+            }
+        }
+    }, { rubberband: true });
+
+    useEffect(() => {
+        if (loadingMore)
+            setLoadingScrollOffset(prev => prev + 1);
+
+        if (lastSwipedIndex !== null && lastSwipedIndex === currentIndex) {
+            setLastSwipedIndex(null);
+            setPendingSwipeDirection(null);
+            setSwipingOut(false);
+        }
+    }, [currentIndex]);
+
+    return (
+        <VStack
+            spacing={0}
+            align="center"
+            justify="center"
+            pos="fixed"
+            left="0"
+            top="0"
+            height="100vh"
+            width="100vw"
+            overflow="hidden"
         >
-          Hold to refresh
-          <Progress
-            size="xs"
-            value={progress}
-            position="absolute"
-            bottom="0"
-            width="108px" // Set the width to 320px
-            right="16px" // Offset 16px from the right
-            borderRadius="md"
-            sx={{
-              "& > div": {
-                backgroundColor: "white", // Set the progress bar foreground color to white
-              },
-              backgroundColor: "rgba(255, 255, 255, 0.2)", // Set the progress bar background to a translucent white
-            }}
-          />
-        </Box>
-      )}
-      <VStack spacing={0} align="center" justify="center" pos="fixed" left="0" top="0" height="100vh" width="100vw" ref={containerRef} overflow="hidden">
-        <AnimatePresence>
-          {currentIndex < internalFeed.length ? (
-            [currentIndex, currentIndex + 1].map((index) => (
-              index < internalFeed.length && (
-                <motion.div
-                  key={internalFeed[index].type == "discover" ? (internalFeed[index].data as Song).id : (internalFeed[index].data as FeedItemHistory).userId + (internalFeed[index].data as FeedItemHistory).timestamp}
-                  {...bind()}
-                  style={{
-                    touchAction: "none",
-                    cursor: "grab",
-                    width: "100vw",
-                    height: "100vh",
-                    position: "absolute",
-                    top: `${(index - currentIndex) * 100}%`,
-                  }}
-                  initial={{ y: (index - currentIndex) * window.innerHeight }}
-                  animate={{ y: (index - currentIndex) * window.innerHeight + dragY }}
-                  exit={{ opacity: 0 }}
-                  transition={{ type: "spring", stiffness: 500, damping: 50 }}
-                >
-                  <Box
-                    width="100vw"
-                    height="100vh"
-                    pos="absolute"
-                    backgroundColor={reactiveDesignColour ?? "gray.700"}
-                    textAlign="center"
-                    
-                    display="flex"
-                    alignItems="center"
-                    justifyContent="center"
-                    flexDirection="column"
-                  >
-                    {internalFeed[index].type === "alert" &&
-                      (internalFeed[index].data as FeedItemAlert).alertType === "ListenerTypeChange" && (() => {
-                        const alert = internalFeed[index].data as FeedItemAlert;
-                        const tierName = alert.content ?? "New Tier";
+            <AnimatePresence>
+                {currentIndex < internalFeed.length ? (
+                    internalFeed.map((item, index) => {
+                        if (Math.abs(index - currentIndex) > 1) return null;
+
+                        const isCurrent = index === currentIndex;
+                        const isSwipingOutCard = index === lastSwipedIndex;
+                        const id = item.type === "discover" ? (item.data as Song).id : `card-${index}`;
+                        const colors = colorMap[id] ?? { bg: "gray.700", fg: "white" };
 
                         return (
-                          <Box
-                            width="100%"
-                            height="100%"
-                            position="relative"
-                            overflow="hidden"
-                            backgroundColor="#0D0D0E"
-                            display="flex"
-                            flexDirection="column"
-                            justifyContent="center"
-                            alignItems="center"
-                            padding="32px"
-                            textAlign="center"
-                          >
-                            <Box
-                              position="absolute"
-                              top={0}
-                              left={0}
-                              width="100%"
-                              height="100%"
-                              zIndex={0}
-                              overflow="hidden"
-                              opacity={0.08}
-                              pointerEvents="none"
-                            >
-                              <video
-                                autoPlay
-                                muted
-                                loop
-                                playsInline
+                            <motion.div
+                                key={`feed-${index}`}
+                                {...(isCurrent ? bind() : {})}
                                 style={{
-                                  height: "100%",
-                                  objectFit: "cover",
-                                  filter: "blur(5px) brightness(0.8)",
+                                    touchAction: "none",
+                                    cursor: isCurrent ? "grab" : "default",
+                                    position: "absolute",
+                                    width: "100vw",
+                                    height: "100vh",
+                                    top: 0,
+                                    left: 0,
+                                    zIndex: index === currentIndex ? 2 : 1
                                 }}
-                              >
-                                <source src="/assets/video/mdf-audio-addict-bg.mp4" type="video/mp4" />
-                              </video>
-                            </Box>
-                          
-                            <VStack spacing={12} maxW="90%" zIndex={1}>
-                              <VStack gap="4px">
-                                <Text fontSize="64px">🎉</Text>
-                                <Text
-                                  fontSize={["md", "lg"]}
-                                  color="gray.400"
-                                  fontWeight="medium"
-                                  textTransform="uppercase"
-                                  letterSpacing="widest"
+                                initial={{ y: (index - currentIndex) * window.innerHeight }}
+                                animate={{
+                                    x:
+                                        (isCurrent || isSwipingOutCard) && item.type === "discover"
+                                            ? pendingSwipeDirection === "left"
+                                                ? -window.innerWidth
+                                                : pendingSwipeDirection === "right"
+                                                ? window.innerWidth
+                                                : swipeX
+                                            : 0,
+                                    y:
+                                        (isCurrent || isSwipingOutCard)
+                                            ? item.type === "discover"
+                                                ? dragY
+                                                : (index - currentIndex) * window.innerHeight
+                                            : (index - currentIndex) * window.innerHeight,
+                                    rotate:
+                                        (isCurrent || isSwipingOutCard) && item.type === "discover"
+                                            ? pendingSwipeDirection
+                                                ? pendingSwipeDirection === "left"
+                                                    ? -25
+                                                    : 25
+                                                : swipeX / 25
+                                            : 0,
+                                    opacity: isSwipingOutCard ? 0 : 1
+                                }}
+                                exit={{ opacity: 0 }}
+                                transition={{
+                                    type: "spring",
+                                    stiffness: 500,
+                                    damping: 50
+                                }}
+                            >
+                                <Box
+                                    width="100vw"
+                                    height="100vh"
+                                    pos="absolute"
+                                    backgroundColor={colors.bg}
+                                    textAlign="center"
+                                    display="flex"
+                                    alignItems="center"
+                                    justifyContent="center"
+                                    flexDirection="column"
                                 >
-                                  Milestone Unlocked
-                                </Text>
-                              </VStack>
-                          
-                              <VStack spacing={6}>
-                                <Text
-                                  fontSize={["4xl", "5xl", "6xl"]}
-                                  fontWeight="black"
-                                  color="white"
-                                  textTransform="uppercase"
-                                  lineHeight="1.1"
-                                >
-                                  {tierName}
-                                </Text>
-                          
-                                <Text
-                                  fontSize={["md", "lg"]}
-                                  color="gray.300"
-                                  fontWeight="normal"
-                                  maxW="480px"
-                                >
-                                  You’ve hit a new listening tier — a sign of your dedication and taste in music!
-                                </Text>
-                              </VStack>
-                            </VStack>
-                          </Box>                        
+                                    {item.type === "alert" &&
+                                        (item.data as FeedItemAlert).alertType === "ListenerTypeChange" && (() => {
+                                            const alert = item.data as FeedItemAlert;
+                                            const tierName = alert.content ?? "New Tier";
+
+                                            return (
+                                                <Box
+                                                    width="100%"
+                                                    height="100%"
+                                                    position="relative"
+                                                    overflow="hidden"
+                                                    backgroundColor="#0D0D0E"
+                                                    display="flex"
+                                                    flexDirection="column"
+                                                    justifyContent="center"
+                                                    alignItems="center"
+                                                    padding="32px"
+                                                    textAlign="center"
+                                                >
+                                                    <Box
+                                                        position="absolute"
+                                                        top={0}
+                                                        left={0}
+                                                        width="100%"
+                                                        height="100%"
+                                                        zIndex={0}
+                                                        overflow="hidden"
+                                                        opacity={0.08}
+                                                        pointerEvents="none"
+                                                    >
+                                                        <video
+                                                            autoPlay
+                                                            muted
+                                                            loop
+                                                            playsInline
+                                                            style={{
+                                                                height: "100%",
+                                                                objectFit: "cover",
+                                                                filter: "blur(5px) brightness(0.8)"
+                                                            }}
+                                                        >
+                                                            <source
+                                                                src="/assets/video/mdf-audio-addict-bg.mp4"
+                                                                type="video/mp4"
+                                                            />
+                                                        </video>
+                                                    </Box>
+
+                                                    <VStack spacing={12} maxW="90%" zIndex={1}>
+                                                        <VStack gap="4px">
+                                                            <Text fontSize="64px">🎉</Text>
+                                                            <Text
+                                                                fontSize={["md", "lg"]}
+                                                                color="gray.400"
+                                                                fontWeight="medium"
+                                                                textTransform="uppercase"
+                                                                letterSpacing="widest"
+                                                            >
+                                                                Milestone Unlocked
+                                                            </Text>
+                                                        </VStack>
+
+                                                        <VStack spacing={6}>
+                                                            <Text
+                                                                fontSize={["4xl", "5xl", "6xl"]}
+                                                                fontWeight="black"
+                                                                color="white"
+                                                                textTransform="uppercase"
+                                                                lineHeight="1.1"
+                                                            >
+                                                                {tierName}
+                                                            </Text>
+
+                                                            <Text
+                                                                fontSize={["md", "lg"]}
+                                                                color="gray.300"
+                                                                fontWeight="normal"
+                                                                maxW="480px"
+                                                            >
+                                                                You’ve hit a new listening tier — a sign of your dedication and taste in music!
+                                                            </Text>
+                                                        </VStack>
+                                                    </VStack>
+                                                </Box>
+                                            );
+                                        })()}
+
+                                    {item.type === "discover" && (
+                                        <>
+                                            <Image
+                                                src={getSizedImageUrl((item.data as Song).imageUrl, 280, 280)}
+                                                width="280px"
+                                                height="280px"
+                                                objectFit="cover"
+                                                draggable="false"
+                                                marginTop="40px"
+                                                marginBottom="60px"
+                                                borderRadius="10px"
+                                            />
+                                            <Text
+                                                fontSize="24px"
+                                                fontWeight="bold"
+                                                color={colors.fg}
+                                                width="80%"
+                                            >
+                                                {(item.data as Song).title} ({Math.min(Math.round((item.data as Song).likeness * 100), 100)}%)
+                                            </Text>
+                                            <Text
+                                                fontSize="18px"
+                                                color={colors.fg}
+                                                opacity="0.75"
+                                                width="80%"
+                                            >
+                                                {(item.data as Song).artists.join(", ")}
+                                            </Text>
+                                            <a
+                                                href={getSpotifyDeeplink((item.data as Song).id)}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                style={{
+                                                    marginTop: "16px"
+                                                }}
+                                            >
+                                                <HStack>
+                                                    <Box>
+                                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0,0,256,256" width="26px" height="26px" fill-rule="nonzero"><g fill={colors.fg} fill-rule="nonzero" stroke="none" stroke-width="1" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="10" stroke-dasharray="" stroke-dashoffset="0" font-family="none" font-weight="none" font-size="none" text-anchor="none"><g transform="scale(5.12,5.12)"><path d="M25.009,1.982c-12.687,0 -23.009,10.322 -23.009,23.009c0,12.687 10.322,23.009 23.009,23.009c12.687,0 23.009,-10.321 23.009,-23.009c0,-12.688 -10.322,-23.009 -23.009,-23.009zM34.748,35.333c-0.289,0.434 -0.765,0.668 -1.25,0.668c-0.286,0 -0.575,-0.081 -0.831,-0.252c-2.473,-1.649 -6.667,-2.749 -10.167,-2.748c-3.714,0.002 -6.498,0.914 -6.526,0.923c-0.784,0.266 -1.635,-0.162 -1.897,-0.948c-0.262,-0.786 0.163,-1.636 0.949,-1.897c0.132,-0.044 3.279,-1.075 7.474,-1.077c3.5,-0.002 8.368,0.942 11.832,3.251c0.69,0.46 0.876,1.391 0.416,2.08zM37.74,29.193c-0.325,0.522 -0.886,0.809 -1.459,0.809c-0.31,0 -0.624,-0.083 -0.906,-0.26c-4.484,-2.794 -9.092,-3.385 -13.062,-3.35c-4.482,0.04 -8.066,0.895 -8.127,0.913c-0.907,0.258 -1.861,-0.272 -2.12,-1.183c-0.259,-0.913 0.272,-1.862 1.184,-2.12c0.277,-0.079 3.854,-0.959 8.751,-1c4.465,-0.037 10.029,0.61 15.191,3.826c0.803,0.5 1.05,1.56 0.548,2.365zM40.725,22.013c-0.373,0.634 -1.041,0.987 -1.727,0.987c-0.344,0 -0.692,-0.089 -1.011,-0.275c-5.226,-3.068 -11.58,-3.719 -15.99,-3.725c-0.021,0 -0.042,0 -0.063,0c-5.333,0 -9.44,0.938 -9.481,0.948c-1.078,0.247 -2.151,-0.419 -2.401,-1.495c-0.25,-1.075 0.417,-2.149 1.492,-2.4c0.185,-0.043 4.573,-1.053 10.39,-1.053c0.023,0 0.046,0 0.069,0c4.905,0.007 12.011,0.753 18.01,4.275c0.952,0.56 1.271,1.786 0.712,2.738z"></path></g></g></svg>
+                                                    </Box>
+                                                    <Box fontSize="12px" lineHeight="15px" color={colors.fg}>
+                                                        <Text>Play on</Text>
+                                                        <Text>Spotify</Text>
+                                                    </Box>
+                                                </HStack>
+                                            </a>
+                                        </>
+                                    )}
+
+                                    {item.type === "history" && (() => {
+                                        const history = item.data as FeedItemHistory;
+                                        const { username, pfpUrl, item: histItem } = history;
+                                        const { track, sessionDuration, skipped, replayed } = histItem;
+
+                                        return (
+                                            <Box
+                                                width="100%"
+                                                height="100%"
+                                                position="relative"
+                                                backgroundColor="#0D0D0E"
+                                                display="flex"
+                                                flexDirection="column"
+                                                justifyContent="center"
+                                                alignItems="center"
+                                                padding="32px"
+                                                overflow="hidden"
+                                            >
+                                                <Image
+                                                    src={track.album.artUrl}
+                                                    alt={track.name}
+                                                    position="absolute"
+                                                    top="0"
+                                                    left="0"
+                                                    width="100%"
+                                                    height="100%"
+                                                    objectFit="cover"
+                                                    opacity={0.075}
+                                                    filter="grayscale(32%) blur(3px)"
+                                                    zIndex={0}
+                                                />
+
+                                                <VStack spacing={12} maxW="90%" zIndex={1}>
+                                                    <VStack gap="10px" alignItems="center">
+                                                        {pfpUrl ? (
+                                                            <SkeletonImage
+                                                                width="76px"
+                                                                height="76px"
+                                                                borderRadius="6px"
+                                                                src={getSizedImageUrl(pfpUrl, 76, 76)}
+                                                                onError={() => {}}
+                                                            />
+                                                        ) : (
+                                                            <Avatar
+                                                                name={username ?? "" + history.userId ?? ""}
+                                                                borderRadius="6px"
+                                                                width="76px"
+                                                                height="76px"
+                                                            />
+                                                        )}
+                                                        <Text
+                                                            fontSize="32px"
+                                                            fontWeight="bold"
+                                                            color="white"
+                                                            letterSpacing="wide"
+                                                        >
+                                                            {username}
+                                                        </Text>
+                                                    </VStack>
+
+                                                    <Box>
+                                                        <Text
+                                                            fontSize={["sm", "md"]}
+                                                            color="gray.500"
+                                                            fontWeight="medium"
+                                                            textTransform="uppercase"
+                                                            letterSpacing="wider"
+                                                        >
+                                                            listened to
+                                                        </Text>
+                                                        <Text
+                                                            fontSize={["3xl", "4xl", "5xl"]}
+                                                            fontWeight="black"
+                                                            color="white"
+                                                            lineHeight="1.1"
+                                                            mt={1}
+                                                        >
+                                                            {track.name}
+                                                        </Text>
+                                                        <Text
+                                                            fontSize={["md", "lg"]}
+                                                            color="gray.400"
+                                                            fontWeight="medium"
+                                                            mt={2}
+                                                        >
+                                                            {track.artists.map((a) => a.name).join(", ")}
+                                                        </Text>
+                                                    </Box>
+
+                                                    <VStack>
+                                                        <HStack
+                                                            spacing={6}
+                                                            pt={4}
+                                                            fontSize="sm"
+                                                            color="gray.500"
+                                                            wrap="wrap"
+                                                            justifyContent="center"
+                                                        >
+                                                            <Text>
+                                                                {(() => {
+                                                                    const totalSeconds = Math.floor(
+                                                                        (sessionDuration * track.duration) / 1000
+                                                                    );
+                                                                    const minutes = Math.floor(totalSeconds / 60);
+                                                                    const seconds = totalSeconds % 60;
+                                                                    return `${minutes}m ${seconds}s played`;
+                                                                })()}
+                                                            </Text>
+                                                            {skipped && (
+                                                                <Text color="red.400" fontWeight="semibold">
+                                                                    Skipped
+                                                                </Text>
+                                                            )}
+                                                            {replayed && (
+                                                                <Text color="green.400" fontWeight="semibold">
+                                                                    Replayed
+                                                                </Text>
+                                                            )}
+                                                        </HStack>
+                                                        <Text fontSize="xs" color="gray.600">
+                                                            {(() => {
+                                                                const now = Date.now();
+                                                                const diffMs = now - history.timestamp;
+                                                                const diffSeconds = Math.floor(diffMs / 1000);
+                                                                const diffMinutes = Math.floor(diffSeconds / 60);
+                                                                const diffHours = Math.floor(diffMinutes / 60);
+                                                                const diffDays = Math.floor(diffHours / 24);
+
+                                                                if (diffDays > 0) return `${diffDays} day${diffDays > 1 ? "s" : ""} ago`;
+                                                                if (diffHours > 0) return `${diffHours} hour${diffHours > 1 ? "s" : ""} ago`;
+                                                                if (diffMinutes > 0) return `${diffMinutes} minute${diffMinutes > 1 ? "s" : ""} ago`;
+                                                                return `Just now`;
+                                                            })()}
+                                                        </Text>
+                                                        <a
+                                                            href={getSpotifyDeeplink((item.data as FeedItemHistory).item.track.id)}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            style={{
+                                                                marginTop: "12px"
+                                                            }}
+                                                        >
+                                                            <HStack>
+                                                                <Box>
+                                                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0,0,256,256" width="26px" height="26px" fill-rule="nonzero"><g fill="#ffffff" fill-rule="nonzero" stroke="none" stroke-width="1" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="10" stroke-dasharray="" stroke-dashoffset="0" font-family="none" font-weight="none" font-size="none" text-anchor="none"><g transform="scale(5.12,5.12)"><path d="M25.009,1.982c-12.687,0 -23.009,10.322 -23.009,23.009c0,12.687 10.322,23.009 23.009,23.009c12.687,0 23.009,-10.321 23.009,-23.009c0,-12.688 -10.322,-23.009 -23.009,-23.009zM34.748,35.333c-0.289,0.434 -0.765,0.668 -1.25,0.668c-0.286,0 -0.575,-0.081 -0.831,-0.252c-2.473,-1.649 -6.667,-2.749 -10.167,-2.748c-3.714,0.002 -6.498,0.914 -6.526,0.923c-0.784,0.266 -1.635,-0.162 -1.897,-0.948c-0.262,-0.786 0.163,-1.636 0.949,-1.897c0.132,-0.044 3.279,-1.075 7.474,-1.077c3.5,-0.002 8.368,0.942 11.832,3.251c0.69,0.46 0.876,1.391 0.416,2.08zM37.74,29.193c-0.325,0.522 -0.886,0.809 -1.459,0.809c-0.31,0 -0.624,-0.083 -0.906,-0.26c-4.484,-2.794 -9.092,-3.385 -13.062,-3.35c-4.482,0.04 -8.066,0.895 -8.127,0.913c-0.907,0.258 -1.861,-0.272 -2.12,-1.183c-0.259,-0.913 0.272,-1.862 1.184,-2.12c0.277,-0.079 3.854,-0.959 8.751,-1c4.465,-0.037 10.029,0.61 15.191,3.826c0.803,0.5 1.05,1.56 0.548,2.365zM40.725,22.013c-0.373,0.634 -1.041,0.987 -1.727,0.987c-0.344,0 -0.692,-0.089 -1.011,-0.275c-5.226,-3.068 -11.58,-3.719 -15.99,-3.725c-0.021,0 -0.042,0 -0.063,0c-5.333,0 -9.44,0.938 -9.481,0.948c-1.078,0.247 -2.151,-0.419 -2.401,-1.495c-0.25,-1.075 0.417,-2.149 1.492,-2.4c0.185,-0.043 4.573,-1.053 10.39,-1.053c0.023,0 0.046,0 0.069,0c4.905,0.007 12.011,0.753 18.01,4.275c0.952,0.56 1.271,1.786 0.712,2.738z"></path></g></g></svg>
+                                                                </Box>
+                                                                <Box fontSize="12px" lineHeight="15px" color="#ffffff">
+                                                                    <Text>Play on</Text>
+                                                                    <Text>Spotify</Text>
+                                                                </Box>
+                                                            </HStack>
+                                                        </a>
+                                                    </VStack>
+                                                </VStack>
+                                            </Box>
+                                        );
+                                    })()}
+                                </Box>
+                            </motion.div>
                         );
-                      })()
-                    }
-                    {internalFeed[index].type == "discover" && (<>
-                      <Image
-                        src={getSizedImageUrl((internalFeed[index].data as Song).imageUrl, 280, 280)}
-                        width="280px"
-                        height="280px"
-                        objectFit="cover"
-                        draggable="false"
-                        marginTop="40px"
-                        marginBottom="60px"
-                        borderRadius="10px"
-                      />
-                      <Text fontSize="24px" fontWeight="bold" color={reactiveDesignComplementaryColour ?? "white"} width="80%">
-                          {(internalFeed[index].data as Song).title} ({Math.min(Math.round((internalFeed[index].data as Song).likeness * 100), 100)}%)
-                      </Text>
-                      <Text fontSize="18px" color={reactiveDesignComplementaryColour ?? "white"} opacity="0.75" width="80%">
-                          {(internalFeed[index].data as Song).artists.join(", ")}
-                      </Text>
-                      <IconButton
-                      aria-label="like"
-                      icon={<FaRegHeart />}
-                      variant="ghost"
-                      size="lg"
-                      mt={2}
-                      />
-                    </>)}
-                    {internalFeed[index].type === "history" && (() => {
-                    const history = internalFeed[index].data as FeedItemHistory;
-                    const { username, pfpUrl, item } = history;
-                    const { track, sessionDuration, skipped, replayed } = item;
-
-                    return (
-                      <Box
-                        width="100%"
-                        height="100%"
-                        position="relative"
-                        backgroundColor="#0D0D0E"
-                        display="flex"
-                        flexDirection="column"
-                        justifyContent="center"
-                        alignItems="center"
-                        padding="32px"
-                        overflow="hidden"
-                      >
-                        <Image
-                          src={track.album.artUrl}
-                          alt={track.name}
-                          position="absolute"
-                          top="0"
-                          left="0"
-                          width="100%"
-                          height="100%"
-                          objectFit="cover"
-                          opacity={0.1}
-                          filter="grayscale(100%) blur(6px)"
-                          zIndex={0}
-                        />
-                      
-                        {/* Foreground content */}
-                        <VStack spacing={12} maxW="90%" zIndex={1}>
-                          <VStack gap="10px" alignItems="center">
-                            {pfpUrl ? (
-                              <SkeletonImage
-                                width="76px"
-                                height="76px"
-                                borderRadius="6px"
-                                src={getSizedImageUrl(pfpUrl ?? "null", 76, 76)}
-                                onError={() => { }}
-                              />
-                            ) : (
-                              <Avatar
-                                name={username ?? "" + history.userId ?? ""}
-                                borderRadius="6px"
-                                width="76px"
-                                height="76px"
-                              />
-                            )}
-                            <Text
-                              fontSize="32px"
-                              fontWeight="bold"
-                              color="white"
-                              letterSpacing="wide"
-                            >
-                              {username}
+                    })
+                ) : (
+                    <motion.div
+                        key="end-message"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        style={{
+                            width: "100vw",
+                            height: "100vh",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            backgroundColor: "gray.700",
+                            color: "white",
+                            textAlign: "center",
+                            padding: "20px"
+                        }}
+                    >
+                        <Box textAlign="center">
+                            <Text fontSize="6xl" mb={6}>🎉</Text>
+                            <Text fontSize="lg" fontWeight="medium" color="gray.200" mb={2}>
+                                You reached the end of your For You page
                             </Text>
-                          </VStack>
-                      
-                          <Box>
-                            <Text
-                              fontSize={["sm", "md"]}
-                              color="gray.500"
-                              fontWeight="medium"
-                              textTransform="uppercase"
-                              letterSpacing="wider"
-                            >
-                              listened to
+                            <Text fontSize="md" color="gray.400">
+                                Come back later for more!
                             </Text>
-                      
-                            <Text
-                              fontSize={["3xl", "4xl", "5xl"]}
-                              fontWeight="black"
-                              color="white"
-                              lineHeight="1.1"
-                              mt={1}
-                            >
-                              {track.name}
-                            </Text>
-                      
-                            <Text
-                              fontSize={["md", "lg"]}
-                              color="gray.400"
-                              fontWeight="medium"
-                              mt={2}
-                            >
-                              {track.artists.map((a) => a.name).join(", ")}
-                            </Text>
-                          </Box>
-                            
-                          <VStack>
-                            <HStack spacing={6} pt={4} fontSize="sm" color="gray.500" wrap="wrap" justifyContent="center">
-                              <Text>
-                                {(() => {
-                                  const totalSeconds = Math.floor((sessionDuration * track.duration) / 1000);
-                                  const minutes = Math.floor(totalSeconds / 60);
-                                  const seconds = totalSeconds % 60;
-                                  return `${minutes}m ${seconds}s played`;
-                                })()}
-                              </Text>
-                              {skipped && (
-                                <Text color="red.400" fontWeight="semibold">
-                                  Skipped
-                                </Text>
-                              )}
-                              {replayed && (
-                                <Text color="green.400" fontWeight="semibold">
-                                  Replayed
-                                </Text>
-                              )}
-                            </HStack>
-                            <Text fontSize="xs" color="gray.600">
-                              {(() => {
-                                const now = Date.now();
-                                const diffMs = now - history.timestamp;
-                                const diffSeconds = Math.floor(diffMs / 1000);
-                                const diffMinutes = Math.floor(diffSeconds / 60);
-                                const diffHours = Math.floor(diffMinutes / 60);
-                                const diffDays = Math.floor(diffHours / 24);
-
-                                if (diffDays > 0) return `${diffDays} day${diffDays > 1 ? "s" : ""} ago`;
-                                if (diffHours > 0) return `${diffHours} hour${diffHours > 1 ? "s" : ""} ago`;
-                                if (diffMinutes > 0) return `${diffMinutes} minute${diffMinutes > 1 ? "s" : ""} ago`;
-                                return `Just now`;
-                              })()}
-                            </Text>
-                          </VStack>
-                        </VStack>
-                      </Box>
-                    );
-                })()}
-                  </Box>
-                </motion.div>
-              )
-            ))
-          ) : (
-            <motion.div
-              key="end-message"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              style={{
-                width: "100vw",
-                height: "100vh",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                backgroundColor: "gray.700",
-                color: "white",
-                textAlign: "center",
-                padding: "20px",
-              }}
-            >
-              <Box textAlign="center">
-                <Text fontSize="6xl" mb={6}>🎉</Text>
-                <Text fontSize="lg" fontWeight="medium" color="gray.200" mb={2}>
-                  You reached the end of your For You page
-                </Text>
-                <Text fontSize="md" color="gray.400">
-                  Come back later for more!
-                </Text>
-              </Box>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </VStack>
-    </>
-  );
+                        </Box>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </VStack>
+    );
 };
 
 export default MusicDiscoveryFeed;
