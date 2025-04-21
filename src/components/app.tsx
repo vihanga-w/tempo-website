@@ -23,6 +23,8 @@ import { PlaybackHistoryItem } from "./playback-history-item";
 import { UserLookupResult } from "./user-lookup-result";
 import RecapDrawer, { Recap } from "./recap-drawer";
 import FullLoader from "./full-loader";
+import PlaylistsPage from "./playlists-page";
+import CreatePlaylistPage from "./create-playlist-page";
 
 const MusicDiscoveryFeed = lazy(() => import("./music-discovery-feed"));
 const FriendsPage = lazy(() => import("./friends-page"));
@@ -71,7 +73,6 @@ export default function UIApp({
     const [prevPage, setPrevPage] = useState<string>("");
     const [pageSwitcherActive, setPageSwitcherActive] = useState<boolean>(false);
     const [isLoading, setIsLoading] = useState<boolean>(false);
-    const [isFading, setIsFading] = useState<boolean>(false);
     const [activityPageLoading, setActivityPageLoading] = useState<boolean>(true);
     const [showLivePlaybackStates, setShowLivePlaybackStates] = useState<boolean>(false);
     const [livePlaybackStates, setLivePlaybackStates] = useState<UpdateEvent[]>([]);
@@ -380,6 +381,11 @@ export default function UIApp({
             indexed: true,
         },
         {
+            name: "Playlists",
+            id: "playlists",
+            indexed: true,
+        },
+        {
             name: "Friends",
             id: "friends",
             indexed: true,
@@ -391,15 +397,20 @@ export default function UIApp({
             indexed: true,
         },
         {
+            name: "Profile",
+            id: "pub-profile",
+            indexed: false,
+        },
+        {
             name: "Add Friends",
             id: "add-friends",
             indexed: false,
         },
         {
-            name: "Profile",
-            id: "pub-profile",
+            name: "Create Playlist",
+            id: "create-playlist",
             indexed: false,
-        }
+        },
     ];
 
     const pageChanger = useCallback((id: string, prevPage?: string) => {
@@ -439,7 +450,7 @@ export default function UIApp({
         setPageSwitcherActive(!pageSwitcherActive);
     }, [prevPage, pageSwitcherActive]);
 
-    const addNewItemPossiblePages = ["friends"];
+    const ADD_NEW_ITEM_POSSIBLE_PAGES = ["friends", "playlists"];
 
     return (
         <>
@@ -464,9 +475,6 @@ export default function UIApp({
                 justifyContent="center"
                 opacity={isLoading ? 1 : 0}
                 transition="opacity 0.15s ease-out"
-                onTransitionEnd={() => {
-                    if (!isLoading) setIsFading(false);
-                }}
             >
                 <Loader />
             </Box>
@@ -654,16 +662,21 @@ export default function UIApp({
                             hideSpotifyCallout
                         />
                     </Box>
-                    <Box pos="fixed" zIndex="9999999" top="-6px" right="20px" width="100vw" pointerEvents={prevPage || !addNewItemPossiblePages.includes(currentPage) ? "none" : "all"}>
+                    <Box pos="fixed" zIndex="9999999" top="-6px" right="20px" width="100vw" pointerEvents={prevPage || !ADD_NEW_ITEM_POSSIBLE_PAGES.includes(currentPage) ? "none" : "all"}>
                         <SmallAddButton
                             onClick={() => {
                                 if (pageSwitcherActive) return;
-                                if (currentPage == "friends") pageChanger("add-friends", "friends");
+
+                                if (currentPage == "friends") 
+                                    pageChanger("add-friends", "friends");
+
+                                if (currentPage == "playlists") 
+                                    pageChanger("create-playlist", "playlists");
                             }}
                             isCross={false}
-                            scale={prevPage || !addNewItemPossiblePages.includes(currentPage) ? 0.65 : 1}
-                            opacity={prevPage || !addNewItemPossiblePages.includes(currentPage) ? "0" : "1"}
-                            active={prevPage == "" || !addNewItemPossiblePages.includes(currentPage)}
+                            scale={prevPage || !ADD_NEW_ITEM_POSSIBLE_PAGES.includes(currentPage) ? 0.65 : 1}
+                            opacity={prevPage || !ADD_NEW_ITEM_POSSIBLE_PAGES.includes(currentPage) ? "0" : "1"}
+                            active={prevPage == "" || !ADD_NEW_ITEM_POSSIBLE_PAGES.includes(currentPage)}
                         />
                     </Box>
                 </HStack>
@@ -866,6 +879,34 @@ export default function UIApp({
                                     )}
                                 </Stack>
                             )}
+                        </>
+                    )}
+
+                    {/* Playlists page */}
+                    {currentPage == "playlists" && (
+                        <Suspense fallback={<SuspenseSpinner />}>
+                            <PlaylistsPage
+                                user={user} 
+                                // streamer={streamer}
+                                // openPubProfile={(id) => {
+                                //     setPubProfileUserId(id);
+                                //     pageChanger("pub-profile", "friends");
+                                // }}
+                            />
+                        </Suspense>
+                    )}
+
+                    {/* Create playlists page */}
+                    {currentPage == "create-playlist" && (
+                        <>
+                            <Suspense fallback={<SuspenseSpinner />}>
+                                <CreatePlaylistPage
+                                    user={user}
+                                    // onComplete={id => {
+                                    //     console.log("Added new friend:", id);
+                                    // }}
+                                />
+                            </Suspense>
                         </>
                     )}
 

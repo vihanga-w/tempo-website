@@ -14,14 +14,8 @@ export default function AddFriendsPage({
 }: {
     user: User;
 }) {
-    const [STunSessionKey, setSTunSessionKey] = useState<string>("");
-    const [STunIsAttemptingConnect, setSTunIsAttemptingConnect] = useState<boolean>(false);
-    const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
     const [lookupTimeout, setLookupTimeout] = useState<NodeJS.Timeout | undefined>();
     const [lookupResults, setLookupResults] = useState<UserLookupResultType[]>([]);
-
-    const textColour = useColorModeValue("text.light", "text.dark");
-    const colorVariantName = useColorModeValue("light", "dark");
 
     const handler = async (e: ChangeEvent<HTMLInputElement>) => {
         if (e.target.value.trim() == "") {
@@ -99,7 +93,7 @@ export default function AddFriendsPage({
                 fontSize="16px"
                 opacity="0.75"
             >
-                Everything's better with friends—Tempo too! Add friends to share Spotify activity and explore each other's music tastes.
+                Everything's better with friends — Tempo too! Add friends to share Spotify activity and explore each other's music tastes.
             </Text>
             <Box>
                 <Stack gap="20px">
