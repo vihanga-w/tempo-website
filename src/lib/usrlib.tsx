@@ -174,6 +174,27 @@ export default class User extends EventEmitter {
         if (req.status == 429)
             window.location.reload();
     }
+
+    public async setSongAffinity(songId: string, affinity: number) {
+        const req = await fetch(API_URL + "/me/taste/affinity", {
+            method: "POST",
+            headers: {
+                ...(this.getAuthHeaders()),
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                songId,
+                // Clamp the affinity to -5 to 5
+                affinity: Math.max(-5, Math.min(5, affinity)),
+            }),
+            credentials: "include",
+        });
+        
+        if (req.status == 429)
+            window.location.reload();
+
+        return req.status == 200;
+    }
     
     public async getRemoteUserPastWeekStats(userId: string) {
         const req = await fetch(API_URL + `/profile/${userId}/pastWeekStats`, {

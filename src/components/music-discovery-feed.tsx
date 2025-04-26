@@ -113,7 +113,7 @@ const MusicDiscoveryFeed: React.FC<{
             const h = oklch(hex);
     
             // Determine light/dark based on lightness value
-            const isBright = (h?.l ?? 0.5) > 0.7;
+            const isBright = (h?.l ?? 0.5) > 0.65;
     
             // If too bright, choose a much darker fg (low lightness)
             let adjustedFgHex: string;
@@ -136,13 +136,24 @@ const MusicDiscoveryFeed: React.FC<{
         }).catch(console.log);
     };
 
-    const songPreferenceUpdateCb = (songId: string, like: boolean) => {
+    const songPreferenceUpdateCb = (songId: string, like: boolean, velocity: number) => {
         console.log(
             !like ? "Disliked" : "Liked",
             songId
         );
 
-        alert("Sorry, that feature is not yet available");
+        const affinity = ((!like ? -1 : 1) * Math.min(5, Math.max(1, Math.log(velocity) * 3.6)));
+
+        user.setSongAffinity(songId, affinity).then((success: boolean) => {
+            if (success) {
+                console.log("Song preference updated successfully");
+            } else {
+                alert("Sorry, something went wrong!");
+            }
+        }).catch((err) => {
+            console.error("Error updating song preference:", err);
+            alert("Sorry, something went wrong!");
+        });
     }
 
     const bind = useDrag((state) => {
@@ -167,7 +178,7 @@ const MusicDiscoveryFeed: React.FC<{
                 setLoadingMore(true);
                 loadMore(currentIndex - 1);
             }
-        }
+        };
 
         if (isDiscover) {
             if (!down) {
@@ -189,7 +200,7 @@ const MusicDiscoveryFeed: React.FC<{
                     setSwipeX(0);
                     setDragY(0);
                 } else if (direction === "left" || direction === "right") {
-                    songPreferenceUpdateCb((currentItem.data as Song).id, direction == "right");
+                    songPreferenceUpdateCb((currentItem.data as Song).id, direction == "right", vel);
 
                     setPendingSwipeDirection(direction);
                     setSwipingOut(true);
@@ -262,6 +273,43 @@ const MusicDiscoveryFeed: React.FC<{
             width="100vw"
             overflow="hidden"
         >
+            {/* Like and Dislike indicators */}
+            <motion.div
+                style={{
+                    position: "absolute",
+                    top: "50%",
+                    left: "-20%",
+                    transform: "translateY(-50%)",
+                    fontSize: "40px",
+                    fontWeight: "bold",
+                    color: "white",
+                    zIndex: 1
+                }}
+                animate={{
+                    left: swipeX > 25 ? `${Math.min(swipingOut ? 100 : (swipeX - 200) / 2, 20)}%` : "-20%",
+                    opacity: swipeX > 100 ? Math.min(swipingOut ? 100 : (swipeX - 100) / 100, 1) : 0
+                }}
+            >
+                Like
+            </motion.div>
+            <motion.div
+                style={{
+                    position: "absolute",
+                    top: "50%",
+                    right: "-20%",
+                    transform: "translateY(-50%)",
+                    fontSize: "40px",
+                    fontWeight: "bold",
+                    color: "white",
+                    zIndex: 1
+                }}
+                animate={{
+                    right: swipeX < -25 ? `${Math.min(swipingOut ? 1000 : (-swipeX - 200) / 2, 20)}%` : "-20%",
+                    opacity: swipeX < -100 ? Math.min(swipingOut ? 100 : (-swipeX - 100) / 100, 1) : 0
+                }}
+            >
+                Dislike
+            </motion.div>
             <AnimatePresence>
                 {currentIndex < internalFeed.length ? (
                     internalFeed.map((item, index) => {
@@ -294,7 +342,9 @@ const MusicDiscoveryFeed: React.FC<{
                                                 ? -window.innerWidth
                                                 : pendingSwipeDirection === "right"
                                                 ? window.innerWidth
-                                                : swipeX
+                                                : Math.abs(swipeX) > 100 // Only move horizontally if swipe exceeds threshold
+                                                    ? swipeX
+                                                    : 0
                                             : 0,
                                     y:
                                         (isCurrent || isSwipingOutCard)
@@ -308,7 +358,9 @@ const MusicDiscoveryFeed: React.FC<{
                                                 ? pendingSwipeDirection === "left"
                                                     ? -25
                                                     : 25
-                                                : swipeX / 25
+                                                : Math.abs(swipeX) > 100
+                                                    ? swipeX / 25
+                                                    : 0
                                             : 0,
                                     opacity: isSwipingOutCard ? 0 : 1
                                 }}
