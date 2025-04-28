@@ -365,6 +365,16 @@ export default function UserPreferencesPage({ user }: { user: User }) {
                     </Text>
                     <Button colorScheme="accent.dark" variant="outline" size="sm" onClick={() => {
                         if (confirm("Are you sure you want to reconnect your Spotify account?\n\nThis will reset your application state.")) {
+                            window.localStorage.removeItem("tempo-dev-warning-msg");
+                            window.localStorage.removeItem("tempo-initial-visit");
+                            window.localStorage.removeItem("tempo-legal-agreed");
+                            window.localStorage.removeItem("tempo-local-version");
+                            window.localStorage.removeItem("tempo-local-version-notice");
+                            window.localStorage.removeItem("tempo-navigation");
+                            window.localStorage.removeItem("tempo-notif-processed");
+                            window.localStorage.removeItem("tempo-override-pwa-detection");
+                            window.localStorage.removeItem("tempo.a");
+                            
                             window.location.href = "https://api.tempo-music.co/auth/ui";
                         }
                     }}>
