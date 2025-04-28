@@ -535,7 +535,7 @@ const MusicDiscoveryFeed: React.FC<{
                                 transition={{
                                     type: "tween",
                                     ease: "easeInOut",
-                                    duration: 0.15,
+                                    duration: 0.225,
                                 }}
                             >
                                 <Box
