@@ -48,6 +48,7 @@ export default function AuthSuccess() {
     const [showWelcomeText, setShowWelcomeText] = useState(false);
     const [showWelcomeText2, setShowWelcomeText2] = useState(false);
     const [er, _] = useState(ensureReady(2));
+    const [display, setDisplay] = useState(false);
     const [username, setUsername] = useState<string | undefined>();
 
     const isDev = false;
@@ -55,6 +56,14 @@ export default function AuthSuccess() {
     useEffect(() => {
         if (!document || !window)
             return;
+
+        // If this is not a new install, redirect stright to application
+        if (localStorage.getItem("tempo-legal-agreed")) {
+            window.location.pathname = "/";
+            return;
+        }
+
+        setDisplay(true);
 
         er.wait().then(() => {
             setInvertGravity(true);
@@ -112,7 +121,7 @@ export default function AuthSuccess() {
     }, [username]);
 
     return (
-        <Box pointerEvents="none">
+        <Box pointerEvents="none" opacity={display ? 1 : 0}>
             <Box pos="fixed" top="-100px" left="-25px" zIndex="1" transform="rotate(-10deg)" opacity=".45">
                 <ScrollVelocity
                     texts={['WELCOME', 'WELCOME']} 
