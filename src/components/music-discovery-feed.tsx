@@ -60,7 +60,7 @@ const MusicDiscoveryFeed: React.FC<{
     setReactionDrawerItem,
     openReactionDrawer,
 }) => {
-    const activityItemsPerPage = Math.floor((window.innerHeight - 105) / 165);
+    const activityItemsPerPage = Math.floor((window.innerHeight - 105) / 175);
     const requiredActivityPages = Math.ceil(livePlaybackStatesPlaceholderCount / activityItemsPerPage);
 
     const [currentIndex, setCurrentIndex] = useState(0);
