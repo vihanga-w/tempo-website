@@ -86,6 +86,31 @@ const MusicDiscoveryFeed: React.FC<{
     const [colorMap, setColorMap] = useState<Record<string, { bg: string; fg: string }>>({});
     const [firstLoad, setFirstLoad] = useState(0);
 
+    const swipeRef = useRef({
+        swipeX: 0,
+        dragY: 0,
+        updateLoop: () => {},
+    });
+
+    useEffect(() => {
+        let frameId: number | null = null;
+    
+        const update = () => {
+            setSwipeX(swipeRef.current.swipeX);
+            setDragY(swipeRef.current.dragY);
+
+            frameId = null;
+        };
+    
+        const loop = () => {
+            if (frameId == null) {
+                frameId = requestAnimationFrame(update);
+            }
+        };
+    
+        swipeRef.current.updateLoop = loop;
+    }, []);
+
     useEffect(() => {
         const alertItems = Array.from(
             { length: requiredActivityPages },
@@ -130,14 +155,62 @@ const MusicDiscoveryFeed: React.FC<{
     }, [currentIndex, internalFeed]);
 
     useEffect(() => {
-        const current = internalFeed[currentIndex];
-        if (current?.type === "discover") {
-            const song = current.data as Song;
-            if (!colorMap[song.id]) {
-                processReactiveColoursFromImage(song.imageUrl, song.id);
+        feed.forEach(item => {
+            if (item.type === "discover") {
+                const song = item.data as Song;
+
+                if (!colorMap[song.id]) {
+                    processReactiveColoursFromImage(song.imageUrl, song.id);
+                }
             }
-        }
-    }, [currentIndex, internalFeed, colorMap]);
+        });
+    }, [feed]);
+
+    const preloadImage = (src: string) => {
+        return new Promise<void>((resolve, reject) => {
+            const img = new window.Image();
+            img.src = src;
+            img.onload = () => resolve();
+            img.onerror = reject;
+        });
+    };
+
+    useEffect(() => {
+        const preloadNextImages = async () => {
+            if (!internalFeed.length) return;
+    
+            const preloadCount = 3; // number of items to preload ahead
+            const tasks: Promise<void>[] = [];
+    
+            for (let i = 1; i <= preloadCount; i++) {
+                const next = internalFeed[currentIndex + i];
+                if (!next || next.type !== "discover") continue;
+    
+                const song = next.data as Song;
+                const imgUrl = getSizedImageUrl(song.imageUrl, 280, 280);
+    
+                tasks.push(preloadImage(imgUrl));
+            }
+    
+            try {
+                await Promise.all(tasks);
+            } catch (e) {
+                console.warn("One or more images failed to preload", e);
+            }
+        };
+    
+        preloadNextImages();
+    }, [currentIndex, internalFeed]);
+
+    // useEffect(() => {
+    //     const current = internalFeed[currentIndex];
+    //     if (current?.type === "discover") {
+    //         const song = current.data as Song;
+    //         if (!colorMap[song.id]) {
+    //             processReactiveColoursFromImage(song.imageUrl, song.id);
+    //         }
+    //     }
+    // }, [currentIndex, internalFeed, colorMap]);
 
     const processReactiveColoursFromImage = (imageUrl: string, id: string) => {
         const fac = new FastAverageColor();
@@ -235,26 +308,22 @@ const MusicDiscoveryFeed: React.FC<{
 
     const bind = useDrag((state) => {
         const { movement: [mx, my], velocity: vel, down } = state;
-
+    
         const vx = Array.isArray(vel) ? vel[0] : 0;
         const vy = Array.isArray(vel) ? vel[1] : 0;
-
+    
         const currentItem = internalFeed[currentIndex];
         const isDiscover = currentItem?.type === "discover";
-
-        if (
-            swipingOut ||
-            // Disable swiping out if the feed is in a loading state
-            isLoading()
-        ) {
+    
+        if (swipingOut || isLoading()) {
             return;
         }
-
+    
         const swipeThreshold = 100;
         const velocityThreshold = 0.3;
         const isHorizontal = Math.abs(mx) > Math.abs(my);
         const nextIndex = Math.min(currentIndex + 1, internalFeed.length - 1);
-
+    
         const processNextBatch = () => {
             if (internalFeed.length - nextIndex <= 5 && !loadingMore) {
                 setLoadingScrollOffset(0);
@@ -262,57 +331,60 @@ const MusicDiscoveryFeed: React.FC<{
                 loadMore(currentIndex - 1);
             }
         };
-
+    
         if (isDiscover) {
             if (!down) {
                 let direction: "left" | "right" | "up" | "down" | null = null;
-
+    
                 if (isHorizontal && (Math.abs(mx) > swipeThreshold || Math.abs(vx) > velocityThreshold)) {
                     direction = mx > 0 ? "right" : "left";
                 } else if (!isHorizontal && (Math.abs(my) > swipeThreshold || Math.abs(vy) > velocityThreshold)) {
                     direction = my > 0 ? "down" : "up";
                 }
-
+    
                 if (direction === "down") {
                     setCurrentIndex((prev) => Math.max(prev - 1, 0));
-                    setSwipeX(0);
-                    setDragY(0);
-                    processNextBatch();
+                    swipeRef.current.swipeX = 0;
+                    swipeRef.current.dragY = 0;
+                    swipeRef.current.updateLoop();
                 } else if (direction === "up") {
                     setCurrentIndex((prev) => Math.min(prev + 1, internalFeed.length - 1));
-                    setSwipeX(0);
-                    setDragY(0);
+                    swipeRef.current.swipeX = 0;
+                    swipeRef.current.dragY = 0;
+                    swipeRef.current.updateLoop();
+                    processNextBatch();
                 } else if (direction === "left" || direction === "right") {
-                    songPreferenceUpdateCb((currentItem.data as Song).id, direction == "right", vel);
-
+                    songPreferenceUpdateCb((currentItem.data as Song).id, direction === "right", vel);
+    
                     setPendingSwipeDirection(direction);
                     setSwipingOut(true);
                     setLastSwipedIndex(currentIndex);
-
-                    if (!loadingMore)
-                        setLoadingMore(true);
-
+    
+                    if (!loadingMore) setLoadingMore(true);
+    
                     setTimeout(() => {
                         setCurrentIndex((prev) => Math.min(prev + 1, internalFeed.length - 1));
-                        setSwipeX(0);
-                        setDragY(0);
+                        swipeRef.current.swipeX = 0;
+                        swipeRef.current.dragY = 0;
+                        swipeRef.current.updateLoop();
                         setSwipingOut(false);
                         setPendingSwipeDirection(null);
                     }, 500);
-
+    
                     setTimeout(() => {
                         setLastSwipedIndex(null);
                         setLoadingMore(false);
-
                         processNextBatch();
                     }, 800);
                 } else {
-                    setSwipeX(0);
-                    setDragY(0);
+                    swipeRef.current.swipeX = 0;
+                    swipeRef.current.dragY = 0;
+                    swipeRef.current.updateLoop();
                 }
             } else {
-                setSwipeX(mx);
-                setDragY(my);
+                swipeRef.current.swipeX = mx;
+                swipeRef.current.dragY = my;
+                swipeRef.current.updateLoop();
             }
         } else {
             if (!down) {
@@ -323,15 +395,18 @@ const MusicDiscoveryFeed: React.FC<{
                     if (currentIndex > 0) {
                         setCurrentIndex((prev) => prev - 1);
                     } else {
-                        setDragY(0);
+                        swipeRef.current.dragY = 0;
+                        swipeRef.current.updateLoop();
                     }
                 }
-                setDragY(0);
+                swipeRef.current.dragY = 0;
+                swipeRef.current.updateLoop();
             } else {
-                setDragY(my);
+                swipeRef.current.dragY = my;
+                swipeRef.current.updateLoop();
             }
         }
-    }, { rubberband: true });
+    }, { rubberband: true });    
 
     useEffect(() => {
         if (loadingMore)
@@ -399,7 +474,8 @@ const MusicDiscoveryFeed: React.FC<{
             <AnimatePresence>
                 {currentIndex < internalFeed.length ? (
                     internalFeed.map((item, index) => {
-                        if (Math.abs(index - currentIndex) > 1) return null;
+                        if (Math.abs(index - currentIndex) > 1)
+                            return null;
 
                         const isCurrent = index === currentIndex;
                         const isSwipingOutCard = index === lastSwipedIndex;
@@ -451,10 +527,15 @@ const MusicDiscoveryFeed: React.FC<{
                                     opacity: isSwipingOutCard ? 0 : 1
                                 }}
                                 exit={{ opacity: 0 }}
+                                // transition={{
+                                //     type: "spring",
+                                //     stiffness: 500,
+                                //     damping: 50
+                                // }}
                                 transition={{
-                                    type: "spring",
-                                    stiffness: 500,
-                                    damping: 50
+                                    type: "tween",
+                                    ease: "easeInOut",
+                                    duration: 0.15,
                                 }}
                             >
                                 <Box
