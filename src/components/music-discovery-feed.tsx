@@ -660,6 +660,8 @@ const MusicDiscoveryFeed: React.FC<{
                                                 marginTop="40px"
                                                 marginBottom="60px"
                                                 borderRadius="10px"
+                                                userSelect="none"
+                                                pointerEvents="none"
                                             />
                                             <Text
                                                 fontSize="24px"

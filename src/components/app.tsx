@@ -25,6 +25,7 @@ import RecapDrawer, { Recap } from "./recap-drawer";
 import FullLoader from "./full-loader";
 import PlaylistsPage from "./playlists-page";
 import CreatePlaylistPage from "./create-playlist-page";
+import UserPreferencesPage from "./user-preferences-page";
 
 const MusicDiscoveryFeed = lazy(() => import("./music-discovery-feed"));
 const FriendsPage = lazy(() => import("./friends-page"));
@@ -125,7 +126,7 @@ export default function UIApp({
             if (prev.length >= 1) {
                 if (!prev[0])
                     return d;
-                
+
                 // Check if same data
                 // TODO: Need to implement a hash as this check isn't foolproof
                 if (prev[0].timestamp + prev[0].item.sessionDuration == d[0].timestamp + d[0].item.sessionDuration)
@@ -401,6 +402,11 @@ export default function UIApp({
             menuName: "Profile",
             id: "settings",
             indexed: true,
+        },
+        {
+            name: "Settings",
+            id: "preferences",
+            indexed: false,
         },
         {
             name: "Profile",
@@ -793,187 +799,6 @@ export default function UIApp({
                         </>
                     )}
 
-                    {/* FYP page
-                    {currentPage == "activity" && (
-                        <>
-                            {discoveryData.length == 0 ? (
-                                <Text
-                                    position="absolute"
-                                    top="0"
-                                    left="0"
-                                    justifyContent="center"
-                                    alignItems="center"
-                                    display="flex"
-                                    height="calc(100vh - 72px)"
-                                    width="100vw"
-                                    color="text.dark"
-                                    margin="auto"
-                                    textAlign="center"
-                                    fontFamily="Inter"
-                                    fontSize="16px"
-                                    fontWeight="regular"
-                                    zIndex="1"
-                                >
-                                    Tempo is learning your music taste.
-                                    <br />
-                                    We'll let you know when Discover is ready!
-                                </Text>
-                            ) : (
-                                <Suspense fallback={<SuspenseSpinner />}>
-                                    
-                                </Suspense>
-                            )}
-                        </>
-                    )} */}
-
-                    {/* Activity page */}
-                    {currentPage == "activity" && (
-                        // <>
-                        //     <Suspense fallback={<SuspenseSpinner />}>
-                        //         <ReactionDrawer isOpen={isReactionDrawerVisible} open={openReactionDrawer} close={closeReactionDrawer} item={reactionDrawerItem} />
-                        //     </Suspense>
-                        //     {activityPageLoading ? (
-                        //         <Center pos="absolute" width="100vw" height="100vh" top="0" left="0">
-                        //             <FullLoader />
-                        //         </Center>
-                        //     ) : (
-                        //         <Stack gap="28px" overflowY="auto" paddingBottom="18px" width="100%">
-                        //             <Stack gap="18px" overflowY="auto" width="100%" display={livePlaybackStatesPlaceholderCount > 0 || livePlaybackStates.filter(v => v.userId !== user.id).length > 0 ? "flex" : "none"}>
-                        //                 <Text
-                        //                     fontFamily="arial, helvetica"
-                        //                     fontWeight="bold"
-                        //                     fontSize="24px"
-                        //                 >
-                        //                     Latest
-                        //                 </Text>
-                        //                 {!showLivePlaybackStates ? (Array.from({ length: livePlaybackStatesPlaceholderCount }).map((_, i) => {
-                        //                     return (
-                        //                         <>
-                        //                             {i !== 0 && (
-                        //                                 <Box
-                        //                                     width="100%"
-                        //                                     height="1px"
-                        //                                     background="rgba(255, 255, 255, 0.2)"
-                        //                                 />
-                        //                             )}
-                        //                             <Box>
-                        //                                 <PlaybackState
-                        //                                     key={"lpspc-" + i}
-                        //                                     stream={streamer}
-                        //                                     userId=""
-                        //                                     isPlaceholder
-                        //                                 />
-                        //                             </Box>
-                        //                         </>
-                        //                     );
-                        //                 })) : (<></>)}
-                        //                 {showLivePlaybackStates ? (livePlaybackStates.filter(v => v.userId !== user.object?.id).map((v, i) => {
-                        //                     const data = v.data;
-                                            
-                        //                     return (
-                        //                         <>
-                        //                             {i !== 0 && (
-                        //                                 <Box
-                        //                                     width="100%"
-                        //                                     height="1px"
-                        //                                     background="rgba(255, 255, 255, 0.2)"
-                        //                                 />
-                        //                             )}
-                        //                             <Box>
-                        //                                 <PlaybackState
-                        //                                     key={
-                        //                                         "ps-" +
-                        //                                         v.userId +
-                        //                                         data.state?.songId +
-                        //                                         (data.state?.artists ? "AA" : "ANA")
-                        //                                     }
-                        //                                     stream={streamer}
-                        //                                     userId={v.userId}
-                        //                                     profileClickCb={() => {
-                        //                                         setPubProfileUserId(v.userId);
-                        //                                         pageChanger("pub-profile", "activity");
-                        //                                     }}
-                        //                                     reactionClickCb={(data: UpdateEvent["data"]["state"]) => {
-                        //                                         setReactionDrawerItem(data);
-                        //                                         openReactionDrawer();
-                        //                                     }}
-                        //                                 />
-                        //                             </Box>
-                        //                         </>
-                        //                     );
-                        //                 })): (<></>)}
-                        //             </Stack>
-                        //             <Stack gap="12px" overflowY="auto" width="100%" display={friendsListenershipData.length > 0 ? "flex" : "none"}>
-                        //                 <Text
-                        //                     fontFamily="arial, helvetica"
-                        //                     fontWeight="bold"
-                        //                     fontSize="24px"
-                        //                 >
-                        //                     History
-                        //                 </Text>
-                        //                 {friendsListenershipIsError ? (
-                        //                     <>
-                        //                         <Text marginTop="14px" width="100%" opacity="0.45" textAlign="center" onClick={() => {
-                        //                             setFriendsListenershipPage(0);
-                        //                         }}>{"Failed to load history, try again?"}</Text>
-                        //                     </>
-                        //                 ) : (
-                        //                     <>
-                        //                         {friendsListenershipData
-                        //                             .slice(0, visibleHistoryCount)
-                        //                             .map((v, i) => {
-                        //                                 const data = v;
-                        //                                 return (
-                        //                                     <>
-                        //                                         {i !== 0 && (
-                        //                                             <Box
-                        //                                                 width="100%"
-                        //                                                 height="1px"
-                        //                                                 background="rgba(255, 255, 255, 0.2)"
-                        //                                             />
-                        //                                         )}
-                        //                                         <PlaybackHistoryItem data={data} />
-                        //                                     </>
-                        //                                 );
-                        //                             })}
-                        //                         {/* Sentinel element for lazy loading */}
-                        //                         <div ref={historyEndRef}>
-                        //                             <Text marginTop="8px" width="100%" opacity="0.45" textAlign="center" onClick={() => {
-                        //                                 incrementVisibleItems();
-                        //                             }}>{visibleHistoryCount < friendsListenershipData.length || !friendsListenershipIsLastPage ? "Load more?" : friendsListenershipData.length > 15 ? endOfHistoryMessage : ""}</Text>
-                        //                         </div>
-                        //                     </>
-                        //                 )}
-                        //             </Stack>
-                        //             {friendsListenershipData.length == 0 && livePlaybackStates.length == 0 && livePlaybackStatesPlaceholderCount == 0 && (
-                        //                 <Text
-                        //                     position="absolute"
-                        //                     top="0"
-                        //                     left="0"
-                        //                     justifyContent="center"
-                        //                     alignItems="center"
-                        //                     display="flex"
-                        //                     height="calc(100vh - 72px)"
-                        //                     width="100vw"
-                        //                     color="text.dark"
-                        //                     margin="auto"
-                        //                     textAlign="center"
-                        //                     fontFamily="Inter"
-                        //                     fontSize="16px"
-                        //                     fontWeight="regular"
-                        //                     zIndex="1"
-                        //                 >
-                        //                     There's nothing to see here,
-                        //                     <br />
-                        //                     check back later!
-                        //                 </Text>
-                        //             )}
-                        //         </Stack>
-                        //     )}
-                        // </>
-                        <></>
-                    )}
-
                     {/* Playlists page */}
                     {currentPage == "playlists" && (
                         <Suspense fallback={<SuspenseSpinner />}>
@@ -1052,6 +877,23 @@ export default function UIApp({
                                 }}
                             />
                         </Suspense>
+                    )}
+
+                    {/* Settings page */}
+                    {currentPage == "preferences" && (
+                        <UserPreferencesPage
+                            user={user}
+                            // streamer={streamer}
+                            // pageChanger={pageChanger}
+                            // hideTopGradientCb={(hide: boolean) => {
+                            //     setHideTopGradient(hide);
+                            // }}
+                            // setRecaps={() => { }}
+                            // openRecapDrawer={() => { }}
+                            // setComplementaryColour={(colour: string) => {
+                            //     setComplementaryColour(colour);
+                            // }}
+                        />
                     )}
 
                     {/* Public profile page */}

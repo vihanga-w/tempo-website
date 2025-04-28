@@ -1,0 +1,441 @@
+import {
+    Box,
+    Heading,
+    Text,
+    Switch,
+    FormControl,
+    FormLabel,
+    VStack,
+    Divider,
+    Button,
+    Modal,
+    ModalOverlay,
+    ModalContent,
+    ModalHeader,
+    ModalCloseButton,
+    ModalBody,
+    ModalFooter,
+    Input,
+    useDisclosure,
+    HStack,
+    Stack,
+    Avatar,
+    keyframes,
+} from "@chakra-ui/react";
+import { formatTimeToMinAndHour, SkeletonImage } from "@/components/playback-state";
+import { useEffect, useState } from "react";
+import { findBestSCDNImageSize } from "@/lib/utils";
+import { getSizedImageUrl } from "@/lib/sized-img";
+import User, { ClientUserAccount } from "@/lib/usrlib";
+import { DataStreamer, UpdateEvent } from "@/lib/live-ingest";
+import { MdEdit } from "react-icons/md";
+
+const ripple = keyframes`
+    0% {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 0.6;
+    }
+    70% {
+        transform: translate(-50%, -50%) scale(2.5);
+        opacity: 0;
+    }
+    100% {
+        transform: translate(-50%, -50%) scale(2.5);
+        opacity: 0;
+    }
+`;
+
+function CustomSwitch({ isChecked, onChange }: { isChecked: boolean; onChange: (e: React.ChangeEvent<HTMLInputElement>) => void }) {
+    return (
+        <Switch
+            colorScheme="accent.dark"
+            sx={{
+                ".chakra-switch__track": {
+                    bg: "gray.700",
+                    _checked: {
+                        bg: "accent.dark",
+                    },
+                },
+            }}
+            isChecked={isChecked}
+            onChange={onChange}
+        />
+    );
+}
+
+function Toggle({
+    label,
+    description,
+    isChecked,
+    onChange,
+}: {
+    label: string;
+    description?: string;
+    isChecked: boolean;
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+}) {
+    return (
+        <FormControl display="flex" alignItems="center" justifyContent="space-between" mb={description ? 1.5 : 0.5}>
+            <Box>
+                <Text fontWeight="medium">{label}</Text>
+                {description && (
+                    <Text fontSize="13px" color="gray.400" mt={-0.5}>
+                        {description}
+                    </Text>
+                )}
+            </Box>
+            <CustomSwitch isChecked={isChecked} onChange={onChange} />
+        </FormControl>
+    );
+}
+
+export default function UserPreferencesPage({ user }: { user: User }) {
+    const { isOpen, onOpen, onClose } = useDisclosure();
+    const [profileData, setProfileData] = useState<ClientUserAccount | undefined>(user.object);
+    const [playbackState, setPlaybackState] = useState<UpdateEvent | null>(null);
+    const [pfpLoadFailed, setPfpLoadFailed] = useState(false);
+    const [streamer, setStreamer] = useState<DataStreamer | null>(null);
+    const [streamerReset, setStreamerReset] = useState<boolean>(false);
+
+    const [publicProfile, setPublicProfile] = useState(false);
+    const [shareListeningActivity, setShareListeningActivity] = useState(false);
+    const [friendSuggestions, setFriendSuggestions] = useState(false);
+    const [friendRequestsNotifications, setFriendRequestsNotifications] = useState(false);
+    const [newReleasesNotifications, setNewReleasesNotifications] = useState(false);
+    const [showListeningTime, setShowListeningTime] = useState(false);
+
+    useEffect(() => {
+        user.getRemoteUser(user.id)
+            .then(r => {
+                setProfileData(r);
+                setPublicProfile(true);
+                setShareListeningActivity(true);
+                setFriendSuggestions(true);
+                setFriendRequestsNotifications(true);
+                setNewReleasesNotifications(true);
+                setShowListeningTime(false);
+            })
+            .catch(e => {
+                console.error("Failed to get remote user for", user.id, "error:", e);
+            });
+
+        const newStreamer = new DataStreamer(user.storedToken, [user.id]);
+        setStreamer(newStreamer);
+
+        newStreamer.on("update", (data: UpdateEvent) => {
+            if (data.data.action.type === "STOPPED") setPlaybackState(null);
+            else setPlaybackState(data);
+        });
+
+        newStreamer.on("remove", (userId) => {
+            if (userId === user.id) setPlaybackState(null);
+        });
+
+        newStreamer.init();
+
+        return () => {
+            newStreamer.cleanup();
+        };
+    }, [user.isLoggedIn]);
+
+    useEffect(() => {
+        const handleFocus = async () => {
+            if (streamer && !streamer.isReady()) {
+                setPlaybackState(null);
+                setStreamerReset(true);
+            }
+        };
+
+        window.addEventListener("focus", handleFocus);
+        return () => {
+            window.removeEventListener("focus", handleFocus);
+        };
+    }, [streamer]);
+
+    const handleSettingChange = (id: string, value: boolean) => {
+        console.log(`Setting changed: ${id} -> ${value}`);
+
+        switch (id) {
+            case "publicProfile":
+                setPublicProfile(value);
+                break;
+            case "shareListeningActivity":
+                setShareListeningActivity(value);
+                break;
+            case "friendSuggestions":
+                setFriendSuggestions(value);
+                break;
+            case "friendRequestsNotifications":
+                setFriendRequestsNotifications(value);
+                break;
+            case "newReleasesNotifications":
+                setNewReleasesNotifications(value);
+                break;
+            case "showListeningTime":
+                setShowListeningTime(value);
+                break;
+        }
+
+        alert("This feature is not yet implemented.");
+    };
+
+    return (
+        <Box w="100%" mx="auto" mt={2}>
+            <VStack spacing={3} align="stretch">
+                <Box mb={1}>
+                    <HStack alignItems="space-between" justifyContent="space-between" mb={2}>
+                        <Heading fontSize="26px" mb={1} textAlign="left">Account</Heading>
+                        <Button
+                            colorScheme="accent.dark"
+                            variant="plain"
+                            size="sm"
+                            mt={1}
+                            p={0}
+                            onClick={() => alert("This feature is not yet implemented.")}
+                        >
+                            <Box mr={2}>
+                                <MdEdit size="20px" />
+                            </Box>
+                            Edit Profile
+                        </Button>
+                    </HStack>
+
+                    <HStack gap="14px">
+                        <Box
+                            width="88px"
+                            height="88px"
+                            border={playbackState ? "3px solid" : "0px"}
+                            borderColor={playbackState ? "accent.dark" : "transparent"}
+                            borderRadius="17px"
+                            transition=".15s"
+                        >
+                            {((profileData?.images.length ?? 0) > 0 && !pfpLoadFailed) ? (
+                                <SkeletonImage
+                                    width={playbackState ? "82px" : "88px"}
+                                    height={playbackState ? "82px" : "88px"}
+                                    borderRadius="14px"
+                                    transition=".15s"
+                                    border={playbackState ? "2px solid transparent" : "0px"}
+                                    src={getSizedImageUrl(findBestSCDNImageSize(profileData?.images ?? [], 88, 88) ?? "", 88, 88)}
+                                    onError={() => setPfpLoadFailed(true)}
+                                />
+                            ) : (
+                                <Avatar
+                                    name={(profileData?.displayName ?? "") + (profileData?.id ?? "")}
+                                    borderRadius="14px"
+                                    transition=".15s"
+                                    border={playbackState ? "2px solid transparent" : "0px"}
+                                    width={playbackState ? "82px" : "88px"}
+                                    height={playbackState ? "82px" : "88px"}
+                                />
+                            )}
+                        </Box>
+
+                        <Stack gap="0" marginTop="-5px">
+                            <Text fontFamily="Inter" fontWeight="medium" fontSize="28px" color="text.dark" opacity="0.9">
+                                {profileData?.displayName}
+                            </Text>
+                            <Text fontFamily="Inter" fontWeight="regular" fontSize="14px" color="text.dark" opacity="0.75" marginTop="-4px">
+                                {profileData?.listenerTypeClassification ?? "Casual Listener"}
+                            </Text>
+
+                            {(playbackState?.data.state?.playSessionStart &&
+                                new Date().getTime() - playbackState.data.state.playSessionStart >= 5 * 60e3) ? (
+                                <Text>🔥 {formatTimeToMinAndHour(new Date().getTime() - playbackState.data.state.playSessionStart, true)}</Text>
+                            ) : playbackState ? (
+                                <Text>Started listening recently</Text>
+                            ) : (
+                                <Text>No active streak</Text>
+                            )}
+                        </Stack>
+                    </HStack>
+                </Box>
+
+                <Divider />
+
+                <VStack alignItems="flex-start" gap="0px">
+                    <Heading fontSize="26px" mb={1} textAlign="left">Privacy</Heading>
+                    <Text fontSize="15px" lineHeight="18px" mb={4}>
+                        Manage your privacy settings and control who can see your activity.
+                    </Text>
+                    {/* TODO: Only allow public profiles to users age >= 16 */}
+                    <Toggle
+                        label="Public Profile"
+                        description="Allow anyone to view your full profile"
+                        isChecked={publicProfile}
+                        onChange={(e) => handleSettingChange("publicProfile", e.target.checked)}
+                    />
+                    <Toggle
+                        label="Share Listening Activity"
+                        description="Share real-time listening activity with friends"
+                        isChecked={shareListeningActivity}
+                        onChange={(e) => handleSettingChange("shareListeningActivity", e.target.checked)}
+                    />
+                    <Toggle
+                        label="Allow Friend Suggestions"
+                        description="Recommend profile to people you may know"
+                        isChecked={friendSuggestions}
+                        onChange={(e) => handleSettingChange("friendSuggestions", e.target.checked)}
+                    />
+                </VStack>
+
+                <Divider />
+
+                <Box>
+                    <Heading fontSize="26px" mb={1} textAlign="left">Notifications</Heading>
+                    <Text fontSize="15px" lineHeight="18px" mb={4}>
+                        Disable specific notifications to reduce distractions.
+                    </Text>
+                    <Toggle
+                        label="Friend Requests"
+                        description="Be notified of new friend requests"
+                        isChecked={friendRequestsNotifications}
+                        onChange={(e) => handleSettingChange("friendRequestsNotifications", e.target.checked)}
+                    />
+                    <Toggle
+                        label="Daily Recaps"
+                        description="Be notified when your daily recap is ready"
+                        isChecked={newReleasesNotifications}
+                        onChange={(e) => handleSettingChange("dailyRecapNotifications", e.target.checked)}
+                    />
+                    <Toggle
+                        label="Weekly Recaps"
+                        description="Be notified when your weekly recap is ready"
+                        isChecked={newReleasesNotifications}
+                        onChange={(e) => handleSettingChange("weeklyRecapNotifications", e.target.checked)}
+                    />
+                    <Toggle
+                        label="Reactions"
+                        description="Be notified when friends react to your activity"
+                        isChecked={newReleasesNotifications}
+                        onChange={(e) => handleSettingChange("reactionNotifications", e.target.checked)}
+                    />
+                </Box>
+
+                <Divider />
+
+                <VStack alignItems="flex-start" gap="0px">
+                    <HStack spacing="8px" alignItems="center" mb={2}>
+                        <Heading fontSize="26px" textAlign="left">Spotify</Heading>
+                        <Box position="relative" width="14px" height="14px" mt={1} ml={0.5} opacity={0.85}>
+                            <Box
+                                width="10px"
+                                height="10px"
+                                bg="green.400"
+                                borderRadius="full"
+                                position="absolute"
+                                top="50%"
+                                left="50%"
+                                transform="translate(-50%, -50%)"
+                                zIndex="2"
+                            />
+                            <Box
+                                width="10px"
+                                height="10px"
+                                border="2px solid"
+                                borderColor="green.300"
+                                borderRadius="full"
+                                position="absolute"
+                                top="50%"
+                                left="50%"
+                                transform="translate(-50%, -50%)"
+                                animation={`${ripple} 2s infinite`}
+                                zIndex="1"
+                            />
+                            <Box
+                                width="10px"
+                                height="10px"
+                                border="2px solid"
+                                borderColor="green.300"
+                                borderRadius="full"
+                                position="absolute"
+                                top="50%"
+                                left="50%"
+                                transform="translate(-50%, -50%)"
+                                animation={`${ripple} 2s infinite`}
+                                style={{ animationDelay: "0.4s" }}
+                                zIndex="0"
+                            />
+                        </Box>
+                    </HStack>
+                    <Text fontSize="sm" mb={3.5} color="gray.400">
+                        Your Spotify account is connected!<br /><br />
+                        Experiencing issues?<br />
+                        Try reconnecting your Spotify account.
+                    </Text>
+                    <Button colorScheme="accent.dark" variant="outline" size="sm" onClick={() => {
+                        if (confirm("Are you sure you want to reconnect your Spotify account?\n\nThis will reset your application state.")) {
+                            window.location.href = "https://api.tempo-music.co/auth/ui";
+                        }
+                    }}>
+                        Reconnect Spotify
+                    </Button>
+                </VStack>
+
+                <Divider />
+
+                <Box
+                    p={3}
+                    borderRadius="12px"
+                    backgroundColor="rgba(255, 0, 0, 0.08)"
+                    mt={1}
+                >
+                    <Heading fontSize="22px" mb={1} color="red.300" textAlign="left">
+                        Danger Zone
+                    </Heading>
+                    <Text fontSize="sm" mb={3} color="red.200">
+                        Actions in this section are irreversible and may result in data loss.
+                        <br /><br />
+                        We cannot recover your data if you continue.
+                        <br /><br />
+                        Please proceed with caution.
+                    </Text>
+                    <Button colorScheme="red" variant="solid" size="sm" width="100%" mb={2} onClick={() => {
+                        if (confirm(
+                            "Are you sure you want to disconnect your Spotify account?\n\n" +
+                            "All data associated with you and Tempo. will be removed.\n\n" +
+                            "This action is irreversible and cannot be undone.\n\n" +
+                            "This will not affect your Spotify account."
+                        )) {
+                            alert("This feature is not yet implemented.");
+                        }
+                    }}>
+                        Disconnect Spotify
+                    </Button>
+                </Box>
+
+                <Modal isOpen={isOpen} onClose={onClose} isCentered>
+                    <ModalOverlay />
+                    <ModalContent bg="gray.800">
+                        <ModalHeader>Edit Profile</ModalHeader>
+                        <ModalCloseButton />
+                        <ModalBody>
+                            <VStack spacing={4} align="stretch">
+                                <FormControl>
+                                    <FormLabel>Username</FormLabel>
+                                    <Input placeholder="Enter your username" bg="gray.700" borderColor="gray.600" />
+                                </FormControl>
+                                <FormControl>
+                                    <FormLabel>Bio</FormLabel>
+                                    <Input placeholder="Write a short bio" bg="gray.700" borderColor="gray.600" />
+                                </FormControl>
+                                <FormControl>
+                                    <FormLabel>Profile Picture URL</FormLabel>
+                                    <Input placeholder="Paste image URL" bg="gray.700" borderColor="gray.600" />
+                                </FormControl>
+                            </VStack>
+                        </ModalBody>
+                        <ModalFooter>
+                            <Button colorScheme="accent.dark" mr={3}>
+                                Save Changes
+                            </Button>
+                            <Button onClick={onClose} variant="ghost">
+                                Cancel
+                            </Button>
+                        </ModalFooter>
+                    </ModalContent>
+                </Modal>
+            </VStack>
+        </Box>
+    );
+}

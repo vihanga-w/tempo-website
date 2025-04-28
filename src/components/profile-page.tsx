@@ -412,7 +412,7 @@ export default function ProfilePage({
                     }} />
                 )}
                 <FaCog size="26px" color={reactiveDesignComplementaryColour ?? "text.dark"} onClick={() => {
-                    alert("Sorry, the settings page is not available at the moment!")
+                    pageChanger("preferences", "settings");
                 }} />
             </HStack>
         )}
