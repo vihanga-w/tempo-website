@@ -363,7 +363,7 @@ export default function UserPreferencesPage({ user }: { user: User }) {
                         Experiencing issues?<br />
                         Try reconnecting your Spotify account.
                     </Text>
-                    <Button colorScheme="accent.dark" variant="outline" size="sm" onClick={() => {
+                    <Button colorScheme="accent.dark" variant="outline" size="sm" onClick={async () => {
                         if (confirm("Are you sure you want to reconnect your Spotify account?\n\nThis will reset your application state.")) {
                             window.localStorage.removeItem("tempo-dev-warning-msg");
                             window.localStorage.removeItem("tempo-initial-visit");
@@ -374,7 +374,24 @@ export default function UserPreferencesPage({ user }: { user: User }) {
                             window.localStorage.removeItem("tempo-notif-processed");
                             window.localStorage.removeItem("tempo-override-pwa-detection");
                             window.localStorage.removeItem("tempo.a");
-                            
+
+                            if ('serviceWorker' in navigator) {
+                                try {
+                                    const registration = await navigator.serviceWorker.ready;
+                                    const subscription = await registration.pushManager.getSubscription();
+                                    if (subscription) {
+                                        await subscription.unsubscribe();
+                                        console.log('Push subscription removed successfully.');
+                                    } else {
+                                        console.log('No push subscription found.');
+                                    }
+                                } catch (error) {
+                                    console.error('Failed to remove push subscription:', error);
+                                }
+                            } else {
+                                console.warn('Service Worker is not supported in this browser.');
+                            }
+
                             window.location.href = "https://api.tempo-music.co/auth/ui";
                         }
                     }}>
