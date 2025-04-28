@@ -109,6 +109,18 @@ export default function AuthSuccess() {
 
             setUsername(res.data?.displayName ?? "User");
         });
+
+        const handleFocus = async () => {
+            // In case the user swipes backwards by accident just after authorising
+            if (localStorage.getItem("tempo-legal-agreed"))
+                window.location.pathname = "/";
+        };
+
+        window.addEventListener("focus", handleFocus);
+
+        return () => {
+            window.removeEventListener("focus", handleFocus);
+        };
     }, []);
 
     useEffect(() => {
