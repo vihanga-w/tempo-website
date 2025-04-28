@@ -127,6 +127,9 @@ export default function UIApp({
                 if (!prev[0])
                     return d;
 
+                if (!d[0])
+                    return [];
+
                 // Check if same data
                 // TODO: Need to implement a hash as this check isn't foolproof
                 if (prev[0].timestamp + prev[0].item.sessionDuration == d[0].timestamp + d[0].item.sessionDuration)

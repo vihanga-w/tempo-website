@@ -394,7 +394,7 @@ export default function UserPreferencesPage({ user }: { user: User }) {
                                 console.warn('Service Worker is not supported in this browser.');
                             }
 
-                            window.location.href = "https://api.tempo-music.co/auth/ui";
+                            window.location.href = "/reauth";
                         }
                     }}>
                         Reconnect Spotify
