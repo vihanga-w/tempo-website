@@ -307,7 +307,7 @@ const MusicDiscoveryFeed: React.FC<{
     }
 
     const bind = useDrag((state) => {
-        const { movement: [mx, my], velocity: vel, down } = state;
+        const { movement: [mx, my], velocity: vel, down, event } = state;
     
         const vx = Array.isArray(vel) ? vel[0] : 0;
         const vy = Array.isArray(vel) ? vel[1] : 0;
@@ -319,8 +319,17 @@ const MusicDiscoveryFeed: React.FC<{
             return;
         }
     
-        const swipeThreshold = 100;
-        const velocityThreshold = 0.3;
+        const swipeThreshold = 50;
+        const velocityThreshold = 0.2;
+
+        // Reduce sensitivity if swipe starts in the bottom 10% of the screen
+        const screenHeight = window.innerHeight;
+        const startY = (event as unknown as TouchEvent).touches?.[0]?.clientY ?? 0;
+        const isInBottom10Percent = startY > screenHeight * 0.9;
+
+        const adjustedSwipeThreshold = isInBottom10Percent ? swipeThreshold * 2.2 : swipeThreshold;
+        const adjustedVelocityThreshold = isInBottom10Percent ? velocityThreshold * 2.2 : velocityThreshold;
+    
         const isHorizontal = Math.abs(mx) > Math.abs(my);
         const nextIndex = Math.min(currentIndex + 1, internalFeed.length - 1);
     
@@ -336,9 +345,9 @@ const MusicDiscoveryFeed: React.FC<{
             if (!down) {
                 let direction: "left" | "right" | "up" | "down" | null = null;
     
-                if (isHorizontal && (Math.abs(mx) > swipeThreshold || Math.abs(vx) > velocityThreshold)) {
+                if (isHorizontal && (Math.abs(mx) > adjustedSwipeThreshold || Math.abs(vx) > adjustedVelocityThreshold)) {
                     direction = mx > 0 ? "right" : "left";
-                } else if (!isHorizontal && (Math.abs(my) > swipeThreshold || Math.abs(vy) > velocityThreshold)) {
+                } else if (!isHorizontal && (Math.abs(my) > adjustedSwipeThreshold || Math.abs(vy) > adjustedVelocityThreshold)) {
                     direction = my > 0 ? "down" : "up";
                 }
     
@@ -388,10 +397,10 @@ const MusicDiscoveryFeed: React.FC<{
             }
         } else {
             if (!down) {
-                if (my < -swipeThreshold || vy < -velocityThreshold) {
+                if (my < -adjustedSwipeThreshold || vy < -adjustedVelocityThreshold) {
                     setCurrentIndex(nextIndex);
                     processNextBatch();
-                } else if (my > swipeThreshold || vy > velocityThreshold) {
+                } else if (my > adjustedSwipeThreshold || vy > adjustedVelocityThreshold) {
                     if (currentIndex > 0) {
                         setCurrentIndex((prev) => prev - 1);
                     } else {
@@ -527,11 +536,6 @@ const MusicDiscoveryFeed: React.FC<{
                                     opacity: isSwipingOutCard ? 0 : 1
                                 }}
                                 exit={{ opacity: 0 }}
-                                // transition={{
-                                //     type: "spring",
-                                //     stiffness: 500,
-                                //     damping: 50
-                                // }}
                                 transition={{
                                     type: "tween",
                                     ease: "easeInOut",
