@@ -553,7 +553,7 @@ const MusicDiscoveryFeed: React.FC<{
                                                     opacity="0.25"
                                                     background="bg.dark"
                                                 >
-                                                    <Text>
+                                                    <Text mb={2.5}>
                                                         Keep scrolling to see {currentIndex + 1 == requiredActivityPages ? "friends history" : "more activity"}
                                                     </Text>
                                                 </Box>

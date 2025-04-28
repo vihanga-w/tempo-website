@@ -340,7 +340,11 @@ export default function UIApp({
                 if (!isNaN(remoteVersion) && (isNaN(localVersion) || localVersion < remoteVersion)) {
                     // Client version is out of date, force ui to refresh
                     window.localStorage.setItem("tempo-local-version", remoteVersion.toString())
-                    return window.location.reload();
+                    
+                    if (!isNaN(localVersion) && localVersion !== -1)
+                        window.location.reload();
+                    
+                    return;
                 }
             } catch {}
 

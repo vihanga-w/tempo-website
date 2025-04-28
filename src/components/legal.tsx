@@ -166,7 +166,7 @@ export default function LegalPage({
               size="lg"
               onClick={() => {
                 window.localStorage.setItem("tempo-legal-agreed", Date.now().toString());
-                prouter.setPage("app");
+                window.location.reload();
               }}
             >
               {"Continue"}

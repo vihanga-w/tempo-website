@@ -433,6 +433,11 @@ export default function Home() {
           history.pushState(null, document.title, location.href);
         });
 
+        if (!window.localStorage.getItem("tempo-legal-agreed")) {
+          prouter.setPage("legal");
+          return;
+        }
+
         onSubmitSubscribe()
         .then(() => {
           const showWelcomeMsg = () => {
@@ -478,7 +483,11 @@ export default function Home() {
                 if (!isNaN(remoteVersion) && (isNaN(localVersion) || localVersion < remoteVersion)) {
                   // Client version is out of date, force ui to refresh
                   window.localStorage.setItem("tempo-local-version", remoteVersion.toString())
-                  return window.location.reload();
+
+                  if (!isNaN(localVersion) && localVersion !== -1)
+                    window.location.reload();
+
+                  return;
                 } else if (localVersion === remoteVersion && localVersionNotice < remoteVersion) {
                   const req = await fetch(API_URL + "/.version-notice");
                   const notice = (await req.json()) as {
@@ -532,8 +541,6 @@ export default function Home() {
           showUpdateMsg()
           .then(showWelcomeMsg);
         });
-
-        console.log(user.friendsSessionsCount)
 
         // TODO: Check if the timestamp stored here is newer than the last t&c or privacy policy update date
         if (window.localStorage.getItem("tempo-legal-agreed") !== null)
