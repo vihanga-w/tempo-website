@@ -45,7 +45,7 @@ const ripple = keyframes`
     }
 `;
 
-function CustomSwitch({ isChecked, onChange }: { isChecked: boolean; onChange: (e: React.ChangeEvent<HTMLInputElement>) => void }) {
+function CustomSwitch({ isChecked, onChange, disabled }: { isChecked: boolean; onChange: (e: React.ChangeEvent<HTMLInputElement>) => void, disabled?: boolean }) {
     return (
         <Switch
             colorScheme="accent.dark"
@@ -57,6 +57,7 @@ function CustomSwitch({ isChecked, onChange }: { isChecked: boolean; onChange: (
                     },
                 },
             }}
+            disabled={disabled}
             isChecked={isChecked}
             onChange={onChange}
         />
@@ -68,11 +69,13 @@ function Toggle({
     description,
     isChecked,
     onChange,
+    disabled,
 }: {
     label: string;
     description?: string;
     isChecked: boolean;
     onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    disabled?: boolean;
 }) {
     return (
         <FormControl display="flex" alignItems="center" justifyContent="space-between" mb={description ? 1.5 : 0.5}>
@@ -84,7 +87,7 @@ function Toggle({
                     </Text>
                 )}
             </Box>
-            <CustomSwitch isChecked={isChecked} onChange={onChange} />
+            <CustomSwitch isChecked={isChecked} onChange={onChange} disabled={disabled} />
         </FormControl>
     );
 }
@@ -98,26 +101,26 @@ export default function UserPreferencesPage({ user }: { user: User }) {
     const [streamerReset, setStreamerReset] = useState<boolean>(false);
 
     const [publicProfile, setPublicProfile] = useState(false);
-    const [shareListeningActivity, setShareListeningActivity] = useState(false);
+    const [shareListeningActivity, setShareListeningActivity] = useState(user.settings.shareListeningActivity);
     const [friendSuggestions, setFriendSuggestions] = useState(false);
     const [friendRequestsNotifications, setFriendRequestsNotifications] = useState(false);
-    const [newReleasesNotifications, setNewReleasesNotifications] = useState(false);
-    const [showListeningTime, setShowListeningTime] = useState(false);
+    const [dailyRecapNotifications, setDailyRecapNotifications] = useState(false);
+    const [weeklyRecapNotifications, setWeeklyRecapNotifications] = useState(false);
+    const [reactionNotifications, setReactionNotifications] = useState(false);
 
     useEffect(() => {
         user.getRemoteUser(user.id)
-            .then(r => {
-                setProfileData(r);
-                setPublicProfile(true);
-                setShareListeningActivity(true);
-                setFriendSuggestions(true);
-                setFriendRequestsNotifications(true);
-                setNewReleasesNotifications(true);
-                setShowListeningTime(false);
-            })
-            .catch(e => {
-                console.error("Failed to get remote user for", user.id, "error:", e);
-            });
+        .then(r => {
+            setProfileData(r);
+        })
+        .catch(e => {
+            console.error("Failed to get remote user for", user.id, "error:", e);
+        });
+        
+        user.loadSettings()
+        .then(settings => {
+            setShareListeningActivity(settings.shareListeningActivity);
+        });
 
         const newStreamer = new DataStreamer(user.storedToken, [user.id]);
         setStreamer(newStreamer);
@@ -151,10 +154,8 @@ export default function UserPreferencesPage({ user }: { user: User }) {
             window.removeEventListener("focus", handleFocus);
         };
     }, [streamer]);
-
-    const handleSettingChange = (id: string, value: boolean) => {
-        console.log(`Setting changed: ${id} -> ${value}`);
-
+    
+    const _setInternalSettingState = (id: string, value: boolean) => {
         switch (id) {
             case "publicProfile":
                 setPublicProfile(value);
@@ -168,15 +169,30 @@ export default function UserPreferencesPage({ user }: { user: User }) {
             case "friendRequestsNotifications":
                 setFriendRequestsNotifications(value);
                 break;
-            case "newReleasesNotifications":
-                setNewReleasesNotifications(value);
+            case "dailyRecapNotifications":
+                setDailyRecapNotifications(value);
                 break;
-            case "showListeningTime":
-                setShowListeningTime(value);
+            case "weeklyRecapNotifications":
+                setWeeklyRecapNotifications(value);
+                break;
+            case "reactionNotifications":
+                setReactionNotifications(value);
                 break;
         }
+    }
 
-        alert("This feature is not yet implemented.");
+    const handleSettingChange = (id: string, value: boolean) => {
+        console.log(`Setting changed: ${id} -> ${value}`);
+
+        // Update UI instantly
+        _setInternalSettingState(id, value);
+
+        user.updateSetting(id, value)
+        .then(success => {
+            // Rollback change if not successful
+            if (!success)
+                setTimeout(() => { _setInternalSettingState(id, !value); }, 250);
+        });
     };
 
     return (
@@ -264,6 +280,7 @@ export default function UserPreferencesPage({ user }: { user: User }) {
                         description="Allow anyone to view your full profile"
                         isChecked={publicProfile}
                         onChange={(e) => handleSettingChange("publicProfile", e.target.checked)}
+                        disabled
                     />
                     <Toggle
                         label="Share Listening Activity"
@@ -276,6 +293,7 @@ export default function UserPreferencesPage({ user }: { user: User }) {
                         description="Recommend profile to people you may know"
                         isChecked={friendSuggestions}
                         onChange={(e) => handleSettingChange("friendSuggestions", e.target.checked)}
+                        disabled
                     />
                 </VStack>
 
@@ -291,24 +309,28 @@ export default function UserPreferencesPage({ user }: { user: User }) {
                         description="Be notified of new friend requests"
                         isChecked={friendRequestsNotifications}
                         onChange={(e) => handleSettingChange("friendRequestsNotifications", e.target.checked)}
+                        disabled
                     />
                     <Toggle
                         label="Daily Recaps"
                         description="Be notified when your daily recap is ready"
-                        isChecked={newReleasesNotifications}
+                        isChecked={dailyRecapNotifications}
                         onChange={(e) => handleSettingChange("dailyRecapNotifications", e.target.checked)}
+                        disabled
                     />
                     <Toggle
                         label="Weekly Recaps"
                         description="Be notified when your weekly recap is ready"
-                        isChecked={newReleasesNotifications}
+                        isChecked={weeklyRecapNotifications}
                         onChange={(e) => handleSettingChange("weeklyRecapNotifications", e.target.checked)}
+                        disabled
                     />
                     <Toggle
                         label="Reactions"
                         description="Be notified when friends react to your activity"
-                        isChecked={newReleasesNotifications}
+                        isChecked={reactionNotifications}
                         onChange={(e) => handleSettingChange("reactionNotifications", e.target.checked)}
+                        disabled
                     />
                 </Box>
 

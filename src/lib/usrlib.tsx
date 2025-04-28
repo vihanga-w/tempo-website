@@ -5,6 +5,10 @@ import { FaF } from "react-icons/fa6";
 import { DataStreamer } from "./live-ingest";
 import { Song } from "@/components/music-discovery-feed";
 
+export interface UserSettings {
+    shareListeningActivity: boolean;
+}
+
 export interface FeedItemAlert {
     id: string;
     alertType: "ListenerTypeChange" | "ActivityPage" | "ContentLoading";
@@ -123,6 +127,7 @@ export default class User extends EventEmitter {
         friendship: UserFriendship;
     }[] = [];
     public friendsSessionsCount: number;
+    public settings: UserSettings;
 
     constructor() {
         super();
@@ -133,6 +138,9 @@ export default class User extends EventEmitter {
             this.storedToken = storedToken;
 
         this.friendsSessionsCount = 0;
+        this.settings = {
+            shareListeningActivity: true,
+        }
     }
 
     async init(storedToken?: string): Promise<void> {
@@ -472,7 +480,7 @@ export default class User extends EventEmitter {
 
             this.friendsSessionsCount = friendsSessions.length;
 
-            console.log("fsc", this.friendsSessionsCount)
+            await this.loadSettings();
 
             // Expose the raw user object
             this.object = details;
@@ -512,65 +520,84 @@ export default class User extends EventEmitter {
 
             return res.data;
         } catch (ex) {
-            console.error("getFriendsListenershipHistory failed with error:", ex);
+            console.error("getMyFYP failed with error:", ex);
 
             return [];
         }
     }
 
-    public async getFriendsListenershipHistory(page: number) {
-        try {
-            const req = await fetch(API_URL + "/me/feed/history/" + page, {
-                headers: {
-                    ...(this.getAuthHeaders())
-                },
-                credentials: "include"
-            });
+    public async getFriendProfileListenershipHistory(userId: string, page: number) {
+        if (page < 0)
+            page = 0;
 
-            if (req.status == 429)
-                window.location.reload();
+        const req = await fetch(API_URL + `/profile/${userId}/history/${page}`, {
+            headers: {
+                ...(this.getAuthHeaders())
+            },
+            credentials: "include"
+        });
 
-            const res = (await req.json()) as {
-                error: boolean;
-                message?: string;
-                data: FriendListenershipItem[];
-                isFinalPage: boolean;
-            };
+        if (req.status == 429)
+            window.location.reload();
 
-            for (let i = 0; i < res.data.length; i++) {
-                const d = res.data[i];
+        const res = (await req.json()) as {
+            error: boolean;
+            message?: string;
+            data: FriendListenershipItem[];
+            isFinalPage: boolean;
+        };
 
-                if (d.item.track.album.artUrl && d.item.track.album.artUrl.startsWith("https://i.scdn.co/image/"))
-                    res.data[i].item.track.album.artUrl = res.data[i].item.track.album.artUrl.replace("https://i.scdn.co/image/", "https://imgcdn.tempo-music.co/scdn/");
+        if (res.error)
+            throw new Error("Failed to fetch friend profile listenership history, error: " + (res.message ?? "unknown error (check network logs)"));
 
-                if (d.pfpUrl && d.pfpUrl.startsWith("https://i.scdn.co/image/"))
-                    res.data[i].pfpUrl = res.data[i].pfpUrl.replace("https://i.scdn.co/image/", "https://imgcdn.tempo-music.co/scdn/");
-            }
+        if (!res.data)
+            throw new Error("Failed to fetch friend profile listenership history, empty data set");
 
-            if (res.error) {
-                console.warn("Failed to load friends listenership data, res:", res);
+        return {
+            isFinalPage: res.isFinalPage,
+            data: res.data
+        };
+    }
 
-                return {
-                    d: [],
-                    l: false,
-                    e: true,
-                };
-            }
+    public async loadSettings() {
+        const req = await fetch(API_URL + "/me/settings", {
+            headers: {
+                ...(this.getAuthHeaders()),
+            },
+            credentials: "include",
+        });
 
-            return {
-                d: res.data,
-                l: res.isFinalPage,
-                e: false,
-            };
-        } catch (ex) {
-            console.error("getFriendsListenershipHistory failed with error:", ex);
+        if (req.status == 429)
+            window.location.reload();
 
-            return {
-                d: [],
-                l: false,
-                e: true,
-            };
-        }
+        const data = await req.json() as {
+            error: boolean;
+            data: UserSettings;
+        };
+
+        this.settings = data.data;
+
+        return data.data;
+    }
+
+    public async updateSetting(key: string, value: any) {
+        const req = await fetch(API_URL + "/me/settings", {
+            method: "POST",
+            headers: {
+                ...(this.getAuthHeaders()),
+                "Content-Type": "application/json"
+            },
+            credentials: "include",
+            body: JSON.stringify({
+                key,
+                value,
+            }),
+        });
+
+        if (req.status == 429)
+            window.location.reload();
+
+        return (req.status == 200);
     }
 
     private async isUserAuthenticated() {

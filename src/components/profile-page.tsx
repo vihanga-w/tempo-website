@@ -13,6 +13,7 @@ import { getSizedImageUrl } from "@/lib/sized-img";
 import { findBestSCDNImageSize } from "@/lib/utils";
 import { FaCog, FaHistory } from "react-icons/fa";
 import { Recap } from "./recap-drawer";
+import FriendHistoryFeed from "./friend-history-feed";
 
 const loadTracker = (expectedCount: number, onComplete: () => void) => {
     let count = 0;
@@ -65,6 +66,7 @@ export default function ProfilePage({
     const [reactiveDesignColourCommited, setReactiveDesignColourCommited] = useState<string | null>(null);
     const [displayReactiveDesignColour, setDisplayReactiveDesignColour] = useState<boolean>(false);
     const [reactiveDesignComplementaryColour, setReactiveDesignComplementaryColour] = useState<string | null>(null);
+    const [listenershipHistoryAvailable, setListenershipHistoryAvailable] = useState<boolean>(false);
     const [topSongsFilter, setTopSongsFilter] = useState<"day" | "week" | "month" | "year" | "all">("day");
     const [userTopSongs, setUserTopSongs] = useState<{
         id: string;
@@ -115,6 +117,15 @@ export default function ProfilePage({
         })
         .catch(e => {
             console.error("Failed to fetch past week stats, error:", e);
+        });
+
+        user.getFriendProfileListenershipHistory(targetUserId ?? user.id, 0)
+        .then(h => {
+            if (h.data.length > 0)
+                setListenershipHistoryAvailable(true);
+        })
+        .catch(e => {
+            console.error("Failed to check if listenership history is available, error:", e);
         });
 
         if (!targetUserId)
@@ -739,6 +750,50 @@ export default function ProfilePage({
                     </Stack>
                 </Stack>
             )}
+            {listenershipHistoryAvailable && (
+                <Stack
+                    transition=".3s"
+                    pos="relative"
+                >
+                    <Box>
+                        <Text
+                            fontFamily="Inter"
+                            fontWeight="bold"
+                            fontSize="24px"
+                            color={reactiveDesignComplementaryColour ?? "text.dark"}
+                            transition=".3s"
+                            float="left"
+                        >
+                            Listening History
+                        </Text>
+                        <Stack
+                            width="100%"
+                            maxHeight="500px"
+                            overflowY="auto"
+                            padding="12px"
+                            borderRadius="20px"
+                            background={
+                                reactiveDesignColour
+                                    ? `linear-gradient(135deg, ${reactiveDesignColour.replace("b(", "ba(").replace(")", ",0.25)")}, rgba(255, 255, 255, 0.03))`
+                                    : "linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02))"
+                            }
+                            gap="12px"
+                            pos="relative"
+                            sx={{
+                                scrollbarWidth: "none",
+                                "&::-webkit-scrollbar": {
+                                    display: "none",
+                                },
+                            }}
+                        >
+                            <FriendHistoryFeed
+                                userId={targetUserId ?? user.id}
+                                fetchHistory={(userId, page) => user.getFriendProfileListenershipHistory(userId, page)}
+                            />
+                        </Stack>
+                    </Box>
+                </Stack>
+            )}
         </Stack>
-        </>);
+    </>);
 }

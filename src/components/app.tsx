@@ -83,11 +83,6 @@ export default function UIApp({
     const [hideTopGradient, setHideTopGradient] = useState<boolean>(false);
     const [complementaryColour, setComplementaryColour] = useState<string>("#e9e7fb");
     const [discoveryData, setDiscoveryData] = useState<FeedItem[]>([]);
-    const [friendsListenershipData, setFriendsListenershipData] = useState<FriendListenershipItem[]>([]);
-    const [friendsListenershipPage, setFriendsListenershipPage] = useState<number>(0);
-    const [friendsListenershipIsLastPage, setFriendsListenershipIsLastPage] = useState<boolean>(false);
-    const [friendsListenershipIsError, setFriendsListenershipIsError] = useState<boolean>(false);
-    const [endOfHistoryMessage, setEndOfHistoryMessage] = useState<string>("You've seen it all! 😉");
     const [pubProfileUserId, setPubProfileUserId] = useState<string>("");
     const [reactionDrawerItem, setReactionDrawerItem] = useState<UpdateEvent["data"]["state"] | undefined>();
     const [friends, setFriends] = useState<User["friends"]>([]);
@@ -111,41 +106,41 @@ export default function UIApp({
         themeColour?.setAttribute("content", colour);
     }
 
-    async function updateFriendsListenershipHistory(index?: number) {
-        // Use passed index or fallback to state
-        const pageIndex = index ?? friendsListenershipPage;
-        const res = await user.getFriendsListenershipHistory(pageIndex);
+    // async function updateFriendsListenershipHistory(index?: number) {
+    //     // Use passed index or fallback to state
+    //     const pageIndex = index ?? friendsListenershipPage;
+    //     const res = await user.getFriendsListenershipHistory(pageIndex);
 
-        const d = res.d;
+    //     const d = res.d;
 
-        setEndOfHistoryMessage(generateEndOfHistoryMessage());
-        setFriendsListenershipIsLastPage(res.l);
-        setFriendsListenershipIsError(res.e);
+    //     setEndOfHistoryMessage(generateEndOfHistoryMessage());
+    //     setFriendsListenershipIsLastPage(res.l);
+    //     setFriendsListenershipIsError(res.e);
 
-        setFriendsListenershipData(prev => {
-            if (prev.length >= 1) {
-                if (!prev[0])
-                    return d;
+    //     setFriendsListenershipData(prev => {
+    //         if (prev.length >= 1) {
+    //             if (!prev[0])
+    //                 return d;
 
-                if (!d[0])
-                    return [];
+    //             if (!d[0])
+    //                 return [];
 
-                // Check if same data
-                // TODO: Need to implement a hash as this check isn't foolproof
-                if (prev[0].timestamp + prev[0].item.sessionDuration == d[0].timestamp + d[0].item.sessionDuration)
-                    return prev;
+    //             // Check if same data
+    //             // TODO: Need to implement a hash as this check isn't foolproof
+    //             if (prev[0].timestamp + prev[0].item.sessionDuration == d[0].timestamp + d[0].item.sessionDuration)
+    //                 return prev;
 
-                console.log(prev[prev.length - 1].timestamp, d[0].timestamp, prev[prev.length - 1].timestamp <= d[0].timestamp);
+    //             console.log(prev[prev.length - 1].timestamp, d[0].timestamp, prev[prev.length - 1].timestamp <= d[0].timestamp);
 
-                if (prev[prev.length - 1].timestamp <= d[0].timestamp)
-                    return [...prev, ...d];
+    //             if (prev[prev.length - 1].timestamp <= d[0].timestamp)
+    //                 return [...prev, ...d];
 
-                return prev;
-            }
+    //             return prev;
+    //         }
 
-            return d;
-        });
-    };
+    //         return d;
+    //     });
+    // };
 
     useEffect(() => {
         prouter.on("set-main-page", (p: string) => {
@@ -180,60 +175,60 @@ export default function UIApp({
         }
     }, [isRecapDrawerVisible]);
 
-    useEffect(() => {
-        // When friendsListenershipData is refreshed, reset the visible count
-        setVisibleHistoryCount(
-            friendsListenershipPage === 0
-                ? ITEMS_PER_BATCH
-                : (prevCount) => Math.min(prevCount + ITEMS_PER_BATCH, friendsListenershipData.length)
-        );
-    }, [friendsListenershipData, friendsListenershipPage]);
+    // useEffect(() => {
+    //     // When friendsListenershipData is refreshed, reset the visible count
+    //     setVisibleHistoryCount(
+    //         friendsListenershipPage === 0
+    //             ? ITEMS_PER_BATCH
+    //             : (prevCount) => Math.min(prevCount + ITEMS_PER_BATCH, friendsListenershipData.length)
+    //     );
+    // }, [friendsListenershipData, friendsListenershipPage]);
 
-    const incrementVisibleItems = () => {
-        // Only paginate if we reach end of array
-        if (visibleHistoryCount + ITEMS_PER_BATCH > friendsListenershipData.length && !friendsListenershipIsLastPage) {
-            setFriendsListenershipPage(p => {
-                const newPage = p + 1;
-                updateFriendsListenershipHistory(newPage);
-                return newPage;
-            });
-        } else {
-            setVisibleHistoryCount((prevCount) =>
-                Math.min(prevCount + ITEMS_PER_BATCH, friendsListenershipData.length)
-            );
-        }
-    };
+    // const incrementVisibleItems = () => {
+    //     // Only paginate if we reach end of array
+    //     if (visibleHistoryCount + ITEMS_PER_BATCH > friendsListenershipData.length && !friendsListenershipIsLastPage) {
+    //         setFriendsListenershipPage(p => {
+    //             const newPage = p + 1;
+    //             updateFriendsListenershipHistory(newPage);
+    //             return newPage;
+    //         });
+    //     } else {
+    //         setVisibleHistoryCount((prevCount) =>
+    //             Math.min(prevCount + ITEMS_PER_BATCH, friendsListenershipData.length)
+    //         );
+    //     }
+    // };
 
     // Intersection Observer to load more items as the sentinel comes into view
-    useEffect(() => {
-        if (!historyEndRef.current) return;
+    // useEffect(() => {
+    //     if (!historyEndRef.current) return;
 
-        const observer = new IntersectionObserver(
-            (entries) => {
-                console.log(entries, entries[0].isIntersecting);
-                if (entries[0].isIntersecting)
-                    incrementVisibleItems();
-            },
-            {
-                root: null,
-                threshold: 0.1,
-            }
-        );
+    //     const observer = new IntersectionObserver(
+    //         (entries) => {
+    //             console.log(entries, entries[0].isIntersecting);
+    //             if (entries[0].isIntersecting)
+    //                 incrementVisibleItems();
+    //         },
+    //         {
+    //             root: null,
+    //             threshold: 0.1,
+    //         }
+    //     );
 
-        observer.observe(historyEndRef.current);
+    //     observer.observe(historyEndRef.current);
         
-        return () => {
-            if (historyEndRef.current) {
-                observer.unobserve(historyEndRef.current);
-            }
-        };
-    }, [friendsListenershipData, historyEndRef]);
+    //     return () => {
+    //         if (historyEndRef.current) {
+    //             observer.unobserve(historyEndRef.current);
+    //         }
+    //     };
+    // }, [friendsListenershipData, historyEndRef]);
 
     useEffect(() => {
         // Extra actions to perform when page switched
         if (currentPage == "activity") {
             // Refresh friends listenership history data
-            updateFriendsListenershipHistory();
+            // updateFriendsListenershipHistory();
         } else if (currentPage == "friends") {
             user.refreshDetails()
             .then(() => {
@@ -304,7 +299,7 @@ export default function UIApp({
         });
 
         // Fetch friends listenership history
-        updateFriendsListenershipHistory();
+        // updateFriendsListenershipHistory();
 
         setFriends(user.friends);
 
@@ -357,14 +352,14 @@ export default function UIApp({
                 setStreamerReset(true);
             }
             // Pass the current friendsListenershipPage explicitly
-            updateFriendsListenershipHistory(friendsListenershipPage);
+            // updateFriendsListenershipHistory(friendsListenershipPage);
         };
 
         window.addEventListener("focus", handleFocus);
         return () => {
             window.removeEventListener("focus", handleFocus);
         };
-    }, [streamer, friendsListenershipPage]);
+    }, [streamer]);
 
     useEffect(() => {
         console.log("uifsc", livePlaybackStatesPlaceholderCount)
