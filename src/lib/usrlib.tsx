@@ -178,6 +178,10 @@ export default class User extends EventEmitter {
     public async logout() {
         const req = await fetch(API_URL + "/logout", {
             method: "POST",
+            headers: {
+                ...(this.getAuthHeaders())
+            },
+            credentials: "include",
         });
 
         if (req.status == 429)
