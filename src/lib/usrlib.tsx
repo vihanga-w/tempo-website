@@ -7,7 +7,7 @@ import { Song } from "@/components/music-discovery-feed";
 
 export interface FeedItemAlert {
     id: string;
-    alertType: "ListenerTypeChange";
+    alertType: "ListenerTypeChange" | "ActivityPage" | "ContentLoading";
     content: any;
 }
 
@@ -464,12 +464,12 @@ export default class User extends EventEmitter {
         }
     }
 
-    public async getMyFYP(page: number) {
+    public async getMyFYP(page: number, pagePreset?: "activity" | "discover") {
         if (page < 1)
             page = 1;
 
         try {
-            const req = await fetch(API_URL + "/me/feed/" + page, {
+            const req = await fetch(API_URL + "/me/feed/" + page + (pagePreset ? "?p=" + pagePreset : ""), {
                 headers: {
                     ...(this.getAuthHeaders())
                 },

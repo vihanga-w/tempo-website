@@ -1,5 +1,5 @@
 import PageRouter from "@/lib/page-router";
-import User, { FeedItem, FriendListenershipItem } from "@/lib/usrlib";
+import User, { FeedItem, FeedItemAlert, FriendListenershipItem } from "@/lib/usrlib";
 import {
     Text,
     Image,
@@ -69,7 +69,7 @@ export default function UIApp({
     user: User,
 }>) {
     const [currentPage, setCurrentPage] = useState<string>("activity");
-    const [currentPageTitle, setCurrentPageTitle] = useState<string>("Activity");
+    const [currentPageTitle, setCurrentPageTitle] = useState<string>("For You");
     const [prevPage, setPrevPage] = useState<string>("");
     const [pageSwitcherActive, setPageSwitcherActive] = useState<boolean>(false);
     const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -93,8 +93,8 @@ export default function UIApp({
     const [dailyRecap, setDailyRecap] = useState<Recap | null>(null);
     const [weeklyRecap, setWeeklyRecap] = useState<Recap | null>(null);
     const [currentFYPPageIndex, setCurrentFYPPageIndex] = useState<{
-        p: number;
-        t: number;
+        p: number;  // Page index
+        t: number;  // Item index
     } | null>(null);
 
     // Lazy loading: how many history items to show at first
@@ -123,6 +123,9 @@ export default function UIApp({
 
         setFriendsListenershipData(prev => {
             if (prev.length >= 1) {
+                if (!prev[0])
+                    return d;
+                
                 // Check if same data
                 // TODO: Need to implement a hash as this check isn't foolproof
                 if (prev[0].timestamp + prev[0].item.sessionDuration == d[0].timestamp + d[0].item.sessionDuration)
@@ -311,9 +314,12 @@ export default function UIApp({
             return;
 
         // Fetch FYP
-        user.getMyFYP(currentFYPPageIndex.p)
+        user.getMyFYP(currentFYPPageIndex.p, currentPage == "activity" ? "activity" : "discover")
         .then(data => {
             setDiscoveryData(prev => {
+                if (currentFYPPageIndex.t == -999)
+                    return data;
+
                 return [...(prev.slice(currentFYPPageIndex.t + 1, prev.length)), ...data];
             });
         })
@@ -371,12 +377,12 @@ export default function UIApp({
 
     const pages: { name: string; menuName?: string; id: string; indexed: boolean }[] = [
         {
-            name: "For You",
+            name: "Discover",
             id: "discover",
             indexed: true,
         },
         {
-            name: "Activity",
+            name: "For You",
             id: "activity",
             indexed: true,
         },
@@ -435,8 +441,22 @@ export default function UIApp({
         if (id !== "settings" && id !== "pub-profile")
             setHideTopGradient(false);
 
-        if (id !== "activity")
+        if (id == "activity" || id == "discover") {
+            setDiscoveryData([{
+                data: {
+                    id: "loading",
+                    alertType: "ContentLoading",
+                    content: "",
+                } as FeedItemAlert,
+                type: "alert",
+            }]);
+            setCurrentFYPPageIndex({
+                p: 1,
+                t: -999,
+            });
+        } else if (id !== "activity") {
             closeReactionDrawer();
+        }
 
         setStatusBarColour("#0d0d0e");
         setComplementaryColour("#e9e7fb");
@@ -691,7 +711,42 @@ export default function UIApp({
                     top="0"
                     left="0"
                 >
-                    {/* Discover page */}
+                    {currentPage == "activity" && (
+                        <>
+                            <Suspense fallback={<SuspenseSpinner />}>
+                                <ReactionDrawer isOpen={isReactionDrawerVisible} open={openReactionDrawer} close={closeReactionDrawer} item={reactionDrawerItem} />
+                            </Suspense>
+                            {activityPageLoading ? (
+                                <Center pos="absolute" width="100vw" height="100vh" top="0" left="0">
+                                    <FullLoader />
+                                </Center>
+                            ) : (
+                                <MusicDiscoveryFeed
+                                    user={user}
+                                    type="activity"
+                                    key={"activity-feed"}
+                                    feed={discoveryData}
+                                    streamer={streamer}
+                                    livePlaybackStatesPlaceholderCount={livePlaybackStatesPlaceholderCount}
+                                    livePlaybackStates={livePlaybackStates}
+                                    showLivePlaybackStates={showLivePlaybackStates}
+                                    openReactionDrawer={openReactionDrawer}
+                                    setPubProfileUserId={setPubProfileUserId}
+                                    setReactionDrawerItem={setReactionDrawerItem}
+                                    pageChanger={pageChanger}
+                                    loadMore={(index: number) => {
+                                        setCurrentFYPPageIndex(prev => {
+                                            return {
+                                                p: !prev?.p ? 1 : prev.p + 1,
+                                                t: index,
+                                            }
+                                        });
+                                    }}
+                                />
+                            )}
+                        </>
+                    )}
+
                     {currentPage == "discover" && (
                         <>
                             {discoveryData.length == 0 ? (
@@ -720,6 +775,9 @@ export default function UIApp({
                                 <Suspense fallback={<SuspenseSpinner />}>
                                     <MusicDiscoveryFeed
                                         user={user}
+                                        type="discover"
+                                        key={"discover-feed"}
+                                        streamer={streamer}
                                         feed={discoveryData}
                                         loadMore={(index: number) => {
                                             setCurrentFYPPageIndex(prev => {
@@ -735,151 +793,185 @@ export default function UIApp({
                         </>
                     )}
 
-                    {/* Activity page */}
+                    {/* FYP page
                     {currentPage == "activity" && (
                         <>
-                            <Suspense fallback={<SuspenseSpinner />}>
-                                <ReactionDrawer isOpen={isReactionDrawerVisible} open={openReactionDrawer} close={closeReactionDrawer} item={reactionDrawerItem} />
-                            </Suspense>
-                            {activityPageLoading ? (
-                                <Center pos="absolute" width="100vw" height="100vh" top="0" left="0">
-                                    <FullLoader />
-                                </Center>
+                            {discoveryData.length == 0 ? (
+                                <Text
+                                    position="absolute"
+                                    top="0"
+                                    left="0"
+                                    justifyContent="center"
+                                    alignItems="center"
+                                    display="flex"
+                                    height="calc(100vh - 72px)"
+                                    width="100vw"
+                                    color="text.dark"
+                                    margin="auto"
+                                    textAlign="center"
+                                    fontFamily="Inter"
+                                    fontSize="16px"
+                                    fontWeight="regular"
+                                    zIndex="1"
+                                >
+                                    Tempo is learning your music taste.
+                                    <br />
+                                    We'll let you know when Discover is ready!
+                                </Text>
                             ) : (
-                                <Stack gap="28px" overflowY="auto" paddingBottom="18px" width="100%">
-                                    <Stack gap="18px" overflowY="auto" width="100%" display={livePlaybackStatesPlaceholderCount > 0 || livePlaybackStates.filter(v => v.userId !== user.id).length > 0 ? "flex" : "none"}>
-                                        <Text
-                                            fontFamily="arial, helvetica"
-                                            fontWeight="bold"
-                                            fontSize="24px"
-                                        >
-                                            Latest
-                                        </Text>
-                                        {!showLivePlaybackStates ? (Array.from({ length: livePlaybackStatesPlaceholderCount }).map((_, i) => {
-                                            return (
-                                                <>
-                                                    {i !== 0 && (
-                                                        <Box
-                                                            width="100%"
-                                                            height="1px"
-                                                            background="rgba(255, 255, 255, 0.2)"
-                                                        />
-                                                    )}
-                                                    <Box>
-                                                        <PlaybackState
-                                                            key={"lpspc-" + i}
-                                                            stream={streamer}
-                                                            userId=""
-                                                            isPlaceholder
-                                                        />
-                                                    </Box>
-                                                </>
-                                            );
-                                        })) : (<></>)}
-                                        {showLivePlaybackStates ? (livePlaybackStates.filter(v => v.userId !== user.object?.id).map((v, i) => {
-                                            const data = v.data;
-                                            
-                                            return (
-                                                <>
-                                                    {i !== 0 && (
-                                                        <Box
-                                                            width="100%"
-                                                            height="1px"
-                                                            background="rgba(255, 255, 255, 0.2)"
-                                                        />
-                                                    )}
-                                                    <Box>
-                                                        <PlaybackState
-                                                            key={
-                                                                "ps-" +
-                                                                v.userId +
-                                                                data.state?.songId +
-                                                                (data.state?.artists ? "AA" : "ANA")
-                                                            }
-                                                            stream={streamer}
-                                                            userId={v.userId}
-                                                            profileClickCb={() => {
-                                                                setPubProfileUserId(v.userId);
-                                                                pageChanger("pub-profile", "activity");
-                                                            }}
-                                                            reactionClickCb={(data: UpdateEvent["data"]["state"]) => {
-                                                                setReactionDrawerItem(data);
-                                                                openReactionDrawer();
-                                                            }}
-                                                        />
-                                                    </Box>
-                                                </>
-                                            );
-                                        })): (<></>)}
-                                    </Stack>
-                                    <Stack gap="12px" overflowY="auto" width="100%" display={friendsListenershipData.length > 0 ? "flex" : "none"}>
-                                        <Text
-                                            fontFamily="arial, helvetica"
-                                            fontWeight="bold"
-                                            fontSize="24px"
-                                        >
-                                            History
-                                        </Text>
-                                        {friendsListenershipIsError ? (
-                                            <>
-                                                <Text marginTop="14px" width="100%" opacity="0.45" textAlign="center" onClick={() => {
-                                                    setFriendsListenershipPage(0);
-                                                }}>{"Failed to load history, try again?"}</Text>
-                                            </>
-                                        ) : (
-                                            <>
-                                                {friendsListenershipData
-                                                    .slice(0, visibleHistoryCount)
-                                                    .map((v, i) => {
-                                                        const data = v;
-                                                        return (
-                                                            <>
-                                                                {i !== 0 && (
-                                                                    <Box
-                                                                        width="100%"
-                                                                        height="1px"
-                                                                        background="rgba(255, 255, 255, 0.2)"
-                                                                    />
-                                                                )}
-                                                                <PlaybackHistoryItem data={data} />
-                                                            </>
-                                                        );
-                                                    })}
-                                                {/* Sentinel element for lazy loading */}
-                                                <div ref={historyEndRef}>
-                                                    <Text marginTop="8px" width="100%" opacity="0.45" textAlign="center" onClick={() => {
-                                                        incrementVisibleItems();
-                                                    }}>{visibleHistoryCount < friendsListenershipData.length || !friendsListenershipIsLastPage ? "Load more?" : friendsListenershipData.length > 15 ? endOfHistoryMessage : ""}</Text>
-                                                </div>
-                                            </>
-                                        )}
-                                    </Stack>
-                                    {friendsListenershipData.length == 0 && livePlaybackStates.length == 0 && livePlaybackStatesPlaceholderCount == 0 && (
-                                        <Text
-                                            position="absolute"
-                                            top="0"
-                                            left="0"
-                                            justifyContent="center"
-                                            alignItems="center"
-                                            display="flex"
-                                            height="calc(100vh - 72px)"
-                                            width="100vw"
-                                            color="text.dark"
-                                            margin="auto"
-                                            textAlign="center"
-                                            fontFamily="Inter"
-                                            fontSize="16px"
-                                            fontWeight="regular"
-                                            zIndex="1"
-                                        >
-                                            There's nothing to see here,
-                                            <br />
-                                            check back later!
-                                        </Text>
-                                    )}
-                                </Stack>
+                                <Suspense fallback={<SuspenseSpinner />}>
+                                    
+                                </Suspense>
                             )}
                         </>
+                    )} */}
+
+                    {/* Activity page */}
+                    {currentPage == "activity" && (
+                        // <>
+                        //     <Suspense fallback={<SuspenseSpinner />}>
+                        //         <ReactionDrawer isOpen={isReactionDrawerVisible} open={openReactionDrawer} close={closeReactionDrawer} item={reactionDrawerItem} />
+                        //     </Suspense>
+                        //     {activityPageLoading ? (
+                        //         <Center pos="absolute" width="100vw" height="100vh" top="0" left="0">
+                        //             <FullLoader />
+                        //         </Center>
+                        //     ) : (
+                        //         <Stack gap="28px" overflowY="auto" paddingBottom="18px" width="100%">
+                        //             <Stack gap="18px" overflowY="auto" width="100%" display={livePlaybackStatesPlaceholderCount > 0 || livePlaybackStates.filter(v => v.userId !== user.id).length > 0 ? "flex" : "none"}>
+                        //                 <Text
+                        //                     fontFamily="arial, helvetica"
+                        //                     fontWeight="bold"
+                        //                     fontSize="24px"
+                        //                 >
+                        //                     Latest
+                        //                 </Text>
+                        //                 {!showLivePlaybackStates ? (Array.from({ length: livePlaybackStatesPlaceholderCount }).map((_, i) => {
+                        //                     return (
+                        //                         <>
+                        //                             {i !== 0 && (
+                        //                                 <Box
+                        //                                     width="100%"
+                        //                                     height="1px"
+                        //                                     background="rgba(255, 255, 255, 0.2)"
+                        //                                 />
+                        //                             )}
+                        //                             <Box>
+                        //                                 <PlaybackState
+                        //                                     key={"lpspc-" + i}
+                        //                                     stream={streamer}
+                        //                                     userId=""
+                        //                                     isPlaceholder
+                        //                                 />
+                        //                             </Box>
+                        //                         </>
+                        //                     );
+                        //                 })) : (<></>)}
+                        //                 {showLivePlaybackStates ? (livePlaybackStates.filter(v => v.userId !== user.object?.id).map((v, i) => {
+                        //                     const data = v.data;
+                                            
+                        //                     return (
+                        //                         <>
+                        //                             {i !== 0 && (
+                        //                                 <Box
+                        //                                     width="100%"
+                        //                                     height="1px"
+                        //                                     background="rgba(255, 255, 255, 0.2)"
+                        //                                 />
+                        //                             )}
+                        //                             <Box>
+                        //                                 <PlaybackState
+                        //                                     key={
+                        //                                         "ps-" +
+                        //                                         v.userId +
+                        //                                         data.state?.songId +
+                        //                                         (data.state?.artists ? "AA" : "ANA")
+                        //                                     }
+                        //                                     stream={streamer}
+                        //                                     userId={v.userId}
+                        //                                     profileClickCb={() => {
+                        //                                         setPubProfileUserId(v.userId);
+                        //                                         pageChanger("pub-profile", "activity");
+                        //                                     }}
+                        //                                     reactionClickCb={(data: UpdateEvent["data"]["state"]) => {
+                        //                                         setReactionDrawerItem(data);
+                        //                                         openReactionDrawer();
+                        //                                     }}
+                        //                                 />
+                        //                             </Box>
+                        //                         </>
+                        //                     );
+                        //                 })): (<></>)}
+                        //             </Stack>
+                        //             <Stack gap="12px" overflowY="auto" width="100%" display={friendsListenershipData.length > 0 ? "flex" : "none"}>
+                        //                 <Text
+                        //                     fontFamily="arial, helvetica"
+                        //                     fontWeight="bold"
+                        //                     fontSize="24px"
+                        //                 >
+                        //                     History
+                        //                 </Text>
+                        //                 {friendsListenershipIsError ? (
+                        //                     <>
+                        //                         <Text marginTop="14px" width="100%" opacity="0.45" textAlign="center" onClick={() => {
+                        //                             setFriendsListenershipPage(0);
+                        //                         }}>{"Failed to load history, try again?"}</Text>
+                        //                     </>
+                        //                 ) : (
+                        //                     <>
+                        //                         {friendsListenershipData
+                        //                             .slice(0, visibleHistoryCount)
+                        //                             .map((v, i) => {
+                        //                                 const data = v;
+                        //                                 return (
+                        //                                     <>
+                        //                                         {i !== 0 && (
+                        //                                             <Box
+                        //                                                 width="100%"
+                        //                                                 height="1px"
+                        //                                                 background="rgba(255, 255, 255, 0.2)"
+                        //                                             />
+                        //                                         )}
+                        //                                         <PlaybackHistoryItem data={data} />
+                        //                                     </>
+                        //                                 );
+                        //                             })}
+                        //                         {/* Sentinel element for lazy loading */}
+                        //                         <div ref={historyEndRef}>
+                        //                             <Text marginTop="8px" width="100%" opacity="0.45" textAlign="center" onClick={() => {
+                        //                                 incrementVisibleItems();
+                        //                             }}>{visibleHistoryCount < friendsListenershipData.length || !friendsListenershipIsLastPage ? "Load more?" : friendsListenershipData.length > 15 ? endOfHistoryMessage : ""}</Text>
+                        //                         </div>
+                        //                     </>
+                        //                 )}
+                        //             </Stack>
+                        //             {friendsListenershipData.length == 0 && livePlaybackStates.length == 0 && livePlaybackStatesPlaceholderCount == 0 && (
+                        //                 <Text
+                        //                     position="absolute"
+                        //                     top="0"
+                        //                     left="0"
+                        //                     justifyContent="center"
+                        //                     alignItems="center"
+                        //                     display="flex"
+                        //                     height="calc(100vh - 72px)"
+                        //                     width="100vw"
+                        //                     color="text.dark"
+                        //                     margin="auto"
+                        //                     textAlign="center"
+                        //                     fontFamily="Inter"
+                        //                     fontSize="16px"
+                        //                     fontWeight="regular"
+                        //                     zIndex="1"
+                        //                 >
+                        //                     There's nothing to see here,
+                        //                     <br />
+                        //                     check back later!
+                        //                 </Text>
+                        //             )}
+                        //         </Stack>
+                        //     )}
+                        // </>
+                        <></>
                     )}
 
                     {/* Playlists page */}

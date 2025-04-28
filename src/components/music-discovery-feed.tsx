@@ -7,7 +7,9 @@ import {
     IconButton,
     Progress,
     HStack,
-    Avatar
+    Avatar,
+    Stack,
+    Spinner
 } from "@chakra-ui/react";
 import { FaHeart, FaRegHeart } from "react-icons/fa";
 import { useDrag } from "react-use-gesture";
@@ -19,7 +21,8 @@ import confetti from "canvas-confetti";
 
 import { getSizedImageUrl } from "@/lib/sized-img";
 import User, { FeedItem, FeedItemAlert, FeedItemHistory } from "@/lib/usrlib";
-import { getSpotifyDeeplink, SkeletonImage } from "./playback-state";
+import { getSpotifyDeeplink, PlaybackState, SkeletonImage } from "./playback-state";
+import { DataStreamer, UpdateEvent } from "@/lib/live-ingest";
 
 export interface Song {
     id: string;
@@ -34,24 +37,78 @@ const MusicDiscoveryFeed: React.FC<{
     user: User;
     feed: FeedItem[];
     loadMore: (index: number) => void;
-}> = ({ user, feed, loadMore }) => {
+    type: "discover" | "activity";
+    showLivePlaybackStates?: boolean;
+    livePlaybackStatesPlaceholderCount?: number;
+    livePlaybackStates?: UpdateEvent[];
+    streamer: DataStreamer | null;
+    setPubProfileUserId?: (userId: string) => void;
+    pageChanger?: (page: string, returnPage: string) => void;
+    setReactionDrawerItem?: (item: UpdateEvent["data"]["state"]) => void;
+    openReactionDrawer?: () => void;
+}> = ({
+    user,
+    feed,
+    loadMore,
+    type,
+    showLivePlaybackStates,
+    livePlaybackStatesPlaceholderCount = 0,
+    livePlaybackStates = [],
+    streamer,
+    setPubProfileUserId,
+    pageChanger,
+    setReactionDrawerItem,
+    openReactionDrawer,
+}) => {
+    const activityItemsPerPage = Math.floor((window.innerHeight - 105) / 165);
+    const requiredActivityPages = Math.ceil(livePlaybackStatesPlaceholderCount / activityItemsPerPage);
+
     const [currentIndex, setCurrentIndex] = useState(0);
     const [dragY, setDragY] = useState(0);
     const [swipeX, setSwipeX] = useState(0);
     const [swipingOut, setSwipingOut] = useState(false);
-    const [loadingMore, setLoadingMore] = useState<boolean>(true);
-    const [internalFeed, setInternalFeed] = useState<FeedItem[]>([]);
+    const [loadingMore, setLoadingMore] = useState<boolean>(false);
+    const [internalFeed, setInternalFeed] = useState<FeedItem[]>(
+        type == "activity" && livePlaybackStatesPlaceholderCount > 0
+            ? Array.from({ length: requiredActivityPages }, () => ({
+                  type: "alert",
+                  data: {
+                      id: "activity",
+                      alertType: "ActivityPage",
+                      content: "",
+                  } as FeedItemAlert,
+              }))
+            : []
+    );
     const [loadingScrollOffset, setLoadingScrollOffset] = useState<number>(0);
     const [pendingSwipeDirection, setPendingSwipeDirection] = useState<"left" | "right" | null>(null);
     const [lastSwipedIndex, setLastSwipedIndex] = useState<number | null>(null);
     const [colorMap, setColorMap] = useState<Record<string, { bg: string; fg: string }>>({});
+    const [firstLoad, setFirstLoad] = useState(0);
 
     useEffect(() => {
+        const alertItems = Array.from(
+            { length: requiredActivityPages },
+            () => ({
+                type: "alert" as const,
+                data: {
+                    id: "activity",
+                    alertType: "ActivityPage",
+                    content: "",
+                } as FeedItemAlert,
+            })
+        );
+
         setCurrentIndex(0 + loadingScrollOffset);
         setLoadingScrollOffset(0);
-        setInternalFeed(feed);
+        setInternalFeed(
+            firstLoad <= 2 && type == "activity" && currentIndex == 0 && livePlaybackStatesPlaceholderCount > 0
+                ? [...(alertItems as FeedItem[]), ...feed]
+                : feed
+        );
+        setFirstLoad(prev => prev + 1);
         setLoadingMore(false);
-    }, [feed]);
+    }, [feed, livePlaybackStatesPlaceholderCount, requiredActivityPages]);
 
     useEffect(() => {
         const current = internalFeed[currentIndex];
@@ -156,6 +213,26 @@ const MusicDiscoveryFeed: React.FC<{
         });
     }
 
+    const isLoading = () => {
+        if (
+            (
+                type == "discover" &&
+                feed.length == 1 &&
+                feed[0].type == "alert" &&
+                (feed[0].data as FeedItemAlert).alertType == "ContentLoading"
+            ) || (
+                type == "activity" &&
+                feed.length > 0 &&
+                feed[feed.length - 1].type == "alert" &&
+                (feed[feed.length - 1].data as FeedItemAlert).alertType == "ContentLoading"
+            )
+        ) {
+            return true;
+        }
+
+        return false;
+    }
+
     const bind = useDrag((state) => {
         const { movement: [mx, my], velocity: vel, down } = state;
 
@@ -165,7 +242,13 @@ const MusicDiscoveryFeed: React.FC<{
         const currentItem = internalFeed[currentIndex];
         const isDiscover = currentItem?.type === "discover";
 
-        if (swipingOut) return;
+        if (
+            swipingOut ||
+            // Disable swiping out if the feed is in a loading state
+            isLoading()
+        ) {
+            return;
+        }
 
         const swipeThreshold = 100;
         const velocityThreshold = 0.3;
@@ -261,7 +344,10 @@ const MusicDiscoveryFeed: React.FC<{
         }
     }, [currentIndex]);
 
-    return (
+    return (<>
+        {isLoading() && (<Box pos="fixed" top="0" left="0" zIndex="999" width="100vw" height="100vh" backgroundColor="bg.dark" display="flex" alignItems="center" justifyContent="center">
+            <Spinner size="lg" />
+        </Box>)}
         <VStack
             spacing={0}
             align="center"
@@ -383,6 +469,99 @@ const MusicDiscoveryFeed: React.FC<{
                                     flexDirection="column"
                                 >
                                     {item.type === "alert" &&
+                                        (item.data as FeedItemAlert).alertType === "ActivityPage" && (<Box overflow="auto" display="block" textAlign="left" width="100%" height="100%" background="bg.dark" padding="20px" paddingTop="65px">
+                                            <Stack gap="18px" overflowY="auto" width="100%" height="100%" pointerEvents="all" display={livePlaybackStatesPlaceholderCount > 0 || livePlaybackStates.filter(v => v.userId !== user.id).length > 0 ? "flex" : "none"}>
+                                                <Text
+                                                    fontFamily="arial, helvetica"
+                                                    fontWeight="bold"
+                                                    fontSize="24px"
+                                                    marginBottom="-10px"
+                                                >
+                                                    Listening Now
+                                                </Text>
+                                                {!showLivePlaybackStates ? (Array.from({ length: livePlaybackStatesPlaceholderCount }).slice(currentIndex * activityItemsPerPage, (currentIndex * activityItemsPerPage) + activityItemsPerPage).map((_, i) => {
+                                                    return (
+                                                        <>
+                                                            {i !== 0 && (
+                                                                <Box
+                                                                    width="100%"
+                                                                    height="1px"
+                                                                    background="rgba(255, 255, 255, 0.2)"
+                                                                />
+                                                            )}
+                                                            <Box>
+                                                                <PlaybackState
+                                                                    key={"lpspc-" + i}
+                                                                    stream={streamer}
+                                                                    userId=""
+                                                                    isPlaceholder
+                                                                />
+                                                            </Box>
+                                                        </>
+                                                    );
+                                                })) : (<></>)}
+                                                {showLivePlaybackStates ? (livePlaybackStates.filter(v => v.userId !== user.object?.id).slice(currentIndex * activityItemsPerPage, (currentIndex * activityItemsPerPage) + activityItemsPerPage).map((v, i) => {
+                                                    const data = v.data;
+                                                    
+                                                    return (
+                                                        <>
+                                                            {i !== 0 && (
+                                                                <Box
+                                                                    width="100%"
+                                                                    height="1px"
+                                                                    background="rgba(255, 255, 255, 0.2)"
+                                                                />
+                                                            )}
+                                                            <Box pos="relative">
+                                                                <PlaybackState
+                                                                    key={
+                                                                        "ps-" +
+                                                                        v.userId +
+                                                                        data.state?.songId +
+                                                                        (data.state?.artists ? "AA" : "ANA")
+                                                                    }
+                                                                    stream={streamer}
+                                                                    userId={v.userId}
+                                                                    profileClickCb={() => {
+                                                                        if (!setPubProfileUserId || !pageChanger)
+                                                                            return;
+                                                                        setPubProfileUserId(v.userId);
+                                                                        pageChanger("pub-profile", "activity");
+                                                                    }}
+                                                                    reactionClickCb={(data: UpdateEvent["data"]["state"]) => {
+                                                                        if (!setReactionDrawerItem || !openReactionDrawer)
+                                                                            return;
+
+                                                                        setReactionDrawerItem(data);
+                                                                        openReactionDrawer();
+                                                                    }}
+                                                                />
+                                                            </Box>
+                                                        </>
+                                                    );
+                                                })): (<></>)}
+                                                
+                                                <Box
+                                                    pos="absolute"
+                                                    bottom="0"
+                                                    left="0"
+                                                    textAlign="center"
+                                                    width="100%"
+                                                    padding="5px"
+                                                    paddingBottom="15px"
+                                                    color="text.dark"
+                                                    opacity="0.25"
+                                                    background="bg.dark"
+                                                >
+                                                    <Text>
+                                                        Keep scrolling to see {currentIndex + 1 == requiredActivityPages ? "friends history" : "more activity"}
+                                                    </Text>
+                                                </Box>
+                                            </Stack>
+                                        </Box>
+                                    )}
+
+                                    {item.type === "alert" &&
                                         (item.data as FeedItemAlert).alertType === "ListenerTypeChange" && (() => {
                                             const alert = item.data as FeedItemAlert;
                                             const tierName = alert.content ?? "New Tier";
@@ -467,7 +646,8 @@ const MusicDiscoveryFeed: React.FC<{
                                                     </VStack>
                                                 </Box>
                                             );
-                                        })()}
+                                        })
+                                    ()}
 
                                     {item.type === "discover" && (
                                         <>
@@ -710,7 +890,7 @@ const MusicDiscoveryFeed: React.FC<{
                 )}
             </AnimatePresence>
         </VStack>
-    );
+    </>);
 };
 
 export default MusicDiscoveryFeed;
