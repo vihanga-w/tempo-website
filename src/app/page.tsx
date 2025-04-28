@@ -427,6 +427,12 @@ export default function Home() {
 
         setPerfMsg("Sorry, Tempo is not available right now, please try again later");
       } else {
+        // User is logged in, we can start the app
+        window.history.pushState(null, document.title, location.href);
+        window.addEventListener('popstate', () => {
+          history.pushState(null, document.title, location.href);
+        });
+
         onSubmitSubscribe()
         .then(() => {
           const showWelcomeMsg = () => {
