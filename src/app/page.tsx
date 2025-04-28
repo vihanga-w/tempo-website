@@ -486,8 +486,10 @@ export default function Home() {
 
                   if (!isNaN(localVersion) && localVersion !== -1)
                     window.location.reload();
+                  else
+                    window.localStorage.setItem("tempo-local-version-notice", remoteVersion.toString())
 
-                  return;
+                  return resolve();
                 } else if (localVersion === remoteVersion && localVersionNotice < remoteVersion) {
                   const req = await fetch(API_URL + "/.version-notice");
                   const notice = (await req.json()) as {
@@ -537,6 +539,8 @@ export default function Home() {
               }
             });
           };
+
+          console.log("ns1 cb")
 
           showUpdateMsg()
           .then(showWelcomeMsg);
