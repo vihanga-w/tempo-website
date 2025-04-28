@@ -175,6 +175,27 @@ export default class User extends EventEmitter {
             window.location.reload();
     }
 
+    public async logout() {
+        const req = await fetch(API_URL + "/logout", {
+            method: "POST",
+        });
+
+        if (req.status == 429)
+            window.location.reload();
+
+        if (req.status == 200) {
+            this.isLoggedIn = false;
+            this.object = undefined;
+            this.storedToken = undefined;
+            this.id = "";
+            this.email = "";
+            this.friends = [];
+            this.friendsSessionsCount = 0;
+            this.emit("user-logout");
+            window.localStorage.removeItem("tempo.a");
+        }
+    }
+
     public async setSongAffinity(songId: string, affinity: number) {
         const req = await fetch(API_URL + "/me/taste/affinity", {
             method: "POST",

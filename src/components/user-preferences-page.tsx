@@ -365,6 +365,8 @@ export default function UserPreferencesPage({ user }: { user: User }) {
                     </Text>
                     <Button colorScheme="accent.dark" variant="outline" size="sm" onClick={async () => {
                         if (confirm("Are you sure you want to reconnect your Spotify account?\n\nThis will reset your application state.")) {
+                            try { await user.logout(); } catch (e) { console.error("Failed to logout", e); }
+
                             window.localStorage.removeItem("tempo-dev-warning-msg");
                             window.localStorage.removeItem("tempo-initial-visit");
                             window.localStorage.removeItem("tempo-legal-agreed");
