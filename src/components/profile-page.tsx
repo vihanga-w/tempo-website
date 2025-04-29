@@ -477,7 +477,7 @@ export default function ProfilePage({
                             borderRadius="14px"
                             transition=".15s"
                             border={playbackState ? "2px solid transparent" : "0px"}
-                            src={getSizedImageUrl(findBestSCDNImageSize(profileData?.images ?? [], 88, 88) ?? "", 88, 88)}
+                            src={getSizedImageUrl(findBestSCDNImageSize(profileData?.images ?? [], 120, 120) ?? "", 120, 120)}
                             onError={() => {
                                 setPfpLoadFailed(true);
                             }}
