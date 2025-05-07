@@ -162,6 +162,7 @@ export default class User extends EventEmitter {
     }
 
     public getAuthHeaders() {
+        console.log("usrlib gAH")
         const headers: {[key: string]: string} = {};
 
         if (this.storedToken)
@@ -683,7 +684,6 @@ export default class User extends EventEmitter {
         if (req.status == 429)
             window.location.reload();
 
-        
         const res = (await req.json()) as {
             error: boolean;
             message?: string;
@@ -701,6 +701,8 @@ export default class User extends EventEmitter {
             daily: null,
             weekly: null,
         };
+
+        // alert(res.data.daily?.id ?? res.data.weekly?.id);
 
         return res.data;
     }

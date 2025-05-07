@@ -62,13 +62,15 @@ const generateEndOfHistoryMessage = () => {
     return (Math.random() <= 0.1 ? "~ End of historussy ~" : "You've seen it all! 😉");
 };
 
-export default function UIApp({
+export default React.memo(function UIApp({
     prouter,
     user,
 }: Readonly<{
     prouter: PageRouter,
     user: User,
 }>) {
+    // console.log("UI MOUNTED", prouter, user);
+    
     const [currentPage, setCurrentPage] = useState<string>("activity");
     const [currentPageTitle, setCurrentPageTitle] = useState<string>("For You");
     const [prevPage, setPrevPage] = useState<string>("");
@@ -142,31 +144,39 @@ export default function UIApp({
     //     });
     // };
 
+    const fetchRecaps = async () => {
+        try {
+            const recaps = await user.getRecaps();
+
+            console.log(dailyRecap?.id, recaps.daily?.id, isRecapDrawerVisible);
+
+            if (dailyRecap?.id !== recaps.daily?.id)
+                setDailyRecap(recaps.daily);
+
+            if (weeklyRecap?.id !== recaps.weekly?.id)
+                setWeeklyRecap(recaps.weekly);
+
+            setPageSwitcherActive(false);
+
+            if (!isRecapDrawerVisible && (recaps.daily || recaps.weekly))
+                openRecapDrawer();
+        } catch (ex) {
+            console.error("Failed to fetch latest user recaps, error:", ex);
+        }
+    };
+
     useEffect(() => {
         prouter.on("set-main-page", (p: string) => {
             pageChanger(p, "activity");
         });
 
-        const fetchRecaps = async () => {
-            try {
-                const recaps = await user.getRecaps();
+        if (user.isLoggedIn) {
+            // Refresh every 30 sec
+            const intervalId = setInterval(fetchRecaps, 30e3);
 
-                setDailyRecap(recaps.daily);
-                setWeeklyRecap(recaps.weekly);
-                setPageSwitcherActive(false);
-
-                if (recaps.daily || recaps.weekly)
-                    openRecapDrawer();
-            } catch (ex) {
-                console.error("Failed to fetch latest user recaps, error:", ex);
-            }
+            return () => clearInterval(intervalId);
         }
-
-        fetchRecaps();
-
-        // Refresh every 30 sec
-        setInterval(fetchRecaps, 30e3);
-    }, []);
+    }, [user.isLoggedIn]);
 
     useEffect(() => {
         if (!isRecapDrawerVisible) {
@@ -262,6 +272,7 @@ export default function UIApp({
 
         newStreamer.on("update", (data: UpdateEvent) => {
             updateMutex.runExclusive(() => {
+                // console.log(data)
                 setLivePlaybackStates((v) => {
                     const existing = v.find((a) => a.userId === data.userId);
                     if (existing && data.data.action.type == "STOPPED") {
@@ -362,13 +373,17 @@ export default function UIApp({
     }, [streamer]);
 
     useEffect(() => {
-        console.log("uifsc", livePlaybackStatesPlaceholderCount)
-        if (livePlaybackStates.filter(v => v.userId !== user.id).length == livePlaybackStatesPlaceholderCount) {
+        console.log("uifsc", livePlaybackStates, livePlaybackStatesPlaceholderCount);
+        if (
+            livePlaybackStates.filter(v => v.userId !== user.id).length === livePlaybackStatesPlaceholderCount &&
+            !showLivePlaybackStates
+        ) {
             setTimeout(() => {
                 setShowLivePlaybackStates(true);
             }, 120);
+            fetchRecaps();
         }
-    }, [livePlaybackStates, livePlaybackStatesPlaceholderCount])
+    }, [livePlaybackStates, livePlaybackStatesPlaceholderCount, showLivePlaybackStates]);
 
     useEffect(() => {
         if (streamerReset && streamer && livePlaybackStates.length == 0) {
@@ -920,4 +935,4 @@ export default function UIApp({
             </Box>
         </>
     );
-}
+});

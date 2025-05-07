@@ -389,6 +389,8 @@ export class DataStreamer extends EventEmitter {
     }
 
     public async fetchFriendsStreams() {
+        console.log("cfrsesh-start");
+
         const req = await fetch(API_URL + "/spotify/friends/sessions", {
             headers: {
                 ...(this.getAuthHeaders())
@@ -396,6 +398,8 @@ export class DataStreamer extends EventEmitter {
             credentials: "include",
         });
         const res = await req.json() as PublicSessionResponse;
+
+        console.log("cfrsesh-end");
 
         return res.sort();
     }
