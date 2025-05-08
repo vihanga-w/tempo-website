@@ -71,6 +71,7 @@ export class DataStreamer extends EventEmitter {
     private sockCallbacks: {[key: string]: (data: {[key: string]: any}) => void}
     private storedToken?: string;
     private userFilters?: string[];
+    private callbacks: { [key: string]: (data: any) => void } = {};
 
     constructor(storedToken?: string, userIdFilter?: string[]) {
         super();
@@ -139,6 +140,24 @@ export class DataStreamer extends EventEmitter {
             this.sock.send(JSON.stringify([
                 "QUERY",
                 id,
+            ]));
+        });
+    }
+
+    queryRemoteLastStates(): Promise<(PlaybackState | undefined)[]> {
+        return new Promise<(PlaybackState | undefined)[]>((resolve) => {
+            if (!this.sock || !this.sock.OPEN)
+                return [];
+    
+            const cbId = randomBytes(8).toString("hex");
+
+            this.callbacks[cbId] = (data: (PlaybackState | undefined)[]) => {
+                resolve(data);
+            }
+    
+            this.sock.send(JSON.stringify([
+                "QUERY-LAST-STATES",
+                cbId,
             ]));
         });
     }
@@ -228,6 +247,14 @@ export class DataStreamer extends EventEmitter {
                         }
 
                         const data = JSON.parse(m.data) as StateUpdateEvent;
+
+                        // QUERY-LAST-STATE response
+                        if (data.code === -22 && data.id?.startsWith("QLS-")) {
+                            const cbId = data.id.split("QLS-")[1];
+
+                            if (this.callbacks[cbId])
+                                return this.callbacks[cbId](data.data);
+                        }
 
                         if (data.id && this.sockCallbacks[data.id]) {
                             try { this.sockCallbacks[data.id](data); } catch (ex) {

@@ -266,8 +266,10 @@ export default React.memo(function UIApp({
             });
         });
 
-        newStreamer.on("open", () => {
+        newStreamer.on("open", async () => {
             setActivityPageLoading(false);
+
+            const states = await newStreamer.queryRemoteLastStates();a
         });
 
         newStreamer.on("update", (data: UpdateEvent) => {
