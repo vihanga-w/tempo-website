@@ -232,9 +232,17 @@ export class DataStreamer extends EventEmitter {
                 }, 5e3);
 
                 let userIntervals: {[key: string]: NodeJS.Timeout} = {};
+                let pingCompleteCb: ((id: string) => void) | undefined;
 
                 this.sock.onmessage = (m) => {
                     try {
+                        if (m.data.startsWith("PONG-")) {
+                            if (pingCompleteCb)
+                                pingCompleteCb(m.data.split("PONG-")[1]);
+
+                            return;
+                        }
+
                         if (sessionReadyCb) {
                             const data = JSON.parse(m.data) as {
                                 error: boolean;
@@ -370,7 +378,7 @@ export class DataStreamer extends EventEmitter {
                     this.init();
                 }
 
-                this.sock.onopen = () => {
+                this.sock.onopen = async() => {
                     sessionReadyCb = () => {
                         if (this.sock && this.sock.OPEN) {
                             this.emit("open");
@@ -378,6 +386,36 @@ export class DataStreamer extends EventEmitter {
                             sessionReadyCb = undefined;
                         }
                     }
+
+                    // Wait until server has successfully responded to a ping
+                    await new Promise<void>(async (resolve, reject) => {
+                        if (!this.sock || (this.sock && !this.sock.OPEN))
+                            reject("socket is in an invalid state");
+                        
+                        let pingBackSuccess = false;
+                        
+                        while (!pingBackSuccess) {
+                            const pingId = randomBytes(6).toString("hex");
+
+                            pingCompleteCb = (id: string) => {
+                                if (id === pingId) {
+                                    pingBackSuccess = true;
+
+                                    resolve();
+                                }
+                            };
+
+                            this.sock?.send("PING-" + pingId);
+
+                            console.log("Sent readiness ping");
+
+                            await new Promise(r => {
+                                setTimeout(r, 2e3);
+                            });
+                        }
+                    });
+
+                    console.log("Socket is reaady!");
                     
                     if (this.storedToken) {
                         this.sock?.send(JSON.stringify({
