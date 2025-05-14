@@ -72,6 +72,7 @@ export class DataStreamer extends EventEmitter {
     private storedToken?: string;
     private userFilters?: string[];
     private callbacks: { [key: string]: (data: any) => void } = {};
+    private targets: string[];
 
     constructor(storedToken?: string, userIdFilter?: string[]) {
         super();
@@ -80,6 +81,7 @@ export class DataStreamer extends EventEmitter {
         this.sockCallbacks = {};
         this.storedToken = storedToken;
         this.userFilters = userIdFilter;
+        this.targets = [];
     }
 
     isReady() {
@@ -158,6 +160,7 @@ export class DataStreamer extends EventEmitter {
             this.sock.send(JSON.stringify([
                 "QUERY-LAST-STATES",
                 cbId,
+                ...this.targets,
             ]));
         });
     }
@@ -175,10 +178,10 @@ export class DataStreamer extends EventEmitter {
         const connect = async () => {
             try {
                 // Setup connection to server
-                let sessions = await this.fetchFriendsStreams();
+                this.targets = await this.fetchFriendsStreams();
 
-                if (this.userFilters?.some(v => !sessions.includes(v)))
-                    this.emit("not-listening", this.userFilters.filter(v => !sessions.includes(v.replace("!", ""))));
+                if (this.userFilters?.some(v => !this.targets.includes(v)))
+                    this.emit("not-listening", this.userFilters.filter(v => !this.targets.includes(v.replace("!", ""))));
 
                 if (this.interval)
                     try { clearInterval(this.interval); } catch { }
@@ -186,7 +189,7 @@ export class DataStreamer extends EventEmitter {
                 // Remove states if they no longer exist
                 // Such as if app is reopened after a while and states are now stale
                 for (const userId of prevUserIds ?? []) {
-                    if (!sessions.includes(userId))
+                    if (!this.targets.includes(userId))
                         this.emit("remove", userId);
                 }
 
@@ -226,6 +229,8 @@ export class DataStreamer extends EventEmitter {
                             console.log("Sending new sessions:", newSessions);
                             this.sock.send(JSON.stringify(newSessions));
                         }
+
+                        this.targets = newSessions;
                     } catch {
                         seshReqInProgress = false;
                     }
@@ -382,7 +387,7 @@ export class DataStreamer extends EventEmitter {
                     sessionReadyCb = () => {
                         if (this.sock && this.sock.OPEN) {
                             this.emit("open");
-                            this.sock.send(JSON.stringify(sessions));
+                            this.sock.send(JSON.stringify(this.targets));
                             sessionReadyCb = undefined;
                         }
                     }
