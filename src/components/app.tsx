@@ -271,6 +271,8 @@ export default React.memo(function UIApp({
             setActivityPageLoading(false);
 
             const states = await newStreamer.queryRemoteLastStates();
+
+            console.log("QLS-res:", states);
         });
 
         newStreamer.on("update", (data: UpdateEvent) => {
