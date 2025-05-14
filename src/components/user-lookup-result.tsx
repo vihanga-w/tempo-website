@@ -145,17 +145,16 @@ export function UserLookupResult({
         {!firstItem && (
             <Box marginTop="10px" marginBottom="10px" width="100%" height="1px" background="rgba(255, 255, 255, 0.05)" />
         )}
-        <HStack gap="15px" position="relative">
+        <HStack gap="15px" position="relative" onClick={() => {
+            if (openPubProfile)
+                openPubProfile(userId);
+        }}>
             <Box
                 minWidth={friendsView ? "52px" : "36px"}
                 minHeight={friendsView ? "52px" : "36px"}
                 borderRadius="12px"
                 border={livePlaybackState ? "2px solid #A480FF" : "0px"}
                 transition=".15s"
-                onClick={() => {
-                    if (openPubProfile)
-                        openPubProfile(userId);
-                }}
             >
                 {(pfpUrl && pfpUrl !== "" && !pfpLoadFailed) ? (
                     <Image
