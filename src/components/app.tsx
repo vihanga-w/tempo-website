@@ -273,8 +273,12 @@ export default React.memo(function UIApp({
             const states = await newStreamer.queryRemoteLastStates();
 
             // Convert the last states into update events
-            const updates = states.map(v => {
+            const updates: UpdateEvent[] = states.map(v => {
                 if (!v)
+                    return null;
+
+                // Ignore if last state was longer than the duration of the song ago
+                if (Date.now() >= v.updatedAt + v.timeRemaining - 2500)
                     return null;
 
                 const converted: UpdateEvent = {
