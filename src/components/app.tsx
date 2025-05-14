@@ -273,7 +273,7 @@ export default React.memo(function UIApp({
             const states = await newStreamer.queryRemoteLastStates();
 
             // Convert the last states into update events
-            const updates: UpdateEvent[] = states.map(v => {
+            const updates = states.map(v => {
                 if (!v)
                     return null;
 
@@ -294,7 +294,7 @@ export default React.memo(function UIApp({
                 };
 
                 return converted;
-            }).filter(v => v !== null);
+            }).filter(v => v !== null) as UpdateEvent[];
 
             setLivePlaybackStates(updates);
         });
