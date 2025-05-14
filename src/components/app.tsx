@@ -267,11 +267,11 @@ export default React.memo(function UIApp({
         });
 
         // TODO: Finish implementation
-        // newStreamer.on("open", async () => {
-        //     setActivityPageLoading(false);
+        newStreamer.on("open", async () => {
+            setActivityPageLoading(false);
 
-        //     const states = await newStreamer.queryRemoteLastStates();
-        // });
+            const states = await newStreamer.queryRemoteLastStates();
+        });
 
         newStreamer.on("update", (data: UpdateEvent) => {
             updateMutex.runExclusive(() => {
