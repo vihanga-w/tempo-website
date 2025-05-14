@@ -272,7 +272,27 @@ export default React.memo(function UIApp({
 
             const states = await newStreamer.queryRemoteLastStates();
 
-            console.log("QLS-res:", states);
+            // Convert the last states into update events
+            const updates = states.map(v => {
+                if (!v)
+                    return null;
+
+                const converted: UpdateEvent = {
+                    userId: v.userId,
+                    data: {
+                        state: v,
+                        action: {
+                            type: v.isPlaying ? "PLAYING" : "PAUSED",
+                            songId: v.songId
+                        },
+                        interpolatedProgress: v.progressNormal
+                    }
+                };
+
+                return converted;
+            }).filter(v => v !== null);
+
+            setLivePlaybackStates(updates);
         });
 
         newStreamer.on("update", (data: UpdateEvent) => {
