@@ -87,7 +87,7 @@ export default function FriendsPage({
                 else
                     return 1;
             }).map((friend, i) => (<UserLookupResult
-                    userId={friend.user.id}
+                    userId={user.id ? (friend.friendship.u1Id == user.id ? friend.friendship.u2Id : friend.friendship.u1Id) : friend.user.id}
                     username={friend.user.displayName}
                     pfpUrl={friend.user.images?.length > 0 ? findBestSCDNImageSize(friend.user.images, 56, 56) ?? undefined : undefined}
                     firstItem={i === 0}
