@@ -165,6 +165,33 @@ export class DataStreamer extends EventEmitter {
         });
     }
 
+    private async processSessions(sessions: string[]) {
+        const currentListeners = await this.getListeners();
+
+        const expiredListeners = currentListeners.filter(v => !sessions.includes(v));
+        
+        for (const id of expiredListeners) {
+            if (!this.sock || !this.sock.OPEN)
+                return;
+
+            this.sock.send(JSON.stringify([
+                "RM",
+                id,
+                "nocb",
+            ]));
+
+            if (this._isUserIdInFilter(id))
+                this.emit("remove", id);
+        }
+
+        if (currentListeners.sort().join("") !== sessions.join("") && this.sock && this.sock.OPEN) {
+            console.log("Sending new sessions:", sessions);
+            this.sock.send(JSON.stringify(sessions));
+        }
+
+        this.targets = sessions;
+    }
+
     async init(prevUserIds?: string[]) {
         this.emit("construct");
 
@@ -205,32 +232,10 @@ export class DataStreamer extends EventEmitter {
                         seshReqInProgress = true;
 
                         const newSessions = await this.fetchFriendsStreams();
-                        const currentListeners = await this.getListeners();
 
                         seshReqInProgress = false;
-
-                        const expiredListeners = currentListeners.filter(v => !newSessions.includes(v));
                         
-                        for (const id of expiredListeners) {
-                            if (!this.sock || !this.sock.OPEN)
-                                return;
-
-                            this.sock.send(JSON.stringify([
-                                "RM",
-                                id,
-                                "nocb",
-                            ]));
-
-                            if (this._isUserIdInFilter(id))
-                                this.emit("remove", id);
-                        }
-
-                        if (currentListeners.sort().join("") !== newSessions.join("") && this.sock && this.sock.OPEN) {
-                            console.log("Sending new sessions:", newSessions);
-                            this.sock.send(JSON.stringify(newSessions));
-                        }
-
-                        this.targets = newSessions;
+                        this.processSessions(newSessions);
                     } catch {
                         seshReqInProgress = false;
                     }
@@ -267,6 +272,11 @@ export class DataStreamer extends EventEmitter {
 
                             if (this.callbacks[cbId])
                                 return this.callbacks[cbId](data.data);
+                        }
+
+                        // State change advertisement
+                        if (data.code === -21 && data.id === "StateChangeAdvertisement") {
+                            this.processSessions(data.data as unknown as string[]);
                         }
 
                         if (data.id && this.sockCallbacks[data.id]) {
@@ -459,8 +469,6 @@ export class DataStreamer extends EventEmitter {
     }
 
     public async fetchFriendsStreams() {
-        console.log("cfrsesh-start");
-
         const req = await fetch(API_URL + "/spotify/friends/sessions", {
             headers: {
                 ...(this.getAuthHeaders())
@@ -468,8 +476,6 @@ export class DataStreamer extends EventEmitter {
             credentials: "include",
         });
         const res = await req.json() as PublicSessionResponse;
-
-        console.log("cfrsesh-end");
 
         return res.sort();
     }
