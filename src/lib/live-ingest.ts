@@ -425,7 +425,7 @@ export class DataStreamer extends EventEmitter {
                             console.log("Sent readiness ping");
 
                             await new Promise(r => {
-                                setTimeout(r, 2e3);
+                                setTimeout(r, 200);
                             });
                         }
                     });
