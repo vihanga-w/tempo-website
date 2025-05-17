@@ -1,9 +1,10 @@
 import EventEmitter from "events";
-import { API_URL } from "./const";
+import { API_URL, ME_CACHE_KEY } from "./const";
 import { Recap } from "@/components/recap-drawer";
 import { FaF } from "react-icons/fa6";
 import { DataStreamer } from "./live-ingest";
 import { Song } from "@/components/music-discovery-feed";
+import { getCachedObject, setCachedObject } from "./client-cache";
 
 export interface UserSettings {
     shareListeningActivity: boolean;
@@ -477,7 +478,7 @@ export default class User extends EventEmitter {
         if (loggedIn) {
             const details = await this.getDetails();
             
-            const friendsSessions = (await new DataStreamer(this.storedToken).fetchFriendsStreams()).filter(v => v !== details?.id);
+            const friendsSessions = (await new DataStreamer(this.storedToken).fetchFriendsStreams(true)).filter(v => v !== details?.id);
 
             this.friendsSessionsCount = friendsSessions.length;
 
@@ -608,69 +609,84 @@ export default class User extends EventEmitter {
     }
 
     async getDetails(): Promise<undefined | ClientUserAccount> {
-        try {
-            const req = await fetch(API_URL + "/me", {
-                headers: {
-                    ...(this.getAuthHeaders())
-                },
-                credentials: "include"
-            });
+        return new Promise<undefined | ClientUserAccount>(async resolve => {
+            try {
+                // 2 day cache duration
+                const cachedData = getCachedObject<ClientUserAccount>(ME_CACHE_KEY, 3600e3 * 48);
 
-            if (req.status == 429)
-                window.location.reload();
+                // Dont return here so we can still do the rate limit check
+                if (cachedData)
+                    resolve(cachedData);
 
-            const res = await req.json() as {
-                error: boolean;
-                data?: ClientUserAccount;
-                message?: string;
-            }
+                const req = await fetch(API_URL + "/me", {
+                    headers: {
+                        ...(this.getAuthHeaders())
+                    },
+                    credentials: "include"
+                });
 
-            if (res.error) {
-                // The server has stated that there was an error
-                console.warn("Server responded with an error state while fetching user authentication status, error:", res.message ?? "Unspecified server error");
+                if (req.status == 429)
+                    window.location.reload();
 
-                return undefined;
-            }
+                if (cachedData)
+                    return;
 
-            if (this.id !== "") {
-                const friends = await this.getFriends(["friends"]);
-
-                const frtemp: typeof this.friends = [];
-
-                for (let i = 0; i < friends.length; i++) {
-                    const f = friends[i];
-                    const otherId = (f.u1Id == this.id ? f.u2Id : f.u1Id);
-                    
-                    try {
-                        const user = await this.getRemoteUser(otherId);
-
-                        const uniqueUserIds = new Set();
-                        
-                        if (!uniqueUserIds.has(user.id)) {
-                            frtemp.push({
-                                user: user,
-                                friendship: f,
-                            });
-                            uniqueUserIds.add(user.id);
-                        }
-                    } catch (ex) {
-                        console.warn("Unable to fetch user object for", otherId);
-                    }
+                const res = await req.json() as {
+                    error: boolean;
+                    data?: ClientUserAccount;
+                    message?: string;
                 }
 
-                this.friends = frtemp;
+                if (res.error) {
+                    // The server has stated that there was an error
+                    console.warn("Server responded with an error state while fetching user authentication status, error:", res.message ?? "Unspecified server error");
 
-                this.emit("friends-updated", this.friends);
+                    return resolve(undefined);
+                }
+
+                if (this.id !== "") {
+                    const friends = await this.getFriends(["friends"]);
+
+                    const frtemp: typeof this.friends = [];
+
+                    for (let i = 0; i < friends.length; i++) {
+                        const f = friends[i];
+                        const otherId = (f.u1Id == this.id ? f.u2Id : f.u1Id);
+                        
+                        try {
+                            const user = await this.getRemoteUser(otherId);
+
+                            const uniqueUserIds = new Set();
+                            
+                            if (!uniqueUserIds.has(user.id)) {
+                                frtemp.push({
+                                    user: user,
+                                    friendship: f,
+                                });
+                                uniqueUserIds.add(user.id);
+                            }
+                        } catch (ex) {
+                            console.warn("Unable to fetch user object for", otherId);
+                        }
+                    }
+
+                    this.friends = frtemp;
+
+                    this.emit("friends-updated", this.friends);
+                }
+
+                if (res.data)
+                    setCachedObject(ME_CACHE_KEY, res.data);
+
+                return resolve(res.data);
+            } catch (ex) {
+                console.error("Failed to get user details, error:", ex, "\nWe will assume the user is not authenticated");
+
+                this.authError = true;
+
+                return resolve(undefined);
             }
-
-            return res.data;
-        } catch (ex) {
-            console.error("Failed to get user details, error:", ex, "\nWe will assume the user is not authenticated");
-
-            this.authError = true;
-
-            return undefined;
-        }
+        });
     }
 
     public async getRecaps(showAlreadySeen?: boolean) {

@@ -1,6 +1,7 @@
 import EventEmitter from "events";
-import { API_URL, API_URL_SOCK } from "./const";
+import { API_URL, API_URL_SOCK, FRIENDS_PLAYBACK_SESSIONS_CACHE_KEY } from "./const";
 import { randomBytes } from "crypto";
+import { getCachedObject, setCachedObject } from "./client-cache";
 
 type PublicSessionResponse = string[];
 // interface Stream {
@@ -213,7 +214,10 @@ export class DataStreamer extends EventEmitter {
         const connect = async () => {
             try {
                 // Setup connection to server
-                this.targets = await this.fetchFriendsStreams();
+
+                const friendsSessionCacheData = getCachedObject<PublicSessionResponse>(FRIENDS_PLAYBACK_SESSIONS_CACHE_KEY, 3600e3 * 4);
+
+                this.targets = (friendsSessionCacheData ?? await this.fetchFriendsStreams());
 
                 if (this.userFilters?.some(v => !this.targets.includes(v)))
                     this.emit("not-listening", this.userFilters.filter(v => !this.targets.includes(v.replace("!", ""))));
@@ -478,7 +482,14 @@ export class DataStreamer extends EventEmitter {
         return headers;
     }
 
-    public async fetchFriendsStreams() {
+    public async fetchFriendsStreams(useCache?: boolean) {
+        if (useCache) {
+            const cachedData = getCachedObject<PublicSessionResponse>(FRIENDS_PLAYBACK_SESSIONS_CACHE_KEY, 3600e3 * 4);
+
+            if (cachedData)
+                return cachedData;
+        }
+
         if (this.playbackSessionsCache.t !== -1 && Date.now() - this.playbackSessionsCache.t <= 15e3)
             return this.playbackSessionsCache.d;
 
@@ -494,6 +505,8 @@ export class DataStreamer extends EventEmitter {
 
         this.playbackSessionsCache.d = d;
         this.playbackSessionsCache.t = Date.now();
+
+        setCachedObject(FRIENDS_PLAYBACK_SESSIONS_CACHE_KEY, d);
 
         return d;
     }
