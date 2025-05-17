@@ -73,6 +73,10 @@ export class DataStreamer extends EventEmitter {
     private userFilters?: string[];
     private callbacks: { [key: string]: (data: any) => void } = {};
     private targets: string[];
+    private playbackSessionsCache: {
+        t: number;
+        d: PublicSessionResponse
+    };
 
     constructor(storedToken?: string, userIdFilter?: string[]) {
         super();
@@ -82,6 +86,10 @@ export class DataStreamer extends EventEmitter {
         this.storedToken = storedToken;
         this.userFilters = userIdFilter;
         this.targets = [];
+        this.playbackSessionsCache = {
+            t: -1,
+            d: [],
+        };
     }
 
     isReady() {
@@ -402,6 +410,8 @@ export class DataStreamer extends EventEmitter {
                         }
                     }
 
+                    this.emit("handshake");
+
                     // Wait until server has successfully responded to a ping
                     await new Promise<void>(async (resolve, reject) => {
                         if (!this.sock || (this.sock && !this.sock.OPEN))
@@ -469,6 +479,9 @@ export class DataStreamer extends EventEmitter {
     }
 
     public async fetchFriendsStreams() {
+        if (this.playbackSessionsCache.t !== -1 && Date.now() - this.playbackSessionsCache.t <= 15e3)
+            return this.playbackSessionsCache.d;
+
         const req = await fetch(API_URL + "/spotify/friends/sessions", {
             headers: {
                 ...(this.getAuthHeaders())
@@ -477,6 +490,11 @@ export class DataStreamer extends EventEmitter {
         });
         const res = await req.json() as PublicSessionResponse;
 
-        return res.sort();
+        const d = res.sort();
+
+        this.playbackSessionsCache.d = d;
+        this.playbackSessionsCache.t = Date.now();
+
+        return d;
     }
 }

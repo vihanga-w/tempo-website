@@ -108,6 +108,8 @@ export default React.memo(function UIApp({
         themeColour?.setAttribute("content", colour);
     }
 
+    const [lstart] = useState<number>(Date.now());
+
     // async function updateFriendsListenershipHistory(index?: number) {
     //     // Use passed index or fallback to state
     //     const pageIndex = index ?? friendsListenershipPage;
@@ -266,10 +268,13 @@ export default React.memo(function UIApp({
             });
         });
 
-        // TODO: Finish implementation
-        newStreamer.on("open", async () => {
+        newStreamer.on("handshake", () => {
             setActivityPageLoading(false);
 
+            console.log("Load complete, took", Date.now() - lstart, "ms");
+        });
+
+        newStreamer.on("open", async () => {
             const states = await newStreamer.queryRemoteLastStates();
 
             // Convert the last states into update events
