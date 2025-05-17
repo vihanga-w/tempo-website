@@ -277,6 +277,9 @@ export default React.memo(function UIApp({
         newStreamer.on("open", async () => {
             const states = await newStreamer.queryRemoteLastStates();
 
+            // Make sure placeholder count is displaying the correct number of elements
+            setLivePlaybackStatesPlaceholderCount(states.length);
+
             // Convert the last states into update events
             const updates = states.map(v => {
                 if (!v)
