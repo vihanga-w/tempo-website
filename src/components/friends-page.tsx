@@ -78,7 +78,7 @@ export default function FriendsPage({
             background="#0D0D0E"
             width="100vw"
             height="100vh"
-            zIndex="99999999"
+            zIndex="999999"
             display={isLoading ? "block" : "none"}
         >
             <Spinner
