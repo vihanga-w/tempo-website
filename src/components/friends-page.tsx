@@ -14,36 +14,40 @@ export default function FriendsPage({
     streamer: DataStreamer | null;
     openPubProfile: (id: string) => void;
 }) {
-    const [friends, setFriends] = useState<{
+    const [friendsPre, setFriendsPre] = useState<{
         user: ClientUserAccount;
         friendship: UserFriendship;
     }[]>(user.friends);
+    const [friends, setFriends] = useState<{
+        user: ClientUserAccount;
+        friendship: UserFriendship;
+    }[]>([])
     const [isLoading, setIsLoading] = useState<boolean>(true);
 
     useEffect(() => {
-        if (friends.length > 0) {
+        if (friendsPre.length > 0) {
             setIsLoading(false);
         }
 
         if (user.friends.length > 0) {
-            setFriends([...user.friends]);
+            setFriendsPre([...user.friends]);
         }
 
         user.on("friends-updated", (friends) => {
-            setFriends([...friends]);
-            setIsLoading(false);
+            setFriendsPre([...friends]);
+            // setIsLoading(false);
         });
 
         user.refreshDetails();
     }, []);
 
     useEffect(() => {
-        setFriends([...user.friends]);
+        setFriendsPre([...user.friends]);
     }, [user.friends]);
 
     useEffect(() => {
         // Sort friends whenever the list changes
-        const sortedFriends = [...friends].sort((a, b) =>
+        const sortedFriends = [...friendsPre].sort((a, b) =>
             a.user.displayName.toLowerCase() < b.user.displayName.toLowerCase() ? -1 : 1
         ).sort((a, b) => {
             const aIsPlaying = streamer?.getPrevState(a.user.id);
@@ -55,7 +59,7 @@ export default function FriendsPage({
                 return 1;
         });
 
-        setFriends(sortedFriends);
+        setFriends([...sortedFriends]);
 
         if (sortedFriends.length > 0) {
             setTimeout(() => {
@@ -64,19 +68,29 @@ export default function FriendsPage({
         } else {
             setIsLoading(true);
         }
-    }, [friends]);
+    }, [friendsPre]);
 
     return (<Box width="100%" paddingTop="20px">
-        <Spinner
+        <Box
             pos="fixed"
             top="0"
-            bottom="0"
             left="0"
-            right="0"
-            margin="auto"
+            background="#0D0D0E"
+            width="100vw"
+            height="100vh"
+            zIndex="99999999"
             display={isLoading ? "block" : "none"}
-            size="lg"
-        />
+        >
+            <Spinner
+                pos="fixed"
+                top="0"
+                bottom="0"
+                left="0"
+                right="0"
+                margin="auto"
+                size="lg"
+            />
+        </Box>
         {friends.length > 0 ? (
             friends.sort((a, b) => a.user.displayName.toLowerCase() < b.user.displayName.toLowerCase() ? -1 : 1).sort((a, b) => {
                 const aIsPlaying = streamer?.getPrevState(a.user.id);

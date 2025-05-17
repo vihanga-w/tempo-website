@@ -1,5 +1,5 @@
 import EventEmitter from "events";
-import { API_URL, ME_CACHE_KEY } from "./const";
+import { API_URL, ME_CACHE_KEY, ME_FRIENDS_CACHE_KEY } from "./const";
 import { Recap } from "@/components/recap-drawer";
 import { FaF } from "react-icons/fa6";
 import { DataStreamer } from "./live-ingest";
@@ -292,6 +292,13 @@ export default class User extends EventEmitter {
     }
 
     public async getRemoteUser(userId: string) {
+        const KEY = `tempo-rusr-${userId}`;
+
+        const cached = getCachedObject<ClientUserAccount>(KEY, 3600e3 * 48);
+
+        if (cached)
+            return cached;
+
         const req = await fetch(API_URL + `/profile/${userId}`, {
             method: "GET",
             headers: {
@@ -314,10 +321,20 @@ export default class User extends EventEmitter {
         if (res.error || !res.data.me)
             throw new Error("Failed to fetch top songs for user: " + userId + ", error: " + (res.message ?? "unknown error (check network logs)"));
 
+        setCachedObject(KEY, res.data.me);
+
         return res.data.me;
     }
 
     public async getFriends(filter?: ("friends" | "incoming" | "request" | "blocked")[]) {
+        const KEY = `${ME_FRIENDS_CACHE_KEY}${filter ? "-" + filter.sort().join("-") : ""}`;
+
+        // 1.5 min cache duration
+        const cached = getCachedObject<UserFriendship[]>(KEY, 90e3);
+
+        if (cached)
+            return cached;
+
         const req = await fetch(API_URL + "/me/friends" + (filter ? `?state=${filter.join(",")}` : ""), {
             headers: {
                 ...(this.getAuthHeaders())
@@ -337,7 +354,7 @@ export default class User extends EventEmitter {
         if (res.error || !res.data)
             throw new Error("Failed to fetch friends, error: " + (res.message ?? "unknown error (check network logs)"));
 
-        // alert(JSON.stringify(res));
+        setCachedObject(KEY, res.data);
 
         return res.data;
     }
@@ -611,6 +628,39 @@ export default class User extends EventEmitter {
     async getDetails(): Promise<undefined | ClientUserAccount> {
         return new Promise<undefined | ClientUserAccount>(async resolve => {
             try {
+                const loadFriends = async () => {
+                    if (this.id !== "") {
+                        const friends = await this.getFriends(["friends"]);
+
+                        const frtemp: typeof this.friends = [];
+
+                        for (let i = 0; i < friends.length; i++) {
+                            const f = friends[i];
+                            const otherId = (f.u1Id == this.id ? f.u2Id : f.u1Id);
+                            
+                            try {
+                                const user = await this.getRemoteUser(otherId);
+
+                                const uniqueUserIds = new Set();
+                                
+                                if (!uniqueUserIds.has(user.id)) {
+                                    frtemp.push({
+                                        user: user,
+                                        friendship: f,
+                                    });
+                                    uniqueUserIds.add(user.id);
+                                }
+                            } catch (ex) {
+                                console.warn("Unable to fetch user object for", otherId);
+                            }
+                        }
+
+                        this.friends = frtemp;
+
+                        this.emit("friends-updated", this.friends);
+                    }
+                };
+
                 // 2 day cache duration
                 const cachedData = getCachedObject<ClientUserAccount>(ME_CACHE_KEY, 3600e3 * 48);
 
@@ -626,7 +676,9 @@ export default class User extends EventEmitter {
                 });
 
                 if (req.status == 429)
-                    window.location.reload();
+                    return window.location.reload();
+
+                await loadFriends();
 
                 if (cachedData)
                     return;
@@ -644,36 +696,7 @@ export default class User extends EventEmitter {
                     return resolve(undefined);
                 }
 
-                if (this.id !== "") {
-                    const friends = await this.getFriends(["friends"]);
-
-                    const frtemp: typeof this.friends = [];
-
-                    for (let i = 0; i < friends.length; i++) {
-                        const f = friends[i];
-                        const otherId = (f.u1Id == this.id ? f.u2Id : f.u1Id);
-                        
-                        try {
-                            const user = await this.getRemoteUser(otherId);
-
-                            const uniqueUserIds = new Set();
-                            
-                            if (!uniqueUserIds.has(user.id)) {
-                                frtemp.push({
-                                    user: user,
-                                    friendship: f,
-                                });
-                                uniqueUserIds.add(user.id);
-                            }
-                        } catch (ex) {
-                            console.warn("Unable to fetch user object for", otherId);
-                        }
-                    }
-
-                    this.friends = frtemp;
-
-                    this.emit("friends-updated", this.friends);
-                }
+                await loadFriends();
 
                 if (res.data)
                     setCachedObject(ME_CACHE_KEY, res.data);
