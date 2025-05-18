@@ -301,7 +301,7 @@ export default React.memo(function UIApp({
                 return converted;
             }).filter(v => v !== null) as UpdateEvent[];
 
-            setLivePlaybackStatesPlaceholderCount(updates.length);
+            setLivePlaybackStatesPlaceholderCount(updates.filter(v => v.userId !== user.id).length);
             setLivePlaybackStates(updates);
         });
 
