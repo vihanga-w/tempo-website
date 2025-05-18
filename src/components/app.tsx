@@ -927,7 +927,7 @@ export default React.memo(function UIApp({
                                 setComplementaryColour={(colour: string) => {
                                     setComplementaryColour(colour);
                                 }}
-                                streamer={streamer}
+                                streamer={streamer ?? undefined}
                             />
                         </Suspense>
                     )}
@@ -964,7 +964,7 @@ export default React.memo(function UIApp({
                                 setComplementaryColour={(colour: string) => {
                                     setComplementaryColour(colour);
                                 }}
-                                streamer={streamer}
+                                streamer={streamer ?? undefined}
                             />
                         </Suspense>
                     )}
