@@ -1,3 +1,4 @@
+import { setCachedObject } from "@/lib/client-cache";
 import { DataStreamer, UpdateEvent } from "@/lib/live-ingest";
 import { getSizedImageUrl } from "@/lib/sized-img";
 import User, { UserFriendship } from "@/lib/usrlib";
@@ -244,6 +245,8 @@ export function UserLookupResult({
                                 setProcessing(false);
                                 setLocalSent(false);
                                 setLocalFriends(true);
+
+                                setCachedObject("tempo-me-friends-cache-friends", undefined);
                             })
                             .catch((ex) => {
                                 console.warn("Failed to accept friend request, error:", ex);
@@ -270,6 +273,7 @@ export function UserLookupResult({
                         user.sendFriendRequest(userId)
                         .then(() => {
                             console.log("Friend request sent successfully");
+                            
                             setLocalSent(true);
                             setProcessing(false);
                         })

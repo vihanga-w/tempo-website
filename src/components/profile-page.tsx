@@ -44,6 +44,7 @@ export default function ProfilePage({
     setComplementaryColour,
     setRecaps,
     openRecapDrawer,
+    streamer,
 }: Readonly<{
     user: User;
     targetUserId?: string;
@@ -56,10 +57,11 @@ export default function ProfilePage({
         weekly: Recap | null;
     }) => void;
     openRecapDrawer: () => void;
+    streamer?: DataStreamer;
 }>) {
     const [profileData, setProfileData] = useState<ClientUserAccount | undefined>(user.object);
     const [pfpLoadFailed, setPfpLoadFailed] = useState(false);
-    const [streamer, setStreamer] = useState<DataStreamer | null>(null);
+    // const [streamer, setStreamer] = useState<DataStreamer | null>(null);
     const [streamerReset, setStreamerReset] = useState<boolean>(false);
     const [playbackState, setPlaybackState] = useState<UpdateEvent | null>(null);
     const [reactiveDesignColour, setReactiveDesignColour] = useState<string | null>(null);
@@ -207,16 +209,29 @@ export default function ProfilePage({
                 console.log(e);
             });
         }
-
-        const newStreamer = new DataStreamer(user.storedToken, [targetUserId ?? user.id]);
         
-        setStreamer(newStreamer);
+        if (!streamer)
+            return;
 
-        newStreamer.on("not-listening", (userIds: string[]) => {
+        if (streamer.detachedListeningStateQuery([targetUserId ?? user.id]))
             loadCb("top-grad");
-        });
 
-        newStreamer.on("update", (data: UpdateEvent) => {
+        if (streamer.isOpen) {
+            loadCb("remote-user-stream");
+        } else {
+            streamer.on("open", () => {
+                loadCb("remote-user-stream");
+            });
+        }
+
+        // streamer.on("not-listening", (userIds: string[]) => {
+        //     loadCb("top-grad");
+        // });
+
+        streamer.on("update", (data: UpdateEvent) => {
+            if (data.userId !== (targetUserId ?? user.id))
+                return;
+
             setPlaybackState((v) => {
                 if (data.data.state) {
                     streamerGotMsg = true;
@@ -244,26 +259,22 @@ export default function ProfilePage({
             });
         });
 
-        newStreamer.on("remove", (userId) => {
+        streamer.on("remove", (userId) => {
             if (userId === (targetUserId ?? user.id)) {
                 setPlaybackState(null);
                 setReactiveDesignColour(null);
             }
         });
 
-        newStreamer.on("close", () => {
+        streamer.on("close", () => {
             // no-op, state will update once connection re-established
         });
 
-        newStreamer.on("open", () => {
-            loadCb("remote-user-stream");
-        });
+        // newStreamer.init();
 
-        newStreamer.init();
-
-        return () => {
-            newStreamer.cleanup();
-        };
+        // return () => {
+        //     newStreamer.cleanup();
+        // };
     }, [user.isLoggedIn]);
 
     useEffect(() => {
@@ -553,7 +564,7 @@ export default function ProfilePage({
                         transition=".3s"
                     >Listening to</Text>
                     <PlaybackState
-                        stream={streamer}
+                        stream={streamer ?? null}
                         userId={targetUserId ?? user.id}
                         theme={reactiveDesignComplementaryColour ?? undefined}
                         hideProfile

@@ -78,6 +78,7 @@ export class DataStreamer extends EventEmitter {
         t: number;
         d: PublicSessionResponse
     };
+    public isOpen: boolean;
 
     constructor(storedToken?: string, userIdFilter?: string[]) {
         super();
@@ -91,6 +92,11 @@ export class DataStreamer extends EventEmitter {
             t: -1,
             d: [],
         };
+        this.isOpen = false;
+    }
+
+    detachedListeningStateQuery(userIdFilter: string[]) {
+        return userIdFilter.some(v => !this.targets.includes(v));
     }
 
     isReady() {
@@ -394,6 +400,8 @@ export class DataStreamer extends EventEmitter {
 
                 this.sock.onclose = async () => {
                     this.emit("close");
+
+                    this.isOpen = false;
                     
                     Object.values(userIntervals).forEach(v => {
                         try { clearInterval(v); } catch { }
@@ -411,6 +419,7 @@ export class DataStreamer extends EventEmitter {
                             this.emit("open");
                             this.sock.send(JSON.stringify(this.targets));
                             sessionReadyCb = undefined;
+                            this.isOpen = true;
                         }
                     }
 

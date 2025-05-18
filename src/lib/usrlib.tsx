@@ -232,6 +232,17 @@ export default class User extends EventEmitter {
     }
     
     public async getRemoteUserPastWeekStats(userId: string) {
+        const KEY = `tempo-rusr-past-week-stats-${userId}`;
+
+        const cached: {
+            totalListeningDuration: number;
+            uniqueSongsPlayedCount: number;
+            longestStreak: number;
+        } | null = getCachedObject(KEY, 3600e3 * 12);
+
+        if (cached)
+            return cached;
+
         const req = await fetch(API_URL + `/profile/${userId}/pastWeekStats`, {
             method: "GET",
             headers: {
@@ -256,10 +267,27 @@ export default class User extends EventEmitter {
         if (res.error || !res.data)
             throw new Error("Failed to fetch past week stats for user: " + userId + ", error: " + (res.message ?? "unknown error (check network logs)"));
 
+        setCachedObject(KEY, res.data);
+
         return res.data;
     }
 
     public async getRemoteUserTopSongs(userId: string, period: "day" | "week" | "month" | "year" | "all") {
+        const KEY = `tempo-rusr-top-songs-${period}-${userId}`;
+
+        const cached = getCachedObject<{
+            id: string;
+            title: string;
+            artists: string[];
+            index: number;
+            explicit: boolean;
+            playCount: number;
+            imageUrl: string;
+        }[]>(KEY, 3600e3 * 12);
+
+        if (cached)
+            return cached;
+
         const req = await fetch(API_URL + `/profile/${userId}/topSongs/${period}`, {
             method: "GET",
             headers: {
@@ -287,6 +315,8 @@ export default class User extends EventEmitter {
 
         if (res.error || !res.data)
             throw new Error("Failed to fetch top songs for user: " + userId + ", error: " + (res.message ?? "unknown error (check network logs)"));
+
+        setCachedObject(KEY, res.data);
 
         return res.data;
     }
@@ -329,11 +359,15 @@ export default class User extends EventEmitter {
     public async getFriends(filter?: ("friends" | "incoming" | "request" | "blocked")[]) {
         const KEY = `${ME_FRIENDS_CACHE_KEY}${filter ? "-" + filter.sort().join("-") : ""}`;
 
-        // 1.5 min cache duration
-        const cached = getCachedObject<UserFriendship[]>(KEY, 90e3);
+        // Only use cache if no filter was specified or filter does not include incoming or request types
+        const useCache = (!filter || !["incoming", "request"].some((v: any) => filter.includes(v)));
 
-        if (cached)
-            return cached;
+        if (useCache) {
+            const cached = getCachedObject<UserFriendship[]>(KEY, 3600e3);
+
+            if (cached)
+                return cached;
+        }
 
         const req = await fetch(API_URL + "/me/friends" + (filter ? `?state=${filter.join(",")}` : ""), {
             headers: {
@@ -354,7 +388,8 @@ export default class User extends EventEmitter {
         if (res.error || !res.data)
             throw new Error("Failed to fetch friends, error: " + (res.message ?? "unknown error (check network logs)"));
 
-        setCachedObject(KEY, res.data);
+        if (useCache)
+            setCachedObject(KEY, res.data);
 
         return res.data;
     }
@@ -549,6 +584,17 @@ export default class User extends EventEmitter {
         if (page < 0)
             page = 0;
 
+        const KEY = `tempo-rusr-history-${userId}-${page.toString()}`;
+
+        // 5 min cache
+        const cached = getCachedObject<{
+            isFinalPage: boolean;
+            data: FriendListenershipItem[];
+        }>(KEY, 300e3);
+
+        if (cached)
+            return cached;
+
         const req = await fetch(API_URL + `/profile/${userId}/history/${page}`, {
             headers: {
                 ...(this.getAuthHeaders())
@@ -572,10 +618,14 @@ export default class User extends EventEmitter {
         if (!res.data)
             throw new Error("Failed to fetch friend profile listenership history, empty data set");
 
-        return {
+        const data = {
             isFinalPage: res.isFinalPage,
             data: res.data
         };
+
+        setCachedObject(KEY, data);
+
+        return data;
     }
 
     public async loadSettings() {

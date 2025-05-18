@@ -1,5 +1,3 @@
-import { update } from "@react-spring/web";
-
 export function getCachedObject<T>(key: string, cacheDuration?: number) {
     const data = localStorage.getItem(key);
 
@@ -20,7 +18,13 @@ export function getCachedObject<T>(key: string, cacheDuration?: number) {
     return null;
 }
 
-export function setCachedObject(key: string, data: Object) {
+export function setCachedObject(key: string, data: Object | undefined) {
+    if (!data) {
+        localStorage.removeItem(key);
+        
+        return;
+    }
+    
     localStorage.setItem(key, JSON.stringify({
         updatedAt: Date.now(),
         data,
