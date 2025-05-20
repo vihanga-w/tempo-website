@@ -998,7 +998,8 @@ export default function ProfilePage({
                     onWheel={(e: React.WheelEvent<HTMLDivElement>) => {
                         const el = document.querySelector("[data-profile-history-full-view]");
 
-                        if (!el) return;
+                        if (!el)
+                            return;
 
                         // If scrolling up and already at the top, pass scroll to parent with same delta
                         if (e.deltaY < 0 && el.scrollTop <= 0) {
@@ -1018,7 +1019,9 @@ export default function ProfilePage({
                     }}
                     onTouchMove={(e: React.TouchEvent<HTMLDivElement>) => {
                         const el = document.querySelector("[data-profile-history-full-view]");
-                        if (!el) return;
+
+                        if (!el)
+                            return;
 
                         const startY = (e.currentTarget as any)._touchStartY;
                         const currentY = e.touches[0].clientY;
@@ -1027,13 +1030,12 @@ export default function ProfilePage({
                         // If scrolling up and already at the top, pass scroll to parent with same delta
                         if (deltaY < 0 && (el as HTMLElement).scrollTop <= 0) {
                             const parent = document.querySelector("[data-profile-scroll-container]");
+
                             if (parent) {
-                                parent.scrollBy({
-                                    top: deltaY,
-                                    behavior: "auto"
+                                parent.scrollTo({
+                                    top: listenershipHistoryEl.current?.getBoundingClientRect().top,
+                                    behavior: "smooth",
                                 });
-                                // Prevent default to avoid rubber banding
-                                e.preventDefault();
                             }
                         }
                     }}
