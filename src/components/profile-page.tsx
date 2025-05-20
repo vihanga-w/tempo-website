@@ -670,6 +670,7 @@ export default function ProfilePage({
         />
         <Stack gap={`${PROFILE_ITEM_GAP}px`} width="100%" zIndex="1" marginTop="-15px">
             <Stack gap={`${PROFILE_ITEM_GAP}px`} ref={dynamicContentEl}>
+                {/* <Box pos="absolute" background="red" width="100vw" height="100vh" top="0" left="0" zIndex={0} /> */}
                 <HStack gap="14px" marginTop="24px">
                     <Box width="88px" height="88px" border={playbackState ? "3px solid #A480FF" : "0px"} borderRadius="17px" transition=".15s">
                         {((profileData?.images.length ?? 0) > 0 && !pfpLoadFailed) ? (
@@ -946,11 +947,11 @@ export default function ProfilePage({
                 )}
             </Stack>
             {listenershipHistoryAvailable && (<>
-                <Box h={fakeHistoryHeight}>
+                {/* <Box h={fakeHistoryHeight}> */}
                     <Stack
                         pos="relative"
-                        opacity={useHistoryFullPageView ? 0 : 1}
-                        pointerEvents="none"
+                        opacity={useHistoryFullPageView ? 1 : 1}
+                        // pointerEvents="none"
                         ref={listenershipHistoryEl}
                     >
                         <Box>
@@ -987,7 +988,7 @@ export default function ProfilePage({
                             </Stack>
                         </Box>
                     </Stack>
-                </Box>
+                {/* </Box>
                 
                 <Stack
                     // transition=".0s"
@@ -1035,7 +1036,7 @@ export default function ProfilePage({
                             />
                         </Stack>
                     </Box>
-                </Stack>
+                </Stack> */}
             </>)}
         </Stack>
     </>);
