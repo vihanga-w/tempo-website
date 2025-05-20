@@ -940,7 +940,7 @@ export default React.memo(function UIApp({
                     )}
 
                     {/* Settings page */}
-                    {currentPage == "preferences" && (
+                    {currentPage == "preferences" && (<Box paddingLeft="20px" paddingRight="20px">
                         <UserPreferencesPage
                             user={user}
                             // streamer={streamer}
@@ -954,7 +954,7 @@ export default React.memo(function UIApp({
                             //     setComplementaryColour(colour);
                             // }}
                         />
-                    )}
+                    </Box>)}
 
                     {/* Public profile page */}
                     {currentPage == "pub-profile" && (
