@@ -560,7 +560,7 @@ export default React.memo(function UIApp({
             </Box>
 
             {/* The main user interface */}
-            <Box padding="20px" width="100%" opacity={isRecapDrawerVisible ? 0 : 1} pointerEvents={isRecapDrawerVisible ? "none" : "all"}>
+            <Box width="100%" opacity={isRecapDrawerVisible ? 0 : 1} pointerEvents={isRecapDrawerVisible ? "none" : "all"}>
                 <Image
                     src="/menu-bg.webp"
                     position="absolute"
