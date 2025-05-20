@@ -996,6 +996,9 @@ export default function ProfilePage({
                     top={`${listenershipHistoryYOffset}px`}
                     pointerEvents={historyPercentVisible == 100 ? "all" : "none"}
                     onWheel={(e: React.WheelEvent<HTMLDivElement>) => {
+                        if (historyPercentVisible < 100)
+                            return;
+
                         const el = document.querySelector("[data-profile-history-full-view]");
 
                         if (!el)
@@ -1018,6 +1021,9 @@ export default function ProfilePage({
                         (e.currentTarget as any)._touchStartY = e.touches[0].clientY;
                     }}
                     onTouchMove={(e: React.TouchEvent<HTMLDivElement>) => {
+                        if (historyPercentVisible < 100)
+                            return;
+
                         const el = document.querySelector("[data-profile-history-full-view]");
 
                         if (!el)
