@@ -1005,7 +1005,7 @@ export default function ProfilePage({
                             return;
 
                         // If scrolling up and already at the top, pass scroll to parent with same delta
-                        if (e.deltaY < 0 && el.scrollTop <= 0) {
+                        if (e.deltaY < -10 && el.scrollTop <= 0) {
                             const parent = document.querySelector("[data-profile-scroll-container]");
 
                             if (parent) {
@@ -1034,7 +1034,7 @@ export default function ProfilePage({
                         const deltaY = startY - currentY;
 
                         // If scrolling up and already at the top, pass scroll to parent with same delta
-                        if (deltaY < 0 && (el as HTMLElement).scrollTop <= 0) {
+                        if (deltaY < -10 && (el as HTMLElement).scrollTop <= 0) {
                             const parent = document.querySelector("[data-profile-scroll-container]");
 
                             if (parent) {
