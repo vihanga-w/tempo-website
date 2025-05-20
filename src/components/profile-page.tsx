@@ -573,8 +573,6 @@ export default function ProfilePage({
                         0, // Heuristic, top padding
                     );
 
-                    console.log(offset)
-
                     setListenershipHistoryYOffset(offset);
                 }
 
@@ -1002,7 +1000,49 @@ export default function ProfilePage({
                     height={`${500 + ((windowHeight - 500) * (historyPercentVisible / 100))}px`}
                     left="0"
                     top={`${listenershipHistoryYOffset}px`}
-                    pointerEvents="all"
+                    pointerEvents={historyPercentVisible == 100 ? "all" : "none"}
+                    onWheel={(e: React.WheelEvent<HTMLDivElement>) => {
+                        const el = document.querySelector("[data-profile-history-full-view]");
+
+                        if (!el) return;
+
+                        // If scrolling up and already at the top, pass scroll to parent with same delta
+                        if (e.deltaY < 0 && el.scrollTop <= 0) {
+                            const parent = document.querySelector("[data-profile-scroll-container]");
+
+                            if (parent) {
+                                parent.scrollBy({
+                                    top: e.deltaY,
+                                    behavior: "auto"
+                                });
+                            }
+                        }
+                    }}
+                    onTouchStart={(e: React.TouchEvent<HTMLDivElement>) => {
+                        // Store initial touch position
+                        (e.currentTarget as any)._touchStartY = e.touches[0].clientY;
+                    }}
+                    onTouchMove={(e: React.TouchEvent<HTMLDivElement>) => {
+                        const el = document.querySelector("[data-profile-history-full-view]");
+                        if (!el) return;
+
+                        const startY = (e.currentTarget as any)._touchStartY;
+                        const currentY = e.touches[0].clientY;
+                        const deltaY = startY - currentY;
+
+                        // If scrolling up and already at the top, pass scroll to parent with same delta
+                        if (deltaY < 0 && (el as HTMLElement).scrollTop <= 0) {
+                            const parent = document.querySelector("[data-profile-scroll-container]");
+                            if (parent) {
+                                parent.scrollBy({
+                                    top: deltaY,
+                                    behavior: "auto"
+                                });
+                                // Prevent default to avoid rubber banding
+                                e.preventDefault();
+                            }
+                        }
+                    }}
                 >
                     <Box>
                         <Text
@@ -1034,6 +1074,7 @@ export default function ProfilePage({
                                     display: "none",
                                 },
                             }}
+                            data-profile-history-full-view
                         >
                             <FriendHistoryFeed
                                 userId={targetUserId ?? user.id}
