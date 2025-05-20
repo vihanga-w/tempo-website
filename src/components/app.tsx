@@ -365,7 +365,9 @@ export default React.memo(function UIApp({
                 if (currentFYPPageIndex.t == -999)
                     return data;
 
-                return [...(prev.slice(currentFYPPageIndex.t + 1, prev.length)), ...data];
+                console.log(data)
+
+                return [...(prev.slice(currentFYPPageIndex.t + 1, prev.length)), ...(data ?? [])];
             });
         })
         .catch(ex => {

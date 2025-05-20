@@ -671,9 +671,17 @@ export default class User extends EventEmitter {
     }
 
     private async isUserAuthenticated() {
-        const d = await this.getDetails();
+        const req = await fetch(API_URL + "/me", {
+            headers: {
+                ...(this.getAuthHeaders())
+            },
+            credentials: "include"
+        });
 
-        return (d !== undefined);
+        if (req.status == 429)
+            return window.location.reload();
+
+        return (req.status == 200);
     }
 
     async getDetails(): Promise<undefined | ClientUserAccount> {

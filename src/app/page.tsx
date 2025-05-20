@@ -608,7 +608,7 @@ export default function Home() {
     >
         {modalContent}
     </Modal>
-    <Box background="#0D0D0E" height="100%" width="100%" overflow="auto">
+    <Box background="#0D0D0E" height="100%" width="100%" overflow="auto" data-profile-scroll-container>
       {isInMobileBrowser ? (
         <>
           <Box
