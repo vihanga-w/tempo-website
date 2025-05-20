@@ -170,7 +170,7 @@ export default function ProfilePage({
     });
     const [useHistoryFullPageView, setUseHistoryFullPageView] = useState<boolean>(false);
     const [listenershipHistoryYOffset, setListenershipHistoryYOffset] = useState<number>(-999);
-    const [fakeHistoryHeight, setFakeHistoryHeight] = useState<number>(-999);
+    // const [fakeHistoryHeight, setFakeHistoryHeight] = useState<number>(-999);
     const [windowHeight, setWindowHeight] = useState<number>(-999);
     const [historyPercentVisible, setHistoryPercentVisible] = useState<number>(-999);
 
@@ -535,7 +535,7 @@ export default function ProfilePage({
             return;
 
         // Set initial height only once
-        setFakeHistoryHeight(listenershipHistoryEl.current.clientHeight);
+        // setFakeHistoryHeight(listenershipHistoryEl.current.clientHeight);
 
         let ticking = false;
 
@@ -561,7 +561,7 @@ export default function ProfilePage({
 
                 const percentVisible = (visibleHeight / rect.height) * 100;
 
-                setFakeHistoryHeight(rect.height);
+                // setFakeHistoryHeight(rect.height);
 
                 if (dynamicContentEl?.current) {
                     const bounds = dynamicContentEl.current.getBoundingClientRect();
@@ -581,7 +581,7 @@ export default function ProfilePage({
                 if (!useHistoryFullPageView && passedCriticalVisibility)
                     setUseHistoryFullPageView(true);
                 else if (useHistoryFullPageView && !passedCriticalVisibility)
-                    setUseHistoryFullPageView(true);
+                    setUseHistoryFullPageView(false);
 
                 // Performance optimisation, dont need to update state since we wont be using it unless passedCriticalVisibility
                 if (passedCriticalVisibility)
@@ -947,7 +947,7 @@ export default function ProfilePage({
                 )}
             </Stack>
             {listenershipHistoryAvailable && (<>
-                <Box h={fakeHistoryHeight}>
+                <Box h={536}>
                     <Stack
                         pos="relative"
                         opacity={useHistoryFullPageView ? 0 : 1}
