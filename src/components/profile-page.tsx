@@ -570,8 +570,10 @@ export default function ProfilePage({
                         dynamicContentEl.current.clientHeight + bounds.y + PROFILE_ITEM_GAP,
                         percentVisible,
                         80,
-                        27, // Heuristic, top padding
+                        0, // Heuristic, top padding
                     );
+
+                    console.log(offset)
 
                     setListenershipHistoryYOffset(offset);
                 }
@@ -668,9 +670,9 @@ export default function ProfilePage({
             height="100vh"
             transition=".75s"
         />
-        <Stack gap={`${PROFILE_ITEM_GAP}px`} width="100%" zIndex="1" marginTop="-15px">
+        <Stack gap={`${PROFILE_ITEM_GAP}px`} width="100%" zIndex="1" position="relative" marginTop="-15px">
             <Stack gap={`${PROFILE_ITEM_GAP}px`} ref={dynamicContentEl}>
-                {/* <Box pos="absolute" background="red" width="100vw" height="100vh" top="0" left="0" zIndex={0} /> */}
+                {/* <Box pos="absolute" background="red" width="100vw" height="100vh" top="0" left= zIndex={0} /> */}
                 <HStack gap="14px" marginTop="24px">
                     <Box width="88px" height="88px" border={playbackState ? "3px solid #A480FF" : "0px"} borderRadius="17px" transition=".15s">
                         {((profileData?.images.length ?? 0) > 0 && !pfpLoadFailed) ? (
@@ -947,11 +949,11 @@ export default function ProfilePage({
                 )}
             </Stack>
             {listenershipHistoryAvailable && (<>
-                {/* <Box h={fakeHistoryHeight}> */}
+                <Box h={fakeHistoryHeight}>
                     <Stack
                         pos="relative"
-                        opacity={useHistoryFullPageView ? 1 : 1}
-                        // pointerEvents="none"
+                        opacity={useHistoryFullPageView ? 0 : 1}
+                        pointerEvents="none"
                         ref={listenershipHistoryEl}
                     >
                         <Box>
@@ -988,18 +990,19 @@ export default function ProfilePage({
                             </Stack>
                         </Box>
                     </Stack>
-                {/* </Box>
+                </Box>
                 
                 <Stack
                     // transition=".0s"
-                    pos="absolute"
+                    pos="fixed"
                     opacity={useHistoryFullPageView ? 1 : 0}
                     paddingLeft={`${forcedPaddingSize(20, historyPercentVisible, 80, 0)}px`}
                     paddingRight={`${forcedPaddingSize(20, historyPercentVisible, 80, 0)}px`}
                     width="100vw"
+                    height={`${500 + ((windowHeight - 500) * (historyPercentVisible / 100))}px`}
                     left="0"
                     top={`${listenershipHistoryYOffset}px`}
-                    pointerEvents="none"
+                    pointerEvents="all"
                 >
                     <Box>
                         <Text
@@ -1009,20 +1012,22 @@ export default function ProfilePage({
                             color={reactiveDesignComplementaryColour ?? "text.dark"}
                             transition="color 3s"
                             float="left"
-                            transform={`translateY(${30 - forcedPaddingSize(30, historyPercentVisible, 80, 0)}px)`}
+                            marginBottom={`-${60 - forcedPaddingSize(60, historyPercentVisible, 80, 0)}px`}
                             opacity={`${forcedPaddingSize(1, historyPercentVisible, 80, 0.2)}`}
                         >
                             Listening History
                         </Text>
                         <Stack
                             width="100%"
-                            height={`${forcedPaddingSize(500, historyPercentVisible, 80, windowHeight)}px`}
+                            height={`${500 + ((windowHeight - 500) * (historyPercentVisible / 100))}px`}
                             overflowY="auto"
                             padding="12px"
+                            paddingTop={`${Math.max(12, 64 - forcedPaddingSize(64, historyPercentVisible, 80, 0))}px`}
                             borderRadius={`${forcedPaddingSize(20, historyPercentVisible, 80, 0)}px`}
                             background={widgetBgColour ?? "linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02))"}
                             gap="12px"
                             pos="relative"
+                            transition="background .3s"
                             sx={{
                                 scrollbarWidth: "none",
                                 "&::-webkit-scrollbar": {
@@ -1036,7 +1041,7 @@ export default function ProfilePage({
                             />
                         </Stack>
                     </Box>
-                </Stack> */}
+                </Stack>
             </>)}
         </Stack>
     </>);
