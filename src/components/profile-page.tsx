@@ -995,6 +995,9 @@ export default function ProfilePage({
                     transition="top .01s"
                     top={`${listenershipHistoryYOffset}px`}
                     pointerEvents={historyPercentVisible == 100 ? "all" : "none"}
+                    sx={{
+                        boxSizing: "border-box"
+                    }}
                     onWheel={(e: React.WheelEvent<HTMLDivElement>) => {
                         if (historyPercentVisible < 100)
                             return;
