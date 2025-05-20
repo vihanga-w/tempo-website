@@ -14,6 +14,7 @@ import { findBestSCDNImageSize } from "@/lib/utils";
 import { FaCog, FaHistory } from "react-icons/fa";
 import { Recap } from "./recap-drawer";
 import FriendHistoryFeed from "./friend-history-feed";
+import { lerp } from "three/src/math/MathUtils.js";
 
 const loadTracker = (expectedCount: number, onComplete: () => void) => {
     let count = 0;
@@ -530,79 +531,71 @@ export default function ProfilePage({
         // }
     }, [dynamicContentEl]);
 
+    const observer = useRef<IntersectionObserver | null>(null);
+    const animationFrame = useRef<number | null>(null);
+    
     useEffect(() => {
-        if (!listenershipHistoryAvailable || !listenershipHistoryEl?.current)
-            return;
+        if (!listenershipHistoryAvailable || !listenershipHistoryEl?.current) return;
 
-        // Set initial height only once
-        // setFakeHistoryHeight(listenershipHistoryEl.current.clientHeight);
+        const easeInOutCubic = (t: number) =>
+            t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 
-        let ticking = false;
+        const updateYOffset = (percentVisible: number) => {
+            const bounds = dynamicContentEl.current!.getBoundingClientRect();
+            
+            const targetOffset = dynamicForcedPaddingSize(
+                dynamicContentEl.current!.clientHeight + bounds.y + PROFILE_ITEM_GAP,
+                percentVisible,
+                80,
+                0
+            );
 
-        const handleScroll = () => {
-            if (ticking) return;
+            setListenershipHistoryYOffset(targetOffset);
+        };
 
-            ticking = true;
-
-            requestAnimationFrame(() => {
-                if (!listenershipHistoryEl.current) {
-                    ticking = false;
-
-                    return;
-                }
-
-                const rect = listenershipHistoryEl.current.getBoundingClientRect();
+        const observerCallback: IntersectionObserverCallback = (entries) => {
+            entries.forEach((entry) => {
+                const rect = entry.boundingClientRect;
                 const windowHeight = window.innerHeight;
 
-                // Calculate visible height
                 const visibleTop = Math.max(rect.top, 0);
                 const visibleBottom = Math.min(rect.bottom, windowHeight);
                 const visibleHeight = Math.max(0, visibleBottom - visibleTop);
 
                 const percentVisible = (visibleHeight / rect.height) * 100;
 
-                // setFakeHistoryHeight(rect.height);
+                if (animationFrame.current)
+                    cancelAnimationFrame(animationFrame.current);
 
-                if (dynamicContentEl?.current) {
-                    const bounds = dynamicContentEl.current.getBoundingClientRect();
+                animationFrame.current = requestAnimationFrame(() => {
+                    updateYOffset(percentVisible);
 
-                    const offset = dynamicForcedPaddingSize(
-                        dynamicContentEl.current.clientHeight + bounds.y + PROFILE_ITEM_GAP,
-                        percentVisible,
-                        80,
-                        0, // Heuristic, top padding
-                    );
+                    const passedCriticalVisibility = percentVisible >= 80;
 
-                    setListenershipHistoryYOffset(offset);
-                }
+                    if (!useHistoryFullPageView && passedCriticalVisibility) {
+                        setUseHistoryFullPageView(true);
+                    } else if (useHistoryFullPageView && !passedCriticalVisibility) {
+                        setUseHistoryFullPageView(false);
+                    }
 
-                const passedCriticalVisibility = (percentVisible >= 80);
-
-                if (!useHistoryFullPageView && passedCriticalVisibility)
-                    setUseHistoryFullPageView(true);
-                else if (useHistoryFullPageView && !passedCriticalVisibility)
-                    setUseHistoryFullPageView(false);
-
-                // Performance optimisation, dont need to update state since we wont be using it unless passedCriticalVisibility
-                if (passedCriticalVisibility)
-                    setHistoryPercentVisible(percentVisible);
-
-                ticking = false;
+                    if (passedCriticalVisibility) {
+                        setHistoryPercentVisible(percentVisible);
+                    }
+                });
             });
         };
 
-        const el = document.querySelector("[data-profile-scroll-container]");
+        observer.current = new IntersectionObserver(observerCallback, {
+            threshold: Array.from({ length: 101 }, (_, i) => i / 100), // Fine-grained thresholds
+        });
 
-        if (!el)
-            return;
+        observer.current.observe(listenershipHistoryEl.current);
 
-        el.addEventListener("scroll", handleScroll, { passive: true });
-
-        // Clean up
         return () => {
-            el.removeEventListener("scroll", handleScroll);
+            if (observer.current) observer.current.disconnect();
+            if (animationFrame.current) cancelAnimationFrame(animationFrame.current);
         };
-    }, [listenershipHistoryAvailable, listenershipHistoryEl, useHistoryFullPageView]);
+    }, [listenershipHistoryAvailable, listenershipHistoryEl, dynamicContentEl, useHistoryFullPageView]);
 
     return (<>
         {!targetUserId && (
@@ -999,6 +992,7 @@ export default function ProfilePage({
                     width="100vw"
                     height={`${500 + ((windowHeight - 500) * (historyPercentVisible / 100))}px`}
                     left="0"
+                    transition="top .01s"
                     top={`${listenershipHistoryYOffset}px`}
                     pointerEvents={historyPercentVisible == 100 ? "all" : "none"}
                     onWheel={(e: React.WheelEvent<HTMLDivElement>) => {
