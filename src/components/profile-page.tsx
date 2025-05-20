@@ -581,7 +581,7 @@ export default function ProfilePage({
                 if (!useHistoryFullPageView && passedCriticalVisibility)
                     setUseHistoryFullPageView(true);
                 else if (useHistoryFullPageView && !passedCriticalVisibility)
-                    setUseHistoryFullPageView(false);
+                    setUseHistoryFullPageView(true);
 
                 // Performance optimisation, dont need to update state since we wont be using it unless passedCriticalVisibility
                 if (passedCriticalVisibility)
