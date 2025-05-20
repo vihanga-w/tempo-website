@@ -671,7 +671,7 @@ export default class User extends EventEmitter {
     }
 
     private async isUserAuthenticated() {
-        const req = await fetch(API_URL + "/me", {
+        const req = await fetch(API_URL + "/chkauth", {
             headers: {
                 ...(this.getAuthHeaders())
             },

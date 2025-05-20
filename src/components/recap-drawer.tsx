@@ -41,12 +41,14 @@ function useOutsideAlerter(ref: RefObject<any>, cb: () => void) {
     }, [ref]);
 }
 
-const SongLeaderboardComponent = ({
+export const SongLeaderboardComponent = ({
     recapData,
     factProcessor,
+    background,
 }: Readonly<{
     recapData: RecapSortItem[];
     factProcessor: (item?: RecapSortItem) => string;
+    background?: string;
 }>) => {
     const scrollItemRef = useRef<HTMLDivElement>(null);
     const [topSongOverflow, setTopSongOverflow] = useState<number>(-1);
@@ -76,7 +78,7 @@ const SongLeaderboardComponent = ({
         minHeight="356px"
         padding="12px"
         borderRadius="12px"
-        background="rgba(255, 255, 255, 0.04)"
+        background={background ?? "rgba(255, 255, 255, 0.04)"}
         gap="12px"
         pos="relative"
         overflowX="hidden"

@@ -632,6 +632,9 @@ export default React.memo(function UIApp({
                     marginRight="0"
                     marginTop="-15px"
                     marginBottom="48px"
+                    paddingTop="20px"
+                    paddingLeft="20px"
+                    paddingRight="20px"
                     opacity={(dailyRecap || weeklyRecap || (currentPage == "activity" && activityPageLoading)) ? 0 : 1}
                 >
                     <Box position="fixed" overflow="hidden" zIndex={(isReactionDrawerVisible || isRecapDrawerVisible) ? "999" : "999999999"} top="env(safe-area-inset-top)">
@@ -742,7 +745,7 @@ export default React.memo(function UIApp({
                             hideSpotifyCallout
                         />
                     </Box>
-                    <Box pos="fixed" zIndex="9999999" top="-6px" right="20px" width="100vw" pointerEvents={prevPage || !ADD_NEW_ITEM_POSSIBLE_PAGES.includes(currentPage) ? "none" : "all"}>
+                    <Box pos="fixed" zIndex="9999999" top="-4px" right="20px" width="100vw" pointerEvents={prevPage || !ADD_NEW_ITEM_POSSIBLE_PAGES.includes(currentPage) ? "none" : "all"}>
                         <SmallAddButton
                             onClick={() => {
                                 if (pageSwitcherActive) return;
@@ -780,7 +783,7 @@ export default React.memo(function UIApp({
                                 <Center pos="absolute" width="100vw" height="100vh" top="0" left="0">
                                     <FullLoader />
                                 </Center>
-                            ) : (
+                            ) : (<Box paddingLeft="20px" paddingRight="20px">
                                 <MusicDiscoveryFeed
                                     user={user}
                                     type="activity"
@@ -803,7 +806,7 @@ export default React.memo(function UIApp({
                                         });
                                     }}
                                 />
-                            )}
+                            </Box>)}
                         </>
                     )}
 
@@ -869,7 +872,7 @@ export default React.memo(function UIApp({
 
                     {/* Create playlists page */}
                     {currentPage == "create-playlist" && (
-                        <>
+                        <Box paddingLeft="20px" paddingRight="20px">
                             <Suspense fallback={<SuspenseSpinner />}>
                                 <CreatePlaylistPage
                                     user={user}
@@ -878,26 +881,28 @@ export default React.memo(function UIApp({
                                     // }}
                                 />
                             </Suspense>
-                        </>
+                        </Box>
                     )}
 
                     {/* Friends page */}
                     {currentPage == "friends" && (
                         <Suspense fallback={<SuspenseSpinner />}>
-                            <FriendsPage
-                                user={user}
-                                streamer={streamer}
-                                openPubProfile={(id) => {
-                                    setPubProfileUserId(id);
-                                    pageChanger("pub-profile", "friends");
-                                }}
-                            />
+                            <Box paddingLeft="20px" width="calc(100% - 20px)">
+                                <FriendsPage
+                                    user={user}
+                                    streamer={streamer}
+                                    openPubProfile={(id) => {
+                                        setPubProfileUserId(id);
+                                        pageChanger("pub-profile", "friends");
+                                    }}
+                                />
+                            </Box>
                         </Suspense>
                     )}
 
                     {/* Add friends page */}
                     {currentPage == "add-friends" && (
-                        <>
+                        <Box paddingLeft="20px" paddingRight="20px">
                             <Suspense fallback={<SuspenseSpinner />}>
                                 <AddFriendsPage
                                     user={user}
@@ -906,7 +911,7 @@ export default React.memo(function UIApp({
                                     // }}
                                 />
                             </Suspense>
-                        </>
+                        </Box>
                     )}
 
                     {/* Settings page */}

@@ -14,7 +14,7 @@ import { findBestSCDNImageSize } from "@/lib/utils";
 import { FaCog, FaHistory } from "react-icons/fa";
 import { Recap } from "./recap-drawer";
 import FriendHistoryFeed from "./friend-history-feed";
-import { lerp } from "three/src/math/MathUtils.js";
+import { SongLeaderboardComponent } from "./recap-drawer";
 
 const loadTracker = (expectedCount: number, onComplete: () => void) => {
     let count = 0;
@@ -662,7 +662,7 @@ export default function ProfilePage({
             transition=".75s"
         />
         <Stack gap={`${PROFILE_ITEM_GAP}px`} width="100%" zIndex="1" position="relative" marginTop="-15px">
-            <Stack gap={`${PROFILE_ITEM_GAP}px`} ref={dynamicContentEl}>
+            <Stack gap={`${PROFILE_ITEM_GAP}px`} paddingLeft="20px" width="calc(100% - 20px)" ref={dynamicContentEl}>
                 {/* <Box pos="absolute" background="red" width="100vw" height="100vh" top="0" left= zIndex={0} /> */}
                 <HStack gap="14px" marginTop="24px">
                     <Box width="88px" height="88px" border={playbackState ? "3px solid #A480FF" : "0px"} borderRadius="17px" transition=".15s">
@@ -862,80 +862,21 @@ export default function ProfilePage({
                                 </TabList>
                             </Tabs>
                         </Box>
-                        <Stack
-                            width="100%"
-                            minHeight="356px"
-                            padding="12px"
-                            borderRadius="20px"
+                        <SongLeaderboardComponent
                             background={widgetBgColour ?? "linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02))"}
-                            gap="12px"
-                            pos="relative"
-                        >
-                            {!topSongsLoading ? (<>
-                                {/* Number 1 song */}
-                                <HStack color="text.dark" transition=".3s">
-                                    <SkeletonImage
-                                        src={getSizedImageUrl(userTopSongs.find(v => v.index == 0)?.imageUrl ?? "", 84, 84)}
-                                        width="84px"
-                                        height="84px"
-                                        borderRadius="8px"
-                                    />
-                                    <Box pos="relative" width="100%">
-                                        <Text
-                                            fontWeight="black"
-                                            fontSize="20px"
-                                        >Most Played</Text>
-                                        <Text
-                                            fontWeight="medium"
-                                            fontSize="18px"
-                                        >Listened {userTopSongs.find(v => v.index == 0)?.playCount == 1 ? "once" : userTopSongs.find(v => v.index == 0)?.playCount + " times"}</Text>
-                                        <HStack whiteSpace="nowrap" width="100%" paddingRight="5px" margin="0 auto" overflow="hidden" gap="5px">
-                                            <Box
-                                                ref={scrollItemRef}
-                                                // display="inline-block"
-                                                transform={`translateX(-${topSongOverflow}px)`}
-                                                transition="transform 5s"
-                                            >
-                                                <HStack>
-                                                    <Text
-                                                        fontWeight="medium"
-                                                        fontSize="18px"
-                                                    >{userTopSongs.find(v => v.index == 0)?.title}</Text>
-                                                    <MdExplicit />
-                                                    <Text>• {userTopSongs.find(v => v.index == 0)?.artists.join(", ")}</Text>
-                                                </HStack>
-                                            </Box>
-                                        </HStack>
-                                    </Box>
-                                </HStack>
-                                <Stack gap="10px" paddingBottom="2px" transition=".3s">
-                                    {userTopSongs.slice(1, userTopSongs.length).map((v) => {
-                                        return (
-                                            <LeaderboardSongItem
-                                                key={v.index + v.title + v.artists.join("") + v.playCount + topSongsFilter}
-                                                leaderboardPosition={v.index + 1}
-                                                imageUrl={v.imageUrl}
-                                                title={v.title}
-                                                artists={v.artists}
-                                                playCount={v.playCount}
-                                            />
-                                        );
-                                    })}
-                                </Stack>
-                            </>) : (
-                                <Box
-                                    width="100%"
-                                    height="100%"
-                                    pos="absolute"
-                                    top="0"
-                                    left="0"
-                                >
-                                    <Center height="100%">
-                                        <Spinner size="lg" color={reactiveDesignComplementaryColour ?? "#ffffff"} />
-                                    </Center>
-                                </Box>
-                            )}
-                        </Stack>
+                            recapData={userTopSongs.map(v => {
+                                return {
+                                    ...v,
+                                    listenDuration: 0,
+                                }
+                            })}
+                            factProcessor={v => {
+                                if (!v)
+                                    return "";
+
+                                return `Listened ${v.playCount == 1 ? "once" : v.playCount + " times"}`;
+                            }}
+                        />
                     </Stack>
                 )}
             </Stack>
@@ -946,6 +887,8 @@ export default function ProfilePage({
                         opacity={useHistoryFullPageView ? 0 : 1}
                         pointerEvents="none"
                         ref={listenershipHistoryEl}
+                        paddingLeft="20px"
+                        paddingRight="20px"
                     >
                         <Box>
                             <Text
