@@ -30,6 +30,7 @@ export interface Song {
     artists: string[];
     album: string;
     imageUrl: string;
+    previewUrl?: string;
     likeness: number;
 }
 

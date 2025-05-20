@@ -20,6 +20,7 @@ export interface FeedItemHistory {
     userId: string;
     username: string;
     pfpUrl?: string;
+    previewUrl?: string;
     item: {
         track: SongData;
         sessionDuration: number;
