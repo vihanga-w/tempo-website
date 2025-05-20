@@ -1005,9 +1005,9 @@ export default function ProfilePage({
                             const parent = document.querySelector("[data-profile-scroll-container]");
 
                             if (parent) {
-                                parent.scrollBy({
-                                    top: e.deltaY,
-                                    behavior: "auto"
+                                parent.scrollTo({
+                                    top: listenershipHistoryEl.current?.getBoundingClientRect().top,
+                                    behavior: "smooth",
                                 });
                             }
                         }
