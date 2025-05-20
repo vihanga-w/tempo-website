@@ -586,7 +586,7 @@ export default function ProfilePage({
         };
 
         observer.current = new IntersectionObserver(observerCallback, {
-            threshold: Array.from({ length: 101 }, (_, i) => i / 100), // Fine-grained thresholds
+            threshold: Array.from({ length: 251 }, (_, i) => i / 250),
         });
 
         observer.current.observe(listenershipHistoryEl.current);
