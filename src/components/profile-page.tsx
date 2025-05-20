@@ -1022,7 +1022,7 @@ export default function ProfilePage({
                     }}
                     onTouchMove={(e: React.TouchEvent<HTMLDivElement>) => {
                         if (historyPercentVisible < 100)
-                            return;
+                            return e.preventDefault();
 
                         const el = document.querySelector("[data-profile-history-full-view]");
 
