@@ -170,8 +170,8 @@ export default function ProfilePage({
         weekly: null,
     });
     const [unscrollHistory, setUnscrollHistory] = useState<boolean>(false);
-    const [useHistoryFullPageView, setUseHistoryFullPageView] = useState<boolean>(true);
-    const [readyHistoryFullPageView, setReadyHistoryFullPageView] = useState<boolean>(true);
+    const [useHistoryFullPageView, setUseHistoryFullPageView] = useState<boolean>(false);
+    const [readyHistoryFullPageView, setReadyHistoryFullPageView] = useState<boolean>(false);
     const [listenershipHistoryYOffset, setListenershipHistoryYOffset] = useState<number>(-999);
     // const [fakeHistoryHeight, setFakeHistoryHeight] = useState<number>(-999);
     const [windowHeight, setWindowHeight] = useState<number>(-999);
