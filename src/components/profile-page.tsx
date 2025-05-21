@@ -545,7 +545,7 @@ export default function ProfilePage({
 
         const scrollEl = document.querySelector("[data-profile-scroll-container]");
 
-        const handleScroll = () => {
+        const handleScroll = (e: Event) => {
             const el = listenershipHistoryEl.current;
 
             const rect = el?.getBoundingClientRect();
@@ -581,6 +581,8 @@ export default function ProfilePage({
             }
 
             if (!useHistoryFullPageView && passedCriticalVisibility) {
+                e.preventDefault();
+                
                 setUseHistoryFullPageView(true);
                 setUnscrollHistory(true);
             } else if (useHistoryFullPageView && !passedCriticalVisibility) {
@@ -596,7 +598,9 @@ export default function ProfilePage({
 
         const el = document.querySelector("[data-profile-scroll-container]") as HTMLDivElement;
 
-        el?.addEventListener("scroll", handleScroll);
+        el?.addEventListener("scroll", handleScroll, {
+            passive: false,
+        });
 
         return () => {
             el?.removeEventListener("scroll", handleScroll);
