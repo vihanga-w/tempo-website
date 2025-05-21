@@ -173,7 +173,7 @@ export default function ProfilePage({
     const [useHistoryFullPageView, setUseHistoryFullPageView] = useState<boolean>(false);
     const [readyHistoryFullPageView, setReadyHistoryFullPageView] = useState<boolean>(false);
     const [listenershipHistoryYOffset, setListenershipHistoryYOffset] = useState<number>(-999);
-    // const [fakeHistoryHeight, setFakeHistoryHeight] = useState<number>(-999);
+    const [rescrollHeight, setRescrollHeight] = useState<number>(-999);
     const [windowHeight, setWindowHeight] = useState<number>(-999);
     // const [historyPercentVisible, setHistoryPercentVisible] = useState<number>(-999);
 
@@ -543,13 +543,16 @@ export default function ProfilePage({
 
         setWindowHeight(window.innerHeight);
 
+        const scrollEl = document.querySelector("[data-profile-scroll-container]");
+
         const handleScroll = () => {
             const el = listenershipHistoryEl.current;
 
             const rect = el?.getBoundingClientRect();
             const windowHeight = window.innerHeight;
 
-            if (!rect) return;
+            if (!rect)
+                return;
 
             const visibleTop = Math.max(rect.top, 0);
             const visibleBottom = Math.min(rect.bottom, windowHeight);
@@ -557,10 +560,12 @@ export default function ProfilePage({
 
             const percentVisible = (visibleHeight / rect.height) * 100;
 
+            if (scrollEl && percentVisible > 50 && percentVisible < 65)
+                setRescrollHeight(scrollEl.scrollTop);
+
             const passedSoftVisibility = percentVisible >= 70;
             const passedCriticalVisibility = percentVisible >= 88;
 
-            // if (passedSoftVisibility)
             updateYOffset(percentVisible);
 
             const delay = unscrollHistory ? 300 : 0;
@@ -957,10 +962,8 @@ export default function ProfilePage({
                             if (parent) {
                                 setUnscrollHistory(true);
 
-                                const pel = listenershipHistoryEl.current;
-
                                 parent.scrollTo({
-                                    top: (!pel ? 0 : pel.getBoundingClientRect().top - 100),
+                                    top: rescrollHeight ?? 0,
                                     behavior: "instant",
                                 });
                             }
@@ -990,10 +993,8 @@ export default function ProfilePage({
                             if (parent) {
                                 setUnscrollHistory(true);
 
-                                const pel = listenershipHistoryEl.current;
-
                                 parent.scrollTo({
-                                    top: (!pel ? 0 : pel.getBoundingClientRect().top - 100),
+                                    top: rescrollHeight ?? 0,
                                     behavior: "instant",
                                 });
                             }
