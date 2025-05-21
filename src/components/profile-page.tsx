@@ -513,33 +513,20 @@ export default function ProfilePage({
         }
     }, [reactiveDesignColourCommited]);
 
-    useEffect(() => {
-        if (!dynamicContentEl?.current)
-            return;
+    // useEffect(() => {
+    //     if (!dynamicContentEl?.current)
+    //         return;
 
-        if (!dynamicContentEl?.current)
-            return;
+    //     if (!dynamicContentEl?.current)
+    //         return;
 
-        const bounds = dynamicContentEl.current.getBoundingClientRect();
+    //     const bounds = dynamicContentEl.current.getBoundingClientRect();
 
-        setListenershipHistoryYOffset(bounds.height + bounds.y + PROFILE_ITEM_GAP);
-    }, [dynamicContentEl]);
+    //     setListenershipHistoryYOffset(bounds.height + bounds.y + PROFILE_ITEM_GAP);
+    // }, [dynamicContentEl]);
     
     useEffect(() => {
         if (!listenershipHistoryAvailable || !listenershipHistoryEl?.current) return;
-
-        const updateYOffset = (percentVisible: number) => {
-            const bounds = dynamicContentEl.current!.getBoundingClientRect();
-            
-            const targetOffset = dynamicForcedPaddingSize(
-                dynamicContentEl.current!.clientHeight + bounds.y + PROFILE_ITEM_GAP,
-                percentVisible,
-                80,
-                0
-            );
-
-            setListenershipHistoryYOffset(targetOffset);
-        };
 
         setWindowHeight(window.innerHeight);
 
@@ -554,50 +541,36 @@ export default function ProfilePage({
             if (!rect)
                 return;
 
+            if (unscrollHistory)
+                e.preventDefault();
+
             const visibleTop = Math.max(rect.top, 0);
             const visibleBottom = Math.min(rect.bottom, windowHeight);
             const visibleHeight = Math.max(0, visibleBottom - visibleTop);
 
             const percentVisible = (visibleHeight / rect.height) * 100;
 
-            if (scrollEl && percentVisible > 50 && percentVisible < 65)
+            if (scrollEl && !useHistoryFullPageView && percentVisible > 50 && percentVisible < 65)
                 setRescrollHeight(scrollEl.scrollTop);
 
-            const passedSoftVisibility = percentVisible >= 70;
-            const passedCriticalVisibility = percentVisible >= 88;
+            const passedCriticalVisibility = percentVisible >= 80;
 
-            updateYOffset(percentVisible);
+            const bounds = dynamicContentEl.current!.getBoundingClientRect();
+            
+            setListenershipHistoryYOffset(dynamicContentEl.current!.clientHeight + bounds.y + PROFILE_ITEM_GAP);
 
-            const delay = unscrollHistory ? 300 : 0;
+            if (useHistoryFullPageView)
+                e.preventDefault();
 
-            if (!readyHistoryFullPageView && passedSoftVisibility) {
-                setReadyHistoryFullPageView(true);
-                setUnscrollHistory(false)
-            } else if (readyHistoryFullPageView && !passedSoftVisibility) {
-                setTimeout(() => {
-                    setReadyHistoryFullPageView(false);
-                    setUnscrollHistory(false);
-                }, delay);
-            }
-
-            if (!useHistoryFullPageView && passedCriticalVisibility) {
+            if (!unscrollHistory && !useHistoryFullPageView && passedCriticalVisibility) {
                 e.preventDefault();
 
                 setUseHistoryFullPageView(true);
                 setUnscrollHistory(true);
-            } else if (useHistoryFullPageView && !passedCriticalVisibility) {
-                setUseHistoryFullPageView(false);
+            } else if (percentVisible < 70) {
+                setUnscrollHistory(false);
             }
-
-            if (unscrollHistory)
-                e.preventDefault();
         }
-
-        // observer.current = new IntersectionObserver(observerCallback, {
-        //     threshold: Array.from({ length: 501 }, (_, i) => i / 500),
-        // });
-
-        // observer.current.observe(listenershipHistoryEl.current);
 
         const el = document.querySelector("[data-profile-scroll-container]") as HTMLDivElement;
 
@@ -609,6 +582,21 @@ export default function ProfilePage({
             el?.removeEventListener("scroll", handleScroll);
         };
     }, [listenershipHistoryAvailable, listenershipHistoryEl, dynamicContentEl, useHistoryFullPageView, readyHistoryFullPageView, unscrollHistory]);
+
+    useEffect(() => {
+        if (!useHistoryFullPageView)
+            return;
+
+        const scrollEl = document.querySelector("[data-profile-scroll-container]");
+
+        if (!scrollEl)
+            return;
+
+        scrollEl.scrollTo({
+            top: window.innerHeight,
+            behavior: "smooth",
+        });
+    }, [useHistoryFullPageView]);
 
     return (<>
         {!targetUserId && (
@@ -894,14 +882,74 @@ export default function ProfilePage({
                 )}
             </Stack>
             {listenershipHistoryAvailable && (<>
-                <Box h={536}>
+                <Box maxH={windowHeight} pos="relative">
                     <Stack
-                        pos="relative"
-                        opacity={readyHistoryFullPageView ? 0 : 1}
-                        pointerEvents="none"
+                        transition="padding .45s"
+                        pos="sticky"
                         ref={listenershipHistoryEl}
-                        paddingLeft="20px"
-                        paddingRight="20px"
+                        paddingLeft={`${useHistoryFullPageView ? 0 : 20}px`}
+                        paddingRight={`${useHistoryFullPageView ? 0 : 20}px`}
+                        height={useHistoryFullPageView ? windowHeight : 500}
+                        pointerEvents={useHistoryFullPageView ? "all" : "none"}
+                        sx={{
+                            boxSizing: "border-box"
+                        }}
+                        onWheel={(e: React.WheelEvent<HTMLDivElement>) => {
+                            if (!useHistoryFullPageView)
+                                return;
+
+                            const el = document.querySelector("[data-profile-history-full-view]");
+
+                            if (!el)
+                                return;
+
+                            // If scrolling up and already at the top, pass scroll to parent with same delta
+                            if (e.deltaY < -2.5 && el.scrollTop <= 0) {
+                                const parent = document.querySelector("[data-profile-scroll-container]");
+
+                                if (parent) {
+                                    setUnscrollHistory(true);
+                                    setUseHistoryFullPageView(false);
+
+                                    parent.scrollTo({
+                                        top: (rescrollHeight ?? 0) - 100,
+                                        behavior: "smooth",
+                                    });
+                                }
+                            }
+                        }}
+                        onTouchStart={(e: React.TouchEvent<HTMLDivElement>) => {
+                            // Store initial touch position
+                            (e.currentTarget as any)._touchStartY = e.touches[0].clientY;
+                        }}
+                        onTouchMove={(e: React.TouchEvent<HTMLDivElement>) => {
+                            if (!useHistoryFullPageView)
+                                return;
+
+                            const el = document.querySelector("[data-profile-history-full-view]");
+
+                            if (!el)
+                                return;
+
+                            const startY = (e.currentTarget as any)._touchStartY;
+                            const currentY = e.touches[0].clientY;
+                            const deltaY = startY - currentY;
+
+                            // If scrolling up and already at the top, pass scroll to parent with same delta
+                            if (deltaY < -2.5 && el.scrollTop <= 0) {
+                                const parent = document.querySelector("[data-profile-scroll-container]");
+
+                                if (parent) {
+                                    setUnscrollHistory(true);
+                                    setUseHistoryFullPageView(false);
+
+                                    parent.scrollTo({
+                                        top: (rescrollHeight ?? 0) - 100,
+                                        behavior: "smooth",
+                                    });
+                                }
+                            }
+                        }}
                     >
                         <Box>
                             <Text
@@ -911,24 +959,29 @@ export default function ProfilePage({
                                 color={reactiveDesignComplementaryColour ?? "text.dark"}
                                 transition=".3s"
                                 float="left"
+                                marginBottom={`-${useHistoryFullPageView ? 60 : 0}px`}
+                                opacity={`${useHistoryFullPageView ? 0.55 : 1}`}
                             >
                                 Listening History
                             </Text>
                             <Stack
                                 width="100%"
-                                maxHeight="500px"
+                                height={useHistoryFullPageView ? windowHeight : 500}
                                 overflowY="auto"
                                 padding="12px"
-                                borderRadius="20px"
+                                paddingTop={`${useHistoryFullPageView ? 64 : 12}px`}
+                                borderRadius={`${useHistoryFullPageView ? 0 : 20}px`}
                                 background={widgetBgColour ?? "linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02))"}
                                 gap="12px"
                                 pos="relative"
+                                transition="background .3s"
                                 sx={{
                                     scrollbarWidth: "none",
                                     "&::-webkit-scrollbar": {
                                         display: "none",
                                     },
                                 }}
+                                data-profile-history-full-view
                             >
                                 <FriendHistoryFeed
                                     userId={targetUserId ?? user.id}
@@ -938,115 +991,6 @@ export default function ProfilePage({
                         </Box>
                     </Stack>
                 </Box>
-                
-                <Stack
-                    transition={useHistoryFullPageView || unscrollHistory ? ".3s" : "0s"}
-                    pos="fixed"
-                    opacity={readyHistoryFullPageView ? 1 : 0}
-                    paddingLeft={`${useHistoryFullPageView ? 0 : 20}px`}
-                    paddingRight={`${useHistoryFullPageView ? 0 : 20}px`}
-                    width="100vw"
-                    height={useHistoryFullPageView ? windowHeight : 500}
-                    left="0"
-                    top={readyHistoryFullPageView && !useHistoryFullPageView ? `${listenershipHistoryYOffset}px` : useHistoryFullPageView ? 0 : undefined}
-                    pointerEvents={useHistoryFullPageView ? "all" : "none"}
-                    sx={{
-                        boxSizing: "border-box"
-                    }}
-                    onWheel={(e: React.WheelEvent<HTMLDivElement>) => {
-                        if (!useHistoryFullPageView)
-                            return;
-
-                        const el = document.querySelector("[data-profile-history-full-view]");
-
-                        if (!el)
-                            return;
-
-                        // If scrolling up and already at the top, pass scroll to parent with same delta
-                        if (e.deltaY < -2.5 && el.scrollTop <= 0) {
-                            const parent = document.querySelector("[data-profile-scroll-container]");
-
-                            if (parent) {
-                                setUnscrollHistory(true);
-
-                                parent.scrollTo({
-                                    top: rescrollHeight ?? 0,
-                                    behavior: "instant",
-                                });
-                            }
-                        }
-                    }}
-                    onTouchStart={(e: React.TouchEvent<HTMLDivElement>) => {
-                        // Store initial touch position
-                        (e.currentTarget as any)._touchStartY = e.touches[0].clientY;
-                    }}
-                    onTouchMove={(e: React.TouchEvent<HTMLDivElement>) => {
-                        if (!useHistoryFullPageView)
-                            return;
-
-                        const el = document.querySelector("[data-profile-history-full-view]");
-
-                        if (!el)
-                            return;
-
-                        const startY = (e.currentTarget as any)._touchStartY;
-                        const currentY = e.touches[0].clientY;
-                        const deltaY = startY - currentY;
-
-                        // If scrolling up and already at the top, pass scroll to parent with same delta
-                        if (deltaY < -2.5 && (el as HTMLElement).scrollTop <= 0) {
-                            const parent = document.querySelector("[data-profile-scroll-container]");
-
-                            if (parent) {
-                                setUnscrollHistory(true);
-
-                                parent.scrollTo({
-                                    top: rescrollHeight ?? 0,
-                                    behavior: "instant",
-                                });
-                            }
-                        }
-                    }}
-                >
-                    <Box>
-                        <Text
-                            fontFamily="Inter"
-                            fontWeight="bold"
-                            fontSize="24px"
-                            color={reactiveDesignComplementaryColour ?? "text.dark"}
-                            transition=".3s"
-                            float="left"
-                            marginBottom={`-${useHistoryFullPageView ? 60 : 0}px`}
-                            opacity={`${useHistoryFullPageView ? 0.55 : 1}`}
-                        >
-                            Listening History
-                        </Text>
-                        <Stack
-                            width="100%"
-                            height={useHistoryFullPageView ? windowHeight : 500}
-                            overflowY="auto"
-                            padding="12px"
-                            paddingTop={`${useHistoryFullPageView ? 64 : 12}px`}
-                            borderRadius={`${useHistoryFullPageView ? 0 : 20}px`}
-                            background={widgetBgColour ?? "linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02))"}
-                            gap="12px"
-                            pos="relative"
-                            transition="background .3s"
-                            sx={{
-                                scrollbarWidth: "none",
-                                "&::-webkit-scrollbar": {
-                                    display: "none",
-                                },
-                            }}
-                            data-profile-history-full-view
-                        >
-                            <FriendHistoryFeed
-                                userId={targetUserId ?? user.id}
-                                fetchHistory={(userId, page) => user.getFriendProfileListenershipHistory(userId, page)}
-                            />
-                        </Stack>
-                    </Box>
-                </Stack>
             </>)}
         </Stack>
     </>);
