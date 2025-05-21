@@ -534,10 +534,10 @@ export default function ProfilePage({
 
             const percentVisible = (visibleHeight / rect.height) * 100;
 
-            if (scrollEl && !useHistoryFullPageView && percentVisible > 50 && percentVisible < 65)
+            if (scrollEl && !useHistoryFullPageView && percentVisible > 25 && percentVisible < 65)
                 setRescrollHeight(scrollEl.scrollTop);
 
-            const passedCriticalVisibility = percentVisible >= 80;
+            const passedCriticalVisibility = percentVisible >= 85;
 
             if (useHistoryFullPageView)
                 e.preventDefault();
@@ -547,7 +547,7 @@ export default function ProfilePage({
 
                 setUseHistoryFullPageView(true);
                 setUnscrollHistory(true);
-            } else if (percentVisible < 70) {
+            } else if (percentVisible < 75) {
                 setUnscrollHistory(false);
             }
         }
@@ -673,9 +673,8 @@ export default function ProfilePage({
             height="100vh"
             transition=".75s"
         />
-        <Stack gap={`${PROFILE_ITEM_GAP}px`} width="100%" zIndex="1" position="relative" marginTop="-15px">
+        <Stack gap={`${PROFILE_ITEM_GAP}px`} width="100%" zIndex="1" position="relative" marginTop="-15px" paddingBottom="20px">
             <Stack gap={`${PROFILE_ITEM_GAP}px`} paddingLeft="20px" width="calc(100% - 20px)">
-                {/* <Box pos="absolute" background="red" width="100vw" height="100vh" top="0" left= zIndex={0} /> */}
                 <HStack gap="14px" marginTop="24px">
                     <Box width="88px" height="88px" border={playbackState ? "3px solid #A480FF" : "0px"} borderRadius="17px" transition=".15s">
                         {((profileData?.images.length ?? 0) > 0 && !pfpLoadFailed) ? (
@@ -901,7 +900,7 @@ export default function ProfilePage({
                         paddingLeft={`${useHistoryFullPageView ? 0 : 20}px`}
                         paddingRight={`${useHistoryFullPageView ? 0 : 20}px`}
                         height={useHistoryFullPageView ? windowHeight : 500}
-                        pointerEvents={useHistoryFullPageView ? "all" : "none"}
+                        pointerEvents="all"
                         sx={{
                             boxSizing: "border-box"
                         }}
@@ -935,7 +934,7 @@ export default function ProfilePage({
                         }}
                         onTouchMove={(e: React.TouchEvent<HTMLDivElement>) => {
                             if (!useHistoryFullPageView)
-                                return;
+                                return e.preventDefault();
 
                             const el = document.querySelector("[data-profile-history-full-view]");
 
@@ -978,7 +977,7 @@ export default function ProfilePage({
                             <Stack
                                 width="100%"
                                 height={useHistoryFullPageView ? windowHeight : 500}
-                                overflowY="auto"
+                                overflowY={useHistoryFullPageView ? "auto" : "hidden"}
                                 padding="12px"
                                 paddingTop={`${useHistoryFullPageView ? 64 : 12}px`}
                                 borderRadius={`${useHistoryFullPageView ? 0 : 20}px`}
