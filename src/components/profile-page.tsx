@@ -169,11 +169,13 @@ export default function ProfilePage({
         daily: null,
         weekly: null,
     });
-    const [useHistoryFullPageView, setUseHistoryFullPageView] = useState<boolean>(false);
+    const [unscrollHistory, setUnscrollHistory] = useState<boolean>(false);
+    const [useHistoryFullPageView, setUseHistoryFullPageView] = useState<boolean>(true);
+    const [readyHistoryFullPageView, setReadyHistoryFullPageView] = useState<boolean>(true);
     const [listenershipHistoryYOffset, setListenershipHistoryYOffset] = useState<number>(-999);
     // const [fakeHistoryHeight, setFakeHistoryHeight] = useState<number>(-999);
     const [windowHeight, setWindowHeight] = useState<number>(-999);
-    const [historyPercentVisible, setHistoryPercentVisible] = useState<number>(-999);
+    // const [historyPercentVisible, setHistoryPercentVisible] = useState<number>(-999);
 
     const listenershipHistoryEl = useRef<HTMLDivElement>(null);
     const dynamicContentEl = useRef<HTMLDivElement>(null);
@@ -515,30 +517,16 @@ export default function ProfilePage({
         if (!dynamicContentEl?.current)
             return;
 
-        // const loop = setInterval(() => {
         if (!dynamicContentEl?.current)
             return;
 
         const bounds = dynamicContentEl.current.getBoundingClientRect();
 
         setListenershipHistoryYOffset(bounds.height + bounds.y + PROFILE_ITEM_GAP);
-
-        setWindowHeight(window.innerHeight);
-        // }, 100);
-
-        // return () => {
-        //     clearInterval(loop);
-        // }
     }, [dynamicContentEl]);
-
-    const observer = useRef<IntersectionObserver | null>(null);
-    const animationFrame = useRef<number | null>(null);
     
     useEffect(() => {
         if (!listenershipHistoryAvailable || !listenershipHistoryEl?.current) return;
-
-        const easeInOutCubic = (t: number) =>
-            t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 
         const updateYOffset = (percentVisible: number) => {
             const bounds = dynamicContentEl.current!.getBoundingClientRect();
@@ -553,49 +541,65 @@ export default function ProfilePage({
             setListenershipHistoryYOffset(targetOffset);
         };
 
-        const observerCallback: IntersectionObserverCallback = (entries) => {
-            entries.forEach((entry) => {
-                const rect = entry.boundingClientRect;
-                const windowHeight = window.innerHeight;
+        setWindowHeight(window.innerHeight);
 
-                const visibleTop = Math.max(rect.top, 0);
-                const visibleBottom = Math.min(rect.bottom, windowHeight);
-                const visibleHeight = Math.max(0, visibleBottom - visibleTop);
+        const handleScroll = () => {
+            const el = listenershipHistoryEl.current;
 
-                const percentVisible = (visibleHeight / rect.height) * 100;
+            const rect = el?.getBoundingClientRect();
+            const windowHeight = window.innerHeight;
 
-                if (animationFrame.current)
-                    cancelAnimationFrame(animationFrame.current);
+            if (!rect) return;
 
-                animationFrame.current = requestAnimationFrame(() => {
-                    updateYOffset(percentVisible);
+            const visibleTop = Math.max(rect.top, 0);
+            const visibleBottom = Math.min(rect.bottom, windowHeight);
+            const visibleHeight = Math.max(0, visibleBottom - visibleTop);
 
-                    const passedCriticalVisibility = percentVisible >= 80;
+            const percentVisible = (visibleHeight / rect.height) * 100;
 
-                    if (!useHistoryFullPageView && passedCriticalVisibility) {
-                        setUseHistoryFullPageView(true);
-                    } else if (useHistoryFullPageView && !passedCriticalVisibility) {
-                        setUseHistoryFullPageView(false);
-                    }
+            const passedSoftVisibility = percentVisible >= 70;
+            const passedCriticalVisibility = percentVisible >= 88;
 
-                    if (passedCriticalVisibility) {
-                        setHistoryPercentVisible(percentVisible);
-                    }
-                });
-            });
-        };
+            if (passedSoftVisibility)
+                updateYOffset(percentVisible);
 
-        observer.current = new IntersectionObserver(observerCallback, {
-            threshold: Array.from({ length: 251 }, (_, i) => i / 250),
-        });
+            const delay = unscrollHistory ? 400 : 0;
 
-        observer.current.observe(listenershipHistoryEl.current);
+            if (!readyHistoryFullPageView && passedSoftVisibility) {
+                setReadyHistoryFullPageView(true);
+                setUnscrollHistory(false)
+            } else if (readyHistoryFullPageView && !passedSoftVisibility) {
+                setTimeout(() => {
+                    setReadyHistoryFullPageView(false);
+                    setUnscrollHistory(false);
+                }, delay);
+            }
+
+            if (!useHistoryFullPageView && passedCriticalVisibility) {
+                setUseHistoryFullPageView(true);
+                setUnscrollHistory(true);
+            } else if (useHistoryFullPageView && !passedCriticalVisibility) {
+                setTimeout(() => {
+                    setUseHistoryFullPageView(false);
+                    setUnscrollHistory(false);
+                }, delay);
+            }
+        }
+
+        // observer.current = new IntersectionObserver(observerCallback, {
+        //     threshold: Array.from({ length: 501 }, (_, i) => i / 500),
+        // });
+
+        // observer.current.observe(listenershipHistoryEl.current);
+
+        const el = document.querySelector("[data-profile-scroll-container]") as HTMLDivElement;
+
+        el?.addEventListener("scroll", handleScroll);
 
         return () => {
-            if (observer.current) observer.current.disconnect();
-            if (animationFrame.current) cancelAnimationFrame(animationFrame.current);
+            el?.removeEventListener("scroll", handleScroll);
         };
-    }, [listenershipHistoryAvailable, listenershipHistoryEl, dynamicContentEl, useHistoryFullPageView]);
+    }, [listenershipHistoryAvailable, listenershipHistoryEl, dynamicContentEl, useHistoryFullPageView, readyHistoryFullPageView, unscrollHistory]);
 
     return (<>
         {!targetUserId && (
@@ -884,7 +888,7 @@ export default function ProfilePage({
                 <Box h={536}>
                     <Stack
                         pos="relative"
-                        opacity={useHistoryFullPageView ? 0 : 1}
+                        opacity={readyHistoryFullPageView ? 0 : 1}
                         pointerEvents="none"
                         ref={listenershipHistoryEl}
                         paddingLeft="20px"
@@ -927,34 +931,32 @@ export default function ProfilePage({
                 </Box>
                 
                 <Stack
-                    // transition=".0s"
+                    transition={useHistoryFullPageView || unscrollHistory ? ".3s" : "0s"}
                     pos="fixed"
-                    opacity={useHistoryFullPageView ? 1 : 0}
-                    paddingLeft={`${forcedPaddingSize(20, historyPercentVisible, 80, 0)}px`}
-                    paddingRight={`${forcedPaddingSize(20, historyPercentVisible, 80, 0)}px`}
+                    opacity={readyHistoryFullPageView ? 1 : 0}
+                    paddingLeft={`${useHistoryFullPageView ? 0 : 20}px`}
+                    paddingRight={`${useHistoryFullPageView ? 0 : 20}px`}
                     width="100vw"
-                    height={`${500 + ((windowHeight - 500) * (historyPercentVisible / 100))}px`}
+                    height={useHistoryFullPageView ? windowHeight : 500}
                     left="0"
-                    transition="top .01s"
-                    top={`${listenershipHistoryYOffset}px`}
-                    pointerEvents={historyPercentVisible == 100 ? "all" : "none"}
+                    top={readyHistoryFullPageView && !useHistoryFullPageView ? `${listenershipHistoryYOffset}px` : useHistoryFullPageView ? 0 : undefined}
+                    pointerEvents={useHistoryFullPageView ? "all" : "none"}
                     sx={{
                         boxSizing: "border-box"
                     }}
                     onWheel={(e: React.WheelEvent<HTMLDivElement>) => {
-                        if (historyPercentVisible < 100)
-                            return;
-
                         const el = document.querySelector("[data-profile-history-full-view]");
 
                         if (!el)
                             return;
 
                         // If scrolling up and already at the top, pass scroll to parent with same delta
-                        if (e.deltaY < -10 && el.scrollTop <= 0) {
+                        if (e.deltaY < -2 && el.scrollTop <= 0) {
                             const parent = document.querySelector("[data-profile-scroll-container]");
 
                             if (parent) {
+                                setUnscrollHistory(true);
+
                                 parent.scrollTo({
                                     top: listenershipHistoryEl.current?.getBoundingClientRect().top,
                                     behavior: "smooth",
@@ -967,9 +969,6 @@ export default function ProfilePage({
                         (e.currentTarget as any)._touchStartY = e.touches[0].clientY;
                     }}
                     onTouchMove={(e: React.TouchEvent<HTMLDivElement>) => {
-                        if (historyPercentVisible < 100)
-                            return e.preventDefault();
-
                         const el = document.querySelector("[data-profile-history-full-view]");
 
                         if (!el)
@@ -980,10 +979,12 @@ export default function ProfilePage({
                         const deltaY = startY - currentY;
 
                         // If scrolling up and already at the top, pass scroll to parent with same delta
-                        if (deltaY < -10 && (el as HTMLElement).scrollTop <= 0) {
+                        if (deltaY < -2 && (el as HTMLElement).scrollTop <= 0) {
                             const parent = document.querySelector("[data-profile-scroll-container]");
 
                             if (parent) {
+                                setUnscrollHistory(true);
+
                                 parent.scrollTo({
                                     top: listenershipHistoryEl.current?.getBoundingClientRect().top,
                                     behavior: "smooth",
@@ -1000,18 +1001,18 @@ export default function ProfilePage({
                             color={reactiveDesignComplementaryColour ?? "text.dark"}
                             transition="color 3s"
                             float="left"
-                            marginBottom={`-${60 - forcedPaddingSize(60, historyPercentVisible, 80, 0)}px`}
-                            opacity={`${forcedPaddingSize(1, historyPercentVisible, 80, 0.2)}`}
+                            marginBottom={`-${useHistoryFullPageView ? 60 : 0}px`}
+                            opacity={`${useHistoryFullPageView ? 0.55 : 1}`}
                         >
                             Listening History
                         </Text>
                         <Stack
                             width="100%"
-                            height={`${500 + ((windowHeight - 500) * (historyPercentVisible / 100))}px`}
+                            height={useHistoryFullPageView ? windowHeight : 500}
                             overflowY="auto"
                             padding="12px"
-                            paddingTop={`${Math.max(12, 64 - forcedPaddingSize(64, historyPercentVisible, 80, 0))}px`}
-                            borderRadius={`${forcedPaddingSize(20, historyPercentVisible, 80, 0)}px`}
+                            paddingTop={`${useHistoryFullPageView ? 64 : 12}px`}
+                            borderRadius={`${useHistoryFullPageView ? 0 : 20}px`}
                             background={widgetBgColour ?? "linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02))"}
                             gap="12px"
                             pos="relative"
