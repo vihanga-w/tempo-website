@@ -171,14 +171,10 @@ export default function ProfilePage({
     });
     const [unscrollHistory, setUnscrollHistory] = useState<boolean>(false);
     const [useHistoryFullPageView, setUseHistoryFullPageView] = useState<boolean>(false);
-    const [readyHistoryFullPageView, setReadyHistoryFullPageView] = useState<boolean>(false);
-    const [listenershipHistoryYOffset, setListenershipHistoryYOffset] = useState<number>(-999);
     const [rescrollHeight, setRescrollHeight] = useState<number>(-999);
     const [windowHeight, setWindowHeight] = useState<number>(-999);
-    // const [historyPercentVisible, setHistoryPercentVisible] = useState<number>(-999);
 
     const listenershipHistoryEl = useRef<HTMLDivElement>(null);
-    const dynamicContentEl = useRef<HTMLDivElement>(null);
 
     const scrollItemRef = useRef<HTMLDivElement>(null);
 
@@ -512,18 +508,6 @@ export default function ProfilePage({
             setComplementaryColour("#ffffff");
         }
     }, [reactiveDesignColourCommited]);
-
-    // useEffect(() => {
-    //     if (!dynamicContentEl?.current)
-    //         return;
-
-    //     if (!dynamicContentEl?.current)
-    //         return;
-
-    //     const bounds = dynamicContentEl.current.getBoundingClientRect();
-
-    //     setListenershipHistoryYOffset(bounds.height + bounds.y + PROFILE_ITEM_GAP);
-    // }, [dynamicContentEl]);
     
     useEffect(() => {
         if (!listenershipHistoryAvailable || !listenershipHistoryEl?.current) return;
@@ -555,10 +539,6 @@ export default function ProfilePage({
 
             const passedCriticalVisibility = percentVisible >= 80;
 
-            const bounds = dynamicContentEl.current!.getBoundingClientRect();
-            
-            setListenershipHistoryYOffset(dynamicContentEl.current!.clientHeight + bounds.y + PROFILE_ITEM_GAP);
-
             if (useHistoryFullPageView)
                 e.preventDefault();
 
@@ -581,7 +561,7 @@ export default function ProfilePage({
         return () => {
             el?.removeEventListener("scroll", handleScroll);
         };
-    }, [listenershipHistoryAvailable, listenershipHistoryEl, dynamicContentEl, useHistoryFullPageView, readyHistoryFullPageView, unscrollHistory]);
+    }, [listenershipHistoryAvailable, listenershipHistoryEl, useHistoryFullPageView, unscrollHistory]);
 
     useEffect(() => {
         if (!useHistoryFullPageView)
@@ -592,11 +572,32 @@ export default function ProfilePage({
         if (!scrollEl)
             return;
 
-        scrollEl.scrollTo({
-            top: window.innerHeight,
-            behavior: "smooth",
-        });
-    }, [useHistoryFullPageView]);
+        let c = 0;
+
+        // Force the view to be at the correct level
+        const loop = setInterval(() => {
+            if (!useHistoryFullPageView || !listenershipHistoryEl.current) {
+                clearInterval(loop);
+
+                return;
+            }
+
+            const rect = listenershipHistoryEl.current.getBoundingClientRect();
+
+            if (rect.y > 0) {
+                scrollEl.scrollTo({
+                    top: rect.bottom + window.innerHeight,
+                    behavior: (c <= 500 ? "smooth" : "instant"),
+                });
+            }
+
+            c++;
+        }, 100);
+
+        return () => {
+            clearInterval(loop);
+        };
+    }, [useHistoryFullPageView, listenershipHistoryEl]);
 
     return (<>
         {!targetUserId && (
@@ -663,7 +664,7 @@ export default function ProfilePage({
             transition=".75s"
         />
         <Stack gap={`${PROFILE_ITEM_GAP}px`} width="100%" zIndex="1" position="relative" marginTop="-15px">
-            <Stack gap={`${PROFILE_ITEM_GAP}px`} paddingLeft="20px" width="calc(100% - 20px)" ref={dynamicContentEl}>
+            <Stack gap={`${PROFILE_ITEM_GAP}px`} paddingLeft="20px" width="calc(100% - 20px)">
                 {/* <Box pos="absolute" background="red" width="100vw" height="100vh" top="0" left= zIndex={0} /> */}
                 <HStack gap="14px" marginTop="24px">
                     <Box width="88px" height="88px" border={playbackState ? "3px solid #A480FF" : "0px"} borderRadius="17px" transition=".15s">
@@ -912,7 +913,7 @@ export default function ProfilePage({
                                     setUseHistoryFullPageView(false);
 
                                     parent.scrollTo({
-                                        top: (rescrollHeight ?? 0) - 100,
+                                        top: (rescrollHeight ?? 0) - 120,
                                         behavior: "smooth",
                                     });
                                 }
@@ -944,7 +945,7 @@ export default function ProfilePage({
                                     setUseHistoryFullPageView(false);
 
                                     parent.scrollTo({
-                                        top: (rescrollHeight ?? 0) - 100,
+                                        top: (rescrollHeight ?? 0) - 120,
                                         behavior: "smooth",
                                     });
                                 }
@@ -957,10 +958,10 @@ export default function ProfilePage({
                                 fontWeight="bold"
                                 fontSize="24px"
                                 color={reactiveDesignComplementaryColour ?? "text.dark"}
-                                transition=".3s"
+                                transition=".45s"
                                 float="left"
                                 marginBottom={`-${useHistoryFullPageView ? 60 : 0}px`}
-                                opacity={`${useHistoryFullPageView ? 0.55 : 1}`}
+                                opacity={`${useHistoryFullPageView ? 0.5 : 1}`}
                             >
                                 Listening History
                             </Text>
