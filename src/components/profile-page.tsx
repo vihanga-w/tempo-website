@@ -574,11 +574,8 @@ export default function ProfilePage({
 
         let c = 0;
 
-        // Force the view to be at the correct level
-        const loop = setInterval(() => {
+        const scroll = () => {
             if (!useHistoryFullPageView || !listenershipHistoryEl.current) {
-                clearInterval(loop);
-
                 return;
             }
 
@@ -590,9 +587,22 @@ export default function ProfilePage({
                     behavior: (c <= 500 ? "smooth" : "instant"),
                 });
             }
+        }
+
+        scroll();
+
+        // Force the view to be at the correct level
+        const loop = setInterval(() => {
+            if (!useHistoryFullPageView || !listenershipHistoryEl.current) {
+                clearInterval(loop);
+
+                return;
+            }
+
+            scroll();
 
             c++;
-        }, 100);
+        }, 250);
 
         return () => {
             clearInterval(loop);
