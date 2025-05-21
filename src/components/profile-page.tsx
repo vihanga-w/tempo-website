@@ -602,7 +602,7 @@ export default function ProfilePage({
             scroll();
 
             c++;
-        }, 250);
+        }, 300);
 
         return () => {
             clearInterval(loop);
