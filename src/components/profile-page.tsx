@@ -560,10 +560,10 @@ export default function ProfilePage({
             const passedSoftVisibility = percentVisible >= 70;
             const passedCriticalVisibility = percentVisible >= 88;
 
-            if (passedSoftVisibility)
-                updateYOffset(percentVisible);
+            // if (passedSoftVisibility)
+            updateYOffset(percentVisible);
 
-            const delay = unscrollHistory ? 400 : 0;
+            const delay = unscrollHistory ? 300 : 0;
 
             if (!readyHistoryFullPageView && passedSoftVisibility) {
                 setReadyHistoryFullPageView(true);
@@ -579,10 +579,7 @@ export default function ProfilePage({
                 setUseHistoryFullPageView(true);
                 setUnscrollHistory(true);
             } else if (useHistoryFullPageView && !passedCriticalVisibility) {
-                setTimeout(() => {
-                    setUseHistoryFullPageView(false);
-                    setUnscrollHistory(false);
-                }, delay);
+                setUseHistoryFullPageView(false);
             }
         }
 
@@ -945,21 +942,26 @@ export default function ProfilePage({
                         boxSizing: "border-box"
                     }}
                     onWheel={(e: React.WheelEvent<HTMLDivElement>) => {
+                        if (!useHistoryFullPageView)
+                            return;
+
                         const el = document.querySelector("[data-profile-history-full-view]");
 
                         if (!el)
                             return;
 
                         // If scrolling up and already at the top, pass scroll to parent with same delta
-                        if (e.deltaY < -2 && el.scrollTop <= 0) {
+                        if (e.deltaY < -2.5 && el.scrollTop <= 0) {
                             const parent = document.querySelector("[data-profile-scroll-container]");
 
                             if (parent) {
                                 setUnscrollHistory(true);
 
+                                const pel = listenershipHistoryEl.current;
+
                                 parent.scrollTo({
-                                    top: listenershipHistoryEl.current?.getBoundingClientRect().top,
-                                    behavior: "smooth",
+                                    top: (!pel ? 0 : pel.getBoundingClientRect().top - 100),
+                                    behavior: "instant",
                                 });
                             }
                         }
@@ -969,6 +971,9 @@ export default function ProfilePage({
                         (e.currentTarget as any)._touchStartY = e.touches[0].clientY;
                     }}
                     onTouchMove={(e: React.TouchEvent<HTMLDivElement>) => {
+                        if (!useHistoryFullPageView)
+                            return;
+
                         const el = document.querySelector("[data-profile-history-full-view]");
 
                         if (!el)
@@ -979,15 +984,17 @@ export default function ProfilePage({
                         const deltaY = startY - currentY;
 
                         // If scrolling up and already at the top, pass scroll to parent with same delta
-                        if (deltaY < -2 && (el as HTMLElement).scrollTop <= 0) {
+                        if (deltaY < -2.5 && (el as HTMLElement).scrollTop <= 0) {
                             const parent = document.querySelector("[data-profile-scroll-container]");
 
                             if (parent) {
                                 setUnscrollHistory(true);
 
+                                const pel = listenershipHistoryEl.current;
+
                                 parent.scrollTo({
-                                    top: listenershipHistoryEl.current?.getBoundingClientRect().top,
-                                    behavior: "smooth",
+                                    top: (!pel ? 0 : pel.getBoundingClientRect().top - 100),
+                                    behavior: "instant",
                                 });
                             }
                         }
@@ -999,7 +1006,7 @@ export default function ProfilePage({
                             fontWeight="bold"
                             fontSize="24px"
                             color={reactiveDesignComplementaryColour ?? "text.dark"}
-                            transition="color 3s"
+                            transition=".3s"
                             float="left"
                             marginBottom={`-${useHistoryFullPageView ? 60 : 0}px`}
                             opacity={`${useHistoryFullPageView ? 0.55 : 1}`}
