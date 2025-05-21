@@ -582,12 +582,15 @@ export default function ProfilePage({
 
             if (!useHistoryFullPageView && passedCriticalVisibility) {
                 e.preventDefault();
-                
+
                 setUseHistoryFullPageView(true);
                 setUnscrollHistory(true);
             } else if (useHistoryFullPageView && !passedCriticalVisibility) {
                 setUseHistoryFullPageView(false);
             }
+
+            if (unscrollHistory)
+                e.preventDefault();
         }
 
         // observer.current = new IntersectionObserver(observerCallback, {
