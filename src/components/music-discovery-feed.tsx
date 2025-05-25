@@ -89,6 +89,7 @@ const MusicDiscoveryFeed: React.FC<{
     
     // Audio preview states
     const [isPlaying, setIsPlaying] = useState(false);
+    const [activePreviewUrl, setActivePreviewUrl] = useState<string | undefined>();
     const [currentPlayingSong, setCurrentPlayingSong] = useState<string | null>(null);
     const [audioProgress, setAudioProgress] = useState(0);
     const [audioDuration, setAudioDuration] = useState(0);
@@ -194,12 +195,55 @@ const MusicDiscoveryFeed: React.FC<{
     }, []);
 
     useEffect(() => {
-        // Stop audio when swiping to different song
-        if (audioRef.current && isPlaying) {
+        const stopPlaying = () => {
+            if (!audioRef.current)
+                return;
+
             audioRef.current.pause();
-            setIsPlaying(false);
+
             setCurrentPlayingSong(null);
             setAudioProgress(0);
+        };
+
+        const currItm = internalFeed[currentIndex];
+
+        if (!currItm)
+            return setActivePreviewUrl(undefined);
+
+        const attemptActiveFetchPreview = async (songId: string) => {
+
+        }
+
+        const loadTrackPreview = (songId: string, previewUrl?: string) => {
+            if (!previewUrl) {
+                // Display state to indicate loading
+                setIsPlaying(false);
+                setCurrentPlayingSong(null);
+                setActivePreviewUrl(undefined);
+                
+                stopPlaying();
+            } else {
+                console.log("Loading preview for song:", songId, "URL:", previewUrl);
+                
+                setCurrentPlayingSong(songId);
+                setActivePreviewUrl(previewUrl);
+                
+                // Preview URL is already available and we are already playing
+                if (isPlaying && audioRef.current)
+                    toggleAudioPreview(songId, previewUrl);
+            }
+        }
+
+        if (currItm.type === "discover") {
+            const song = currItm.data as Song;
+            const previewUrl = song.previewUrl;
+
+            loadTrackPreview(song.id, previewUrl);
+        } else if (currItm.type === "history") {
+            const historyItem = currItm.data as FeedItemHistory;
+            const previewUrl = historyItem.previewUrl;
+
+            loadTrackPreview(historyItem.item.track.id, previewUrl);
         }
     }, [currentIndex]);
 
@@ -520,14 +564,14 @@ const MusicDiscoveryFeed: React.FC<{
         if (!previewUrl)
             return null;
 
-        const isCurrentlyPlaying = currentPlayingSong === songId && isPlaying;
+        // const isCurrentlyPlaying = currentPlayingSong === songId && isPlaying;
 
         return (
             <VStack spacing={2} marginTop={marginTop}>
                 <HStack spacing={3} alignItems="center">
                     <IconButton
-                        aria-label={isCurrentlyPlaying ? "Pause preview" : "Play preview"}
-                        icon={isCurrentlyPlaying ? <FaPause /> : <FaPlay />}
+                        aria-label={isPlaying ? "Pause preview" : "Play preview"}
+                        icon={isPlaying ? <FaPause /> : <FaPlay />}
                         onClick={() => toggleAudioPreview(songId, previewUrl)}
                         size="sm"
                         variant="ghost"
@@ -536,10 +580,10 @@ const MusicDiscoveryFeed: React.FC<{
                         borderRadius="full"
                     />
                     <Text fontSize="sm" color={colors.fg} opacity="0.8">
-                        {isCurrentlyPlaying ? "Playing Preview" : "Preview Available"}
+                        {isPlaying ? "Playing Preview" : "Preview Available"}
                     </Text>
                 </HStack>
-                {isCurrentlyPlaying && (
+                {isPlaying && (
                     <Progress
                         value={audioProgress}
                         size="sm"
@@ -897,7 +941,7 @@ const MusicDiscoveryFeed: React.FC<{
                                             {/* Audio Preview for Discover */}
                                             <AudioPreview
                                                 songId={(item.data as Song).id}
-                                                previewUrl={(item.data as Song).previewUrl}
+                                                previewUrl={activePreviewUrl}
                                                 colors={colors}
                                             />
                                             
@@ -1060,7 +1104,7 @@ const MusicDiscoveryFeed: React.FC<{
                                                         {/* Audio Preview for History - previewUrl is on the history object, not track */}
                                                         <AudioPreview
                                                             songId={track.id}
-                                                            previewUrl={history.previewUrl}
+                                                            previewUrl={activePreviewUrl}
                                                             colors={{ bg: "#0D0D0E", fg: "#ffffff" }}
                                                             marginTop="8px"
                                                         />
