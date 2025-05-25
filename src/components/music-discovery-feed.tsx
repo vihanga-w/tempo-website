@@ -23,6 +23,7 @@ import { getSizedImageUrl } from "@/lib/sized-img";
 import User, { FeedItem, FeedItemAlert, FeedItemHistory } from "@/lib/usrlib";
 import { getSpotifyDeeplink, PlaybackState, SkeletonImage } from "./playback-state";
 import { DataStreamer, UpdateEvent } from "@/lib/live-ingest";
+import { API_URL } from "@/lib/const";
 
 export interface Song {
     id: string;
@@ -211,7 +212,26 @@ const MusicDiscoveryFeed: React.FC<{
             return setActivePreviewUrl(undefined);
 
         const attemptActiveFetchPreview = async (songId: string) => {
+            const req = await fetch(API_URL + `/audio/preview/${songId}`, {
+                headers: {
+                    ...(user.getAuthHeaders())
+                },
+                credentials: "include"
+            });
 
+            if (req.status !== 200)
+                return null;
+
+            return (await req.text());
+        }
+
+        const initPlayer = (songId: string, previewUrl: string, isPlaying: boolean) => {
+            setCurrentPlayingSong(songId);
+            setActivePreviewUrl(previewUrl);
+            
+            // Preview URL is already available and we are already playing
+            if (isPlaying && audioRef.current)
+                toggleAudioPreview(songId, previewUrl);
         }
 
         const loadTrackPreview = (songId: string, previewUrl?: string) => {
@@ -220,17 +240,26 @@ const MusicDiscoveryFeed: React.FC<{
                 setIsPlaying(false);
                 setCurrentPlayingSong(null);
                 setActivePreviewUrl(undefined);
+
+                const wasPlaying = isPlaying;
                 
                 stopPlaying();
+
+                attemptActiveFetchPreview(songId).then(previewUrl => {
+                    if (!previewUrl) {
+                        console.warn("No preview URL found for song:", songId);
+                        
+                        return;
+                    }
+
+                    console.log("Preview URL fetched for song:", songId);
+
+                    initPlayer(songId, previewUrl, wasPlaying);
+                });
             } else {
                 console.log("Loading preview for song:", songId, "URL:", previewUrl);
                 
-                setCurrentPlayingSong(songId);
-                setActivePreviewUrl(previewUrl);
-                
-                // Preview URL is already available and we are already playing
-                if (isPlaying && audioRef.current)
-                    toggleAudioPreview(songId, previewUrl);
+                initPlayer(songId, previewUrl, isPlaying);
             }
         }
 
