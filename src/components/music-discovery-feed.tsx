@@ -11,7 +11,7 @@ import {
     Stack,
     Spinner
 } from "@chakra-ui/react";
-import { FaHeart, FaRegHeart } from "react-icons/fa";
+import { FaHeart, FaRegHeart, FaPlay, FaPause } from "react-icons/fa";
 import { useDrag } from "react-use-gesture";
 import { motion, AnimatePresence } from "framer-motion";
 import { FastAverageColor } from "fast-average-color";
@@ -86,6 +86,13 @@ const MusicDiscoveryFeed: React.FC<{
     const [lastSwipedIndex, setLastSwipedIndex] = useState<number | null>(null);
     const [colorMap, setColorMap] = useState<Record<string, { bg: string; fg: string }>>({});
     const [firstLoad, setFirstLoad] = useState(0);
+    
+    // Audio preview states
+    const [isPlaying, setIsPlaying] = useState(false);
+    const [currentPlayingSong, setCurrentPlayingSong] = useState<string | null>(null);
+    const [audioProgress, setAudioProgress] = useState(0);
+    const [audioDuration, setAudioDuration] = useState(0);
+    const audioRef = useRef<HTMLAudioElement | null>(null);
 
     const swipeRef = useRef({
         swipeX: 0,
@@ -111,6 +118,90 @@ const MusicDiscoveryFeed: React.FC<{
     
         swipeRef.current.updateLoop = loop;
     }, []);
+
+    // Check if the preview URL is valid
+    const isValidUrl = async (url: string) => {
+        try {
+            const response = await fetch(url, { method: 'HEAD' });
+            return response.ok;
+        } catch (error) {
+            console.error("Error checking URL:", error);
+            return false;
+        }
+    }
+
+    // Audio preview functions
+    const toggleAudioPreview = async (songId: string, previewUrl: string) => {
+        if (!previewUrl) return;
+
+        if (currentPlayingSong === songId && isPlaying) {
+            // Pause current song
+            if (audioRef.current) {
+                audioRef.current.pause();
+            }
+            setIsPlaying(false);
+        } else {
+            // Stop any currently playing audio
+            if (audioRef.current) {
+                audioRef.current.pause();
+                audioRef.current.currentTime = 0;
+            }
+
+            const isValid = await isValidUrl(previewUrl);
+
+            if (!isValid) {
+                console.warn("Invalid preview URL for song:", songId);
+                alert("Sorry, this song's preview is not available.");
+                return;
+            }
+
+            console.log("Playing preview for song:", songId, "URL:", previewUrl);
+
+            // Create new audio element
+            const audio = new Audio(previewUrl);
+            audioRef.current = audio;
+
+            setCurrentPlayingSong(songId);
+            setIsPlaying(true);
+            setAudioProgress(0);
+
+            audio.addEventListener('loadedmetadata', () => {
+                setAudioDuration(audio.duration);
+            });
+
+            audio.addEventListener('timeupdate', () => {
+                setAudioProgress((audio.currentTime / audio.duration) * 100);
+            });
+
+            audio.addEventListener('ended', () => {
+                setIsPlaying(false);
+                setCurrentPlayingSong(null);
+                setAudioProgress(0);
+            });
+
+            audio.play().catch(console.error);
+        }
+    };
+
+    // Stop audio when component unmounts or index changes
+    useEffect(() => {
+        return () => {
+            if (audioRef.current) {
+                audioRef.current.pause();
+                audioRef.current = null;
+            }
+        };
+    }, []);
+
+    useEffect(() => {
+        // Stop audio when swiping to different song
+        if (audioRef.current && isPlaying) {
+            audioRef.current.pause();
+            setIsPlaying(false);
+            setCurrentPlayingSong(null);
+            setAudioProgress(0);
+        }
+    }, [currentIndex]);
 
     useEffect(() => {
         const alertItems = Array.from(
@@ -202,16 +293,6 @@ const MusicDiscoveryFeed: React.FC<{
     
         preloadNextImages();
     }, [currentIndex, internalFeed]);
-
-    // useEffect(() => {
-    //     const current = internalFeed[currentIndex];
-    //     if (current?.type === "discover") {
-    //         const song = current.data as Song;
-    //         if (!colorMap[song.id]) {
-    //             processReactiveColoursFromImage(song.imageUrl, song.id);
-    //         }
-    //     }
-    // }, [currentIndex, internalFeed, colorMap]);
 
     const processReactiveColoursFromImage = (imageUrl: string, id: string) => {
         const fac = new FastAverageColor();
@@ -428,6 +509,53 @@ const MusicDiscoveryFeed: React.FC<{
             setSwipingOut(false);
         }
     }, [currentIndex]);
+
+    // Audio Preview Component
+    const AudioPreview: React.FC<{ 
+        songId: string; 
+        previewUrl?: string; 
+        colors: { bg: string; fg: string };
+        marginTop?: string;
+    }> = ({ songId, previewUrl, colors, marginTop = "16px" }) => {
+        if (!previewUrl)
+            return null;
+
+        const isCurrentlyPlaying = currentPlayingSong === songId && isPlaying;
+
+        return (
+            <VStack spacing={2} marginTop={marginTop}>
+                <HStack spacing={3} alignItems="center">
+                    <IconButton
+                        aria-label={isCurrentlyPlaying ? "Pause preview" : "Play preview"}
+                        icon={isCurrentlyPlaying ? <FaPause /> : <FaPlay />}
+                        onClick={() => toggleAudioPreview(songId, previewUrl)}
+                        size="sm"
+                        variant="ghost"
+                        color={colors.fg}
+                        _hover={{ bg: "rgba(255,255,255,0.1)" }}
+                        borderRadius="full"
+                    />
+                    <Text fontSize="sm" color={colors.fg} opacity="0.8">
+                        {isCurrentlyPlaying ? "Playing Preview" : "Preview Available"}
+                    </Text>
+                </HStack>
+                {isCurrentlyPlaying && (
+                    <Progress
+                        value={audioProgress}
+                        size="sm"
+                        colorScheme="white"
+                        width="200px"
+                        bg="rgba(255,255,255,0.2)"
+                        sx={{
+                            '& > div': {
+                                backgroundColor: colors.fg
+                            }
+                        }}
+                    />
+                )}
+            </VStack>
+        );
+    };
 
     return (<>
         {isLoading() && (<Box pos="fixed" top="0" left="0" zIndex="999" width="100vw" height="100vh" backgroundColor="bg.dark" display="flex" alignItems="center" justifyContent="center">
@@ -726,7 +854,7 @@ const MusicDiscoveryFeed: React.FC<{
                                                                 fontWeight="normal"
                                                                 maxW="480px"
                                                             >
-                                                                You’ve hit a new listening tier — a sign of your dedication and taste in music!
+                                                                You've hit a new listening tier — a sign of your dedication and taste in music!
                                                             </Text>
                                                         </VStack>
                                                     </VStack>
@@ -765,6 +893,14 @@ const MusicDiscoveryFeed: React.FC<{
                                             >
                                                 {(item.data as Song).artists.join(", ")}
                                             </Text>
+                                            
+                                            {/* Audio Preview for Discover */}
+                                            <AudioPreview
+                                                songId={(item.data as Song).id}
+                                                previewUrl={(item.data as Song).previewUrl}
+                                                colors={colors}
+                                            />
+                                            
                                             <a
                                                 href={getSpotifyDeeplink((item.data as Song).id)}
                                                 target="_blank"
@@ -920,6 +1056,15 @@ const MusicDiscoveryFeed: React.FC<{
                                                                 return `Just now`;
                                                             })()}
                                                         </Text>
+                                                        
+                                                        {/* Audio Preview for History - previewUrl is on the history object, not track */}
+                                                        <AudioPreview
+                                                            songId={track.id}
+                                                            previewUrl={history.previewUrl}
+                                                            colors={{ bg: "#0D0D0E", fg: "#ffffff" }}
+                                                            marginTop="8px"
+                                                        />
+                                                        
                                                         <a
                                                             href={getSpotifyDeeplink((item.data as FeedItemHistory).item.track.id)}
                                                             target="_blank"
