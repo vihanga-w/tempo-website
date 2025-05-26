@@ -94,6 +94,7 @@ const MusicDiscoveryFeed: React.FC<{
     const [currentPlayingSong, setCurrentPlayingSong] = useState<string | null>(null);
     const [audioProgress, setAudioProgress] = useState(0);
     const [audioDuration, setAudioDuration] = useState(0);
+    const [audioInitialized, setAudioInitialized] = useState(false);
     const audioRef = useRef<HTMLAudioElement | null>(null);
 
     const swipeRef = useRef({
@@ -121,75 +122,96 @@ const MusicDiscoveryFeed: React.FC<{
         swipeRef.current.updateLoop = loop;
     }, []);
 
-    // Check if the preview URL is valid
-    const isValidUrl = async (url: string) => {
-        try {
-            const response = await fetch(url, { method: 'HEAD' });
-            return response.ok;
-        } catch (error) {
-            console.error("Error checking URL:", error);
-            return false;
-        }
-    }
+    // Initialize global audio element after first user interaction
+    const initializeAudio = () => {
+        if (!audioInitialized) {
+            audioRef.current = new Audio();
+            audioRef.current.preload = 'none';
 
-    // Audio preview functions
-    const toggleAudioPreview = async (songId: string, previewUrl: string) => {
-        if (!previewUrl) return;
+            audioRef.current.addEventListener('timeupdate', () => {
+                if (audioRef.current) {
+                    const progress = (audioRef.current.currentTime / audioRef.current.duration) * 100;
 
-        if (currentPlayingSong === songId && isPlaying) {
-            // Pause current song
-            if (audioRef.current) {
-                audioRef.current.pause();
-            }
-            setIsPlaying(false);
-        } else {
-            // Stop any currently playing audio
-            if (audioRef.current) {
-                audioRef.current.pause();
-                audioRef.current.currentTime = 0;
-            }
+                    if (isNaN(progress) || !isFinite(progress)) {
+                        return setAudioProgress(0);
+                    }
 
-            const isValid = await isValidUrl(previewUrl);
-
-            if (!isValid) {
-                console.warn("Invalid preview URL for song:", songId);
-                alert("Sorry, this song's preview is not available.");
-                return;
-            }
-
-            console.log("Playing preview for song:", songId, "URL:", previewUrl);
-
-            // Create new audio element
-            const audio = new Audio(previewUrl);
-            audioRef.current = audio;
-
-            setCurrentPlayingSong(songId);
-            setIsPlaying(true);
-            setAudioProgress(0);
-
-            audio.addEventListener('loadedmetadata', () => {
-                setAudioDuration(audio.duration);
+                    setAudioProgress(progress);
+                }
             });
 
-            audio.addEventListener('timeupdate', () => {
-                setAudioProgress((audio.currentTime / audio.duration) * 100);
-            });
-
-            audio.addEventListener('ended', () => {
+            audioRef.current.addEventListener('ended', () => {
                 setIsPlaying(false);
                 setCurrentPlayingSong(null);
                 setAudioProgress(0);
             });
 
-            audio.play().catch(console.error);
+            audioRef.current.addEventListener('error', (e) => {
+                console.error('Audio error:', e);
+                setIsPlaying(false);
+                setCurrentPlayingSong(null);
+                setAudioProgress(0);
+            });
+
+            setAudioInitialized(true);
         }
     };
 
-    // Stop audio when component unmounts or index changes
+    // Audio preview functions
+    const toggleAudioPreview = async (songId: string, previewUrl: string) => {
+        if (!previewUrl) return;
+
+        // Initialize audio on first interaction
+        initializeAudio();
+
+        if (!audioRef.current) {
+            console.error('Audio element not initialized');
+            return;
+        }
+
+        if (currentPlayingSong === songId && isPlaying) {
+            // Pause current song
+            audioRef.current.pause();
+            setIsPlaying(false);
+        } else {
+            try {
+                setAudioProgress(0);
+
+                // Stop current audio if playing
+                if (isPlaying) {
+                    audioRef.current.pause();
+                    audioRef.current.currentTime = 0;
+                }
+
+                console.log("Loading preview for song:", songId, "URL:", previewUrl);
+
+                // Set new source
+                audioRef.current.src = previewUrl;
+                audioRef.current.currentTime = 0;
+                
+                setCurrentPlayingSong(songId);
+                setIsPlaying(true);
+
+                // Load and play
+                await audioRef.current.load();
+                await audioRef.current.play();
+                
+            } catch (error) {
+                console.error('Error playing audio:', error);
+                setIsPlaying(false);
+                setCurrentPlayingSong(null);
+                setAudioProgress(0);
+                alert("Sorry, this song's preview is not available.");
+            }
+        }
+    };
+
+    // Stop audio when component unmounts
     useEffect(() => {
         return () => {
             if (audioRef.current) {
                 audioRef.current.pause();
+                audioRef.current.src = '';
                 audioRef.current = null;
             }
         };
@@ -201,7 +223,8 @@ const MusicDiscoveryFeed: React.FC<{
                 return;
 
             audioRef.current.pause();
-
+            audioRef.current.currentTime = 0;
+            setIsPlaying(false);
             setCurrentPlayingSong(null);
             setAudioProgress(0);
         };
@@ -225,58 +248,58 @@ const MusicDiscoveryFeed: React.FC<{
             return (await req.text());
         }
 
-        const initPlayer = (songId: string, previewUrl: string, isPlaying: boolean) => {
+        const initPlayer = (songId: string, previewUrl: string, shouldAutoPlay: boolean) => {
             setCurrentPlayingSong(songId);
             setActivePreviewUrl(previewUrl);
             
-            // Preview URL is already available and we are already playing
-            if (isPlaying && audioRef.current)
+            // Only auto-play if user was already playing something
+            if (shouldAutoPlay && audioInitialized && audioRef.current) {
                 toggleAudioPreview(songId, previewUrl);
+            }
         }
 
         const loadTrackPreview = (songId: string, previewUrl?: string) => {
             if (!previewUrl) {
                 // Display state to indicate loading
-                setIsPlaying(false);
-                setCurrentPlayingSong(null);
-                setActivePreviewUrl(undefined);
-
                 const wasPlaying = isPlaying;
+                setActivePreviewUrl(undefined);
                 
                 stopPlaying();
 
-                attemptActiveFetchPreview(songId).then(previewUrl => {
-                    if (!previewUrl) {
+                attemptActiveFetchPreview(songId).then(fetchedPreviewUrl => {
+                    if (!fetchedPreviewUrl) {
                         console.warn("No preview URL found for song:", songId);
-                        
                         return;
                     }
 
                     console.log("Preview URL fetched for song:", songId);
-
-                    initPlayer(songId, previewUrl, wasPlaying);
+                    initPlayer(songId, fetchedPreviewUrl, wasPlaying);
                 });
             } else {
                 console.log("Loading preview for song:", songId, "URL:", previewUrl);
+                const wasPlaying = isPlaying;
                 
-                initPlayer(songId, previewUrl, isPlaying);
+                stopPlaying();
+                initPlayer(songId, previewUrl, wasPlaying);
             }
         }
 
-        setTimeout(() => {
-            if (currItm.type === "discover") {
-                const song = currItm.data as Song;
-                const previewUrl = song.previewUrl;
+        if (currItm.type === "discover") {
+            const song = currItm.data as Song;
+            const previewUrl = song.previewUrl;
 
-                loadTrackPreview(song.id, previewUrl);
-            } else if (currItm.type === "history") {
-                const historyItem = currItm.data as FeedItemHistory;
-                const previewUrl = historyItem.previewUrl;
+            loadTrackPreview(song.id, previewUrl);
+        } else if (currItm.type === "history") {
+            const historyItem = currItm.data as FeedItemHistory;
+            const previewUrl = historyItem.previewUrl;
 
-                loadTrackPreview(historyItem.item.track.id, previewUrl);
-            }
-        }, 100);
-    }, [currentIndex]);
+            loadTrackPreview(historyItem.item.track.id, previewUrl);
+        } else {
+            // Not a song item, stop playback
+            stopPlaying();
+            setActivePreviewUrl(undefined);
+        }
+    }, [currentIndex, internalFeed]);
 
     useEffect(() => {
         const alertItems = Array.from(
@@ -595,8 +618,6 @@ const MusicDiscoveryFeed: React.FC<{
         if (!previewUrl)
             return null;
 
-        // const isCurrentlyPlaying = currentPlayingSong === songId && isPlaying;
-
         return (
             <VStack spacing={2} marginTop={marginTop}>
                 <HStack spacing={3} alignItems="center">
@@ -768,7 +789,7 @@ const MusicDiscoveryFeed: React.FC<{
                                                 >
                                                     Listening Now
                                                 </Text>
-                                                {!showLivePlaybackStates ? (Array.from({ length: livePlaybackStatesPlaceholderCount }).slice(currentIndex * activityItemsPerPage, (currentIndex * activityItemsPerPage) + activityItemsPerPage).map((_, i) => {
+                                                                                                {!showLivePlaybackStates ? (Array.from({ length: livePlaybackStatesPlaceholderCount }).slice(currentIndex * activityItemsPerPage, (currentIndex * activityItemsPerPage) + activityItemsPerPage).map((_, i) => {
                                                     return (
                                                         <>
                                                             {i !== 0 && (
@@ -1132,7 +1153,7 @@ const MusicDiscoveryFeed: React.FC<{
                                                             })()}
                                                         </Text>
                                                         
-                                                        {/* Audio Preview for History - previewUrl is on the history object, not track */}
+                                                        {/* Audio Preview for History */}
                                                         <AudioPreview
                                                             songId={track.id}
                                                             previewUrl={activePreviewUrl}

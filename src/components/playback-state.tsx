@@ -123,7 +123,7 @@ export function PlaybackState({
         text: string
     }>({
         sid: "",
-        text: "",
+        text: "Started listening recently",
     });
     const [pfpLoadFailed, setPfpLoadFailed] = useState<boolean>(false);
     const [userListenershipFactVisible, setUserListenershipFactVisible] = useState<boolean>(false);
