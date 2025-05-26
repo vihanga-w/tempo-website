@@ -263,17 +263,19 @@ const MusicDiscoveryFeed: React.FC<{
             }
         }
 
-        if (currItm.type === "discover") {
-            const song = currItm.data as Song;
-            const previewUrl = song.previewUrl;
+        setTimeout(() => {
+            if (currItm.type === "discover") {
+                const song = currItm.data as Song;
+                const previewUrl = song.previewUrl;
 
-            loadTrackPreview(song.id, previewUrl);
-        } else if (currItm.type === "history") {
-            const historyItem = currItm.data as FeedItemHistory;
-            const previewUrl = historyItem.previewUrl;
+                loadTrackPreview(song.id, previewUrl);
+            } else if (currItm.type === "history") {
+                const historyItem = currItm.data as FeedItemHistory;
+                const previewUrl = historyItem.previewUrl;
 
-            loadTrackPreview(historyItem.item.track.id, previewUrl);
-        }
+                loadTrackPreview(historyItem.item.track.id, previewUrl);
+            }
+        }, 100);
     }, [currentIndex]);
 
     useEffect(() => {
