@@ -69,6 +69,7 @@
     "three": "^0.167.1",
     "uuid": "^9.0.1",
     "ws": "8.16.0",
+    "youtube-bg-react": "^0.0.1",
     "z85-codec": "^0.1.0"
   },
   "devDependencies": {

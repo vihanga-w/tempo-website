@@ -25,6 +25,9 @@ import { getSpotifyDeeplink, PlaybackState, SkeletonImage } from "./playback-sta
 import { DataStreamer, UpdateEvent } from "@/lib/live-ingest";
 import { API_URL } from "@/lib/const";
 
+import YoutubeBg from 'youtube-bg-react';
+import 'youtube-bg-react/dist/index.css';
+
 export interface Song {
     id: string;
     title: string;
@@ -91,6 +94,7 @@ const MusicDiscoveryFeed: React.FC<{
     // Audio preview states
     const [isPlaying, setIsPlaying] = useState(false);
     const [activePreviewUrl, setActivePreviewUrl] = useState<string | undefined>();
+    const [backgroundVideoId, setBackgroundVideoId] = useState<string | null>(null);
     const [currentPlayingSong, setCurrentPlayingSong] = useState<string | null>(null);
     const [audioProgress, setAudioProgress] = useState(0);
     const [audioDuration, setAudioDuration] = useState(0);
@@ -134,6 +138,13 @@ const MusicDiscoveryFeed: React.FC<{
 
                     if (isNaN(progress) || !isFinite(progress)) {
                         return setAudioProgress(0);
+                    }
+
+                    // Check if there are 3 seconds remaining
+                    if (audioRef.current.duration - audioRef.current.currentTime <= 3) {
+                        audioRef.current.volume = ((audioRef.current.duration - audioRef.current.currentTime) / 3);
+                    } else {
+                        audioRef.current.volume = 1.0;
                     }
 
                     setAudioProgress(progress);
@@ -218,6 +229,8 @@ const MusicDiscoveryFeed: React.FC<{
     }, []);
 
     useEffect(() => {
+        setBackgroundVideoId(null);
+
         const stopPlaying = () => {
             if (!audioRef.current)
                 return;
@@ -231,8 +244,53 @@ const MusicDiscoveryFeed: React.FC<{
 
         const currItm = internalFeed[currentIndex];
 
+        const getBackgroundVideo = async (songId: string) => {
+            const req = await fetch(API_URL + `/audio/musicvideo/${songId}`, {
+                headers: {
+                    ...(user.getAuthHeaders())
+                },
+                credentials: "include"
+            });
+
+            if (req.status == 404)
+                return null;
+
+            const data = await req.json() as {
+                error: boolean;
+                message?: string;
+                videoId?: string;
+            };
+            
+            if (data.error || !data.videoId) {
+                console.warn("Failed to fetch background video for song:", songId, data.message);
+
+                return null;
+            }
+
+            return data.videoId;
+        }
+
         if (!currItm)
             return setActivePreviewUrl(undefined);
+
+        const songId = (currItm.type === "discover" ? (currItm.data as Song).id : (currItm.data as FeedItemHistory).item ? (currItm.data as FeedItemHistory).item.track.id : null);
+
+        if (songId) {
+            getBackgroundVideo(songId)
+            .then(videoId => {
+                if (!videoId)
+                    return setBackgroundVideoId(null);
+
+                console.log("Background video fetched for song:", songId, "Video ID:", videoId);
+
+                setBackgroundVideoId(videoId);
+            })
+            .catch(err => {
+                console.error("Error fetching background video for song:", songId, err);
+
+                setBackgroundVideoId(null);
+            });
+        }
 
         const attemptActiveFetchPreview = async (songId: string) => {
             const req = await fetch(API_URL + `/audio/preview/${songId}`, {
@@ -1036,19 +1094,49 @@ const MusicDiscoveryFeed: React.FC<{
                                                 padding="32px"
                                                 overflow="hidden"
                                             >
-                                                <Image
-                                                    src={track.album.artUrl}
-                                                    alt={track.name}
-                                                    position="absolute"
-                                                    top="0"
-                                                    left="0"
-                                                    width="100%"
-                                                    height="100%"
-                                                    objectFit="cover"
-                                                    opacity={0.075}
-                                                    filter="grayscale(32%) blur(3px)"
-                                                    zIndex={0}
-                                                />
+                                                {backgroundVideoId ? (<>
+                                                    <Box
+                                                        position="fixed"
+                                                        top={0}
+                                                        left={0}
+                                                        width="100vw"
+                                                        height="100vh"
+                                                        opacity={0.15}
+                                                        filter="grayscale(16%) blur(5px)"
+                                                        overflow="hidden"
+                                                    >
+                                                        <iframe
+                                                            src={`https://www.youtube.com/embed/${backgroundVideoId}?autoplay=1&mute=1&controls=0&loop=1&playlist=${backgroundVideoId}`}
+                                                            title="Background Video"
+                                                            allow="autoplay; encrypted-media"
+                                                            allowFullScreen
+                                                            style={{
+                                                                position: "absolute",
+                                                                top: "50%",
+                                                                left: "50%",
+                                                                transform: "translate(-50%, -50%)",
+                                                                // 16:9 aspect ratio to cover height
+                                                                width: "177.78vh",
+                                                                height: "100vh",
+                                                                pointerEvents: "none",
+                                                            }}
+                                                        />
+                                                    </Box>
+                                                </>) : (
+                                                    <Image
+                                                        src={track.album.artUrl}
+                                                        alt={track.name}
+                                                        position="absolute"
+                                                        top="0"
+                                                        left="0"
+                                                        width="100%"
+                                                        height="100%"
+                                                        objectFit="cover"
+                                                        opacity={0.075}
+                                                        filter="grayscale(32%) blur(3px)"
+                                                        zIndex={0}
+                                                    />
+                                                )}
 
                                                 <VStack spacing={12} maxW="90%" zIndex={1}>
                                                     <VStack gap="10px" alignItems="center">
