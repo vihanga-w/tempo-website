@@ -385,6 +385,19 @@ export default class User extends EventEmitter {
         }
     }
 
+    /** Number of friend requests waiting on this user. */
+    public async getIncomingRequestCount(): Promise<number> {
+        try {
+            // Deliberately uncached: getFriends skips its cache for incoming and
+            // request states, since a stale count is worse than none
+            return (await this.getFriends(["incoming"])).length;
+        } catch (ex) {
+            console.warn("Failed to load incoming friend requests, error:", ex);
+
+            return 0;
+        }
+    }
+
     public async getFriends(filter?: ("friends" | "incoming" | "request" | "blocked")[]) {
         const KEY = `${ME_FRIENDS_CACHE_KEY}${filter ? "-" + filter.sort().join("-") : ""}`;
 

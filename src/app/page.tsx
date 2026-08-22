@@ -243,11 +243,15 @@ export default function Home() {
         console.log("Registering notification handler with id:", subId);
 
         // Send the subscription object and ID to the server for registration
+        // Authenticated: the server files the subscription against the token's
+        // user, so an unauthenticated call would be rejected outright
         const res = await fetch(API_URL + "/notify/subscribe", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            ...(user.getAuthHeaders()),
           },
+          credentials: "include",
           body: JSON.stringify({
             id: `${user.id}-${subId}`,
             subscription: subscription.toJSON()

@@ -98,6 +98,9 @@ function getSocketClientId(): string {
 /** Close code the server uses when a newer socket from the same client arrives. */
 const SOCKET_REPLACED_CODE = 4000;
 
+/** Server code telling us a friendship changed and should be refetched. */
+const FRIENDSHIP_CHANGED_CODE = -30;
+
 export class DataStreamer extends EventEmitter {
     // private stream?: Stream;
     private sock?: WebSocket;
@@ -368,6 +371,15 @@ export class DataStreamer extends EventEmitter {
                         // State change advertisement
                         if (data.code === -21 && data.id === "StateChangeAdvertisement") {
                             this.processSessions(data.data as unknown as string[]);
+                        }
+
+                        // A friend request arrived, or one of ours was accepted.
+                        // There is no polling path for friendships, so this is
+                        // the only way the UI learns without a manual refresh.
+                        if (data.code === FRIENDSHIP_CHANGED_CODE && data.id === "FriendshipChanged") {
+                            this.emit("friendship-changed", (data as unknown as { data?: unknown }).data);
+
+                            return;
                         }
 
                         if (data.id && this.sockCallbacks[data.id]) {

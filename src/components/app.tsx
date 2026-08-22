@@ -171,7 +171,10 @@ export default React.memo(function UIApp({
 
     useEffect(() => {
         prouter.on("set-main-page", (p: string) => {
-            pageChanger(p, "activity");
+            // No hardcoded previous page: "activity" is hidden, and recording it
+            // meant the back control tried to return to a page that no longer
+            // exists
+            pageChanger(p);
         });
 
         if (user.isLoggedIn) {
@@ -498,12 +501,20 @@ export default React.memo(function UIApp({
             }
         }
 
-        if (!exists)
-            throw new Error(
-                "Attempted to switch to page with id \"" +
-                    id +
-                    "\", but a page cannot be found with that id!"
-            );
+        // Fall back rather than throw. A missing page id is a routing mistake,
+        // not a reason to take down the whole app — and hiding a page (Discover,
+        // For You) leaves exactly this kind of stale reference behind.
+        if (!exists) {
+            const fallback = pages.find(v => v.indexed);
+
+            console.warn(`No page with id "${id}"; falling back to "${fallback?.id ?? "none"}"`);
+
+            if (!fallback)
+                return;
+
+            id = fallback.id;
+            title = fallback.name;
+        }
         
         if (id !== "settings" && id !== "pub-profile")
             setHideTopGradient(false);
@@ -902,6 +913,7 @@ export default React.memo(function UIApp({
                                         setPubProfileUserId(id);
                                         pageChanger("pub-profile", "friends");
                                     }}
+                                    openAddFriends={() => pageChanger("add-friends", "friends")}
                                 />
                             </Box>
                         </Suspense>

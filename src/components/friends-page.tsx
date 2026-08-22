@@ -11,10 +11,12 @@ export default function FriendsPage({
     user,
     streamer,
     openPubProfile,
+    openAddFriends,
 }: {
     user: User;
     streamer: DataStreamer | null;
     openPubProfile: (id: string) => void;
+    openAddFriends?: () => void;
 }) {
     const [friendsPre, setFriendsPre] = useState<{
         user: ClientUserAccount;
@@ -25,6 +27,7 @@ export default function FriendsPage({
     // Bumped when a friend's playback changes, so the ordering below is
     // recomputed without keeping a second copy of the list in state
     const [playbackTick, setPlaybackTick] = useState<number>(0);
+    const [pendingRequests, setPendingRequests] = useState<number>(0);
 
     useEffect(() => {
         let cancelled = false;
@@ -58,6 +61,40 @@ export default function FriendsPage({
             user.off?.("friends-updated", onFriendsUpdated);
         };
     }, [user]);
+
+    /**
+     * Pending friend requests, refreshed whenever the server says a friendship
+     * changed. There is no polling path for friendships, so without the socket
+     * event a request would sit unseen until the page was reopened.
+     */
+    useEffect(() => {
+        let cancelled = false;
+
+        const refresh = () => {
+            user.getIncomingRequestCount()
+                .then(count => { if (!cancelled) setPendingRequests(count); })
+                .catch(() => { if (!cancelled) setPendingRequests(0); });
+        };
+
+        refresh();
+
+        if (!streamer)
+            return () => { cancelled = true; };
+
+        const onFriendshipChanged = () => {
+            refresh();
+
+            // An accepted request also changes the friends list itself
+            user.refreshDetails().catch(() => {});
+        };
+
+        streamer.on("friendship-changed", onFriendshipChanged);
+
+        return () => {
+            cancelled = true;
+            streamer.off?.("friendship-changed", onFriendshipChanged);
+        };
+    }, [streamer, user]);
 
     useEffect(() => {
         if (!streamer)
@@ -167,6 +204,35 @@ export default function FriendsPage({
             />
         </Box>
         {friends.length > 0 ? (<>
+            {pendingRequests > 0 && (
+                <Box
+                    marginBottom="22px"
+                    padding="13px 15px"
+                    borderRadius="14px"
+                    background="rgba(164,128,255,0.12)"
+                    border="1px solid rgba(164,128,255,0.3)"
+                    cursor="pointer"
+                    onClick={() => openAddFriends?.()}
+                >
+                    <HStack justify="space-between" align="center" gap="10px">
+                        <Text
+                            fontFamily="Inter"
+                            fontSize="15px"
+                            fontWeight="medium"
+                            userSelect="none"
+                        >{pendingRequests} friend request{pendingRequests === 1 ? "" : "s"}</Text>
+                        <Text
+                            fontFamily="Inter"
+                            fontSize="13px"
+                            color="accent.dark"
+                            fontWeight="semibold"
+                            userSelect="none"
+                            flexShrink="0"
+                        >View</Text>
+                    </HStack>
+                </Box>
+            )}
+
             {friends.length > 0 && (
                 <Box marginBottom="30px">
                     <Text
