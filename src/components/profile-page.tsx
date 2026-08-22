@@ -16,10 +16,31 @@ import { Recap } from "./recap-drawer";
 import FriendHistoryFeed from "./friend-history-feed";
 import { SongLeaderboardComponent } from "./recap-drawer";
 
-const loadTracker = (expectedCount: number, onComplete: () => void) => {
+const LOAD_TRACKER_TIMEOUT_MS = 5000;
+
+/**
+ * Waits for a set of named signals before completing.
+ *
+ * Completes on a timeout as well, because not every signal is guaranteed to
+ * arrive: "top-grad" only fires when the profile's owner happens to be playing
+ * something, so an idle profile would otherwise sit on its spinner indefinitely.
+ * A page rendered without its accent gradient beats a page that never renders.
+ */
+const loadTracker = (expectedCount: number, onComplete: () => void, timeoutMs = LOAD_TRACKER_TIMEOUT_MS) => {
     let count = 0;
     let executed = false;
     let loadedIds: string[] = [];
+
+    const complete = () => {
+        if (executed)
+            return;
+
+        executed = true;
+        clearTimeout(timer);
+        onComplete();
+    };
+
+    const timer = setTimeout(complete, timeoutMs);
 
     return (id: string) => {
         if (loadedIds.includes(id))
@@ -27,12 +48,16 @@ const loadTracker = (expectedCount: number, onComplete: () => void) => {
 
         loadedIds.push(id);
 
+        // The gradient is progressive enhancement — it must never be what makes
+        // the page appear, or an idle profile waits on a signal that may never
+        // arrive
+        if (id === "top-grad")
+            return;
+
         count += 1;
 
-        if (count >= expectedCount && !executed) {
-            executed = true;
-            onComplete();
-        }
+        if (count >= expectedCount)
+            complete();
     }
 }
 
@@ -257,11 +282,19 @@ export default function ProfilePage({
     }, [topSongsFilter]);
 
     useEffect(() => {
-        const loadCb = loadTracker(3, () => {
+        /**
+         * Only the profile and the live stream gate the page.
+         *
+         * The third signal was the artwork gradient, which is decorative and
+         * only ever arrives when the profile's owner happens to be playing
+         * something — so an idle profile waited for the timeout before showing
+         * anything. The gradient now fades in whenever it resolves.
+         */
+        const loadCb = loadTracker(2, () => {
             setTimeout(() => {
                 setPageLoaded(true);
             }, 100);
-        });
+        }, 1200);
 
         const setWidgetBg = (colourHex: string) => {
             const getColour = (value: number, divisor: number) => {
@@ -301,6 +334,9 @@ export default function ProfilePage({
             })
             .catch(e => {
                 console.log(e);
+
+                // Still count it, or the page waits on a signal that never comes
+                loadCb("top-grad");
             });
         }
         
@@ -341,6 +377,8 @@ export default function ProfilePage({
                     })
                     .catch(e => {
                         console.log(e);
+
+                        loadCb("top-grad");
                     });
                 }
 

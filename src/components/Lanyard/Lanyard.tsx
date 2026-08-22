@@ -42,20 +42,45 @@ export default function Lanyard({
   transparent = true,
   onRest,
 }: LanyardProps) {
+  // Backgrounding the app should not keep a physics simulation running
+  const [hidden, setHidden] = useState<boolean>(false);
+
+  useEffect(() => {
+    const onVisibility = () => setHidden(document.hidden);
+
+    document.addEventListener("visibilitychange", onVisibility);
+
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, []);
+
   return (
     <div className="lanyard-wrapper">
       <Canvas
         camera={{ position, fov }}
-        gl={{ alpha: transparent }}
+        // Cap the device pixel ratio. Phones report a DPR of 3, so an uncapped
+        // canvas renders nine times the pixels of a 1x surface — by far the
+        // largest cost here, and invisible on a scene this soft.
+        dpr={[1, 1.5]}
+        // Lets r3f drop resolution automatically if frames start dropping
+        performance={{ min: 0.5 }}
+        gl={{
+          alpha: transparent,
+          // MSAA on a full-screen canvas is expensive on mobile GPUs, and the
+          // scene has almost no hard edges to alias
+          antialias: false,
+          powerPreference: "high-performance",
+        }}
         onCreated={({ gl }) =>
           gl.setClearColor(new THREE.Color(0x000000), transparent ? 0 : 1)
         }
       >
         <ambientLight intensity={Math.PI} />
-        <Physics gravity={gravity} timeStep={1 / 60}>
+        <Physics gravity={gravity} timeStep={1 / 60} paused={hidden}>
           <Band onRest={onRest} />
         </Physics>
-        <Environment blur={0.75}>
+        {/* frames={1} bakes the environment once instead of re-rendering the
+            cubemap — the lightformers never move, so nothing is lost */}
+        <Environment blur={0.75} frames={1} resolution={128}>
           <Lightformer
             intensity={2}
             color="white"
@@ -215,7 +240,9 @@ function Band({ maxSpeed = 50, minSpeed = 0, onRest }: BandProps) {
       curve.points[1].copy(j2.current.lerped);
       curve.points[2].copy(j1.current.lerped);
       curve.points[3].copy(fixed.current.translation());
-      band.current.geometry.setPoints(curve.getPoints(32));
+      // 32 samples on a curve this short is finer than the rendered line can
+      // resolve, and this rebuilds the geometry buffer on every single frame
+      band.current.geometry.setPoints(curve.getPoints(16));
       ang.copy(card.current.angvel());
       rot.copy(card.current.rotation());
       card.current.setAngvel({ x: ang.x, y: ang.y - rot.y * 0.25, z: ang.z });
@@ -306,7 +333,7 @@ function Band({ maxSpeed = 50, minSpeed = 0, onRest }: BandProps) {
         <meshLineMaterial
           color="white"
           depthTest={false}
-          resolution={isSmall ? [1000, 2000] : [1000, 1000]}
+          resolution={isSmall ? [512, 1024] : [512, 512]}
           useMap
           map={texture}
           repeat={[-4, 1]}

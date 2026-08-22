@@ -57,6 +57,17 @@ export default function AuthSuccess() {
         if (!document || !window)
             return;
 
+        // Read and persist the auth token before anything can redirect away.
+        //
+        // The returning-user redirect below used to run first, so an existing
+        // user was sent to the app without the token ever reaching localStorage.
+        // The app then had no credential to send, bounced back into the auth
+        // flow, and landed here again — an endless / -> /success -> / loop.
+        const authToken = (document.cookie.includes("tempo.a=") ? document.cookie.split("tempo.a=")[1].split(";")[0] : "");
+
+        if (authToken)
+            window.localStorage.setItem("tempo.a", authToken);
+
         // If this is not a new install, redirect stright to application
         if (localStorage.getItem("tempo-legal-agreed")) {
             window.location.pathname = "/";
@@ -76,12 +87,8 @@ export default function AuthSuccess() {
             }, 3200);
         });
 
-        if (!document.cookie.includes("tempo.a=") && !isDev)
+        if (!authToken && !isDev)
             window.location.pathname = "/error";
-
-        const authToken = (document.cookie.includes("tempo.a=") ? document.cookie.split("tempo.a=")[1].split(";")[0] : "");
-
-        window.localStorage.setItem("tempo.a", authToken);
 
         const headers = {
             "x-api-token": authToken

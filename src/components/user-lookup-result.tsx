@@ -48,6 +48,7 @@ export function UserLookupResult({
     const [overflow, setOverflow] = useState<number>(-1);
     const [textWidth, setTextWidth] = useState<number>(-1);
     const [fact, setFact] = useState<string>("");
+    const [progress, setProgress] = useState<number>(0);
 
     const scrollItemRef = useRef<HTMLDivElement>(null);
 
@@ -114,20 +115,36 @@ export function UserLookupResult({
         if (!streamer)
             return;
 
+        const apply = (d: UpdateEvent) => {
+            setLivePlaybackState(d.data.state);
+
+            // interpolatedProgress is recomputed on an animation frame between
+            // server updates, so the bar advances smoothly rather than stepping
+            // once every poll
+            setProgress(d.data.interpolatedProgress ?? d.data.state?.progressNormal ?? 0);
+        };
+
         const prev = streamer.getPrevState(userId);
 
         if (prev)
-            setLivePlaybackState(prev.data.state);
-        
-        streamer.on(`update-${userId}`, d => {
-            setLivePlaybackState((d as UpdateEvent).data.state);
-        });
+            apply(prev);
 
-        streamer.on("remove", id => {
-            if (id == userId)
+        const onUpdate = (d: unknown) => apply(d as UpdateEvent);
+        const onRemove = (id: string) => {
+            if (id === userId) {
                 setLivePlaybackState(undefined);
-        });
-    }, [streamer]);
+                setProgress(0);
+            }
+        };
+
+        streamer.on(`update-${userId}`, onUpdate);
+        streamer.on("remove", onRemove);
+
+        return () => {
+            streamer.off?.(`update-${userId}`, onUpdate);
+            streamer.off?.("remove", onRemove);
+        };
+    }, [streamer, userId]);
 
     useEffect(() => {
         const width = textWidthCalc(fact, "16px Inter");
@@ -142,6 +159,163 @@ export function UserLookupResult({
         setFact(`Listening to ${livePlaybackState.name} - ${livePlaybackState.artists.map(v => v.name).join(", ")}`);
     }, [livePlaybackState]);
     
+    const formatTime = (ms: number) => {
+        const total = Math.max(0, Math.floor(ms / 1000));
+        const mins = Math.floor(total / 60);
+        const secs = total % 60;
+
+        return `${mins}:${secs.toString().padStart(2, "0")}`;
+    };
+
+    // Compact "now playing" row used on the Listening tab
+    if (friendsView) {
+        const playing = livePlaybackState;
+        const isPlaying = playing?.isPlaying ?? false;
+        const pct = Math.min(Math.max(progress, 0), 1) * 100;
+        const remaining = playing ? Math.max(0, playing.duration - (progress * playing.duration)) : 0;
+
+        return (<>
+            {!firstItem && (
+                <Box height="1px" width="100%" background="rgba(255,255,255,0.06)" marginY="14px" />
+            )}
+            <HStack
+                gap="14px"
+                align="center"
+                position="relative"
+                paddingY="2px"
+                cursor={openPubProfile ? "pointer" : "default"}
+                onClick={() => openPubProfile?.(userId)}
+            >
+                {/* Avatar, ringed while something is playing */}
+                <Box
+                    minWidth="52px"
+                    minHeight="52px"
+                    width="52px"
+                    height="52px"
+                    borderRadius="15px"
+                    padding={playing ? "2px" : "0px"}
+                    background={playing
+                        ? "linear-gradient(135deg, #3B44FF, #A480FF)"
+                        : "transparent"}
+                    transition="padding .2s ease, background .2s ease"
+                >
+                    {(pfpUrl && pfpUrl !== "" && !pfpLoadFailed) ? (
+                        <Image
+                            width="100%"
+                            height="100%"
+                            objectFit="cover"
+                            borderRadius={playing ? "13px" : "15px"}
+                            src={getSizedImageUrl(pfpUrl, 56, 56)}
+                            draggable={false}
+                            onError={() => setPfpLoadFailed(true)}
+                        />
+                    ) : (
+                        <Avatar
+                            name={username + userId}
+                            width="100%"
+                            height="100%"
+                            borderRadius={playing ? "13px" : "15px"}
+                        />
+                    )}
+                </Box>
+
+                {/* Name, track, progress */}
+                <Stack gap="3px" flex="1" minWidth="0">
+                    <HStack gap="8px" align="baseline" minWidth="0">
+                        <Text
+                            fontFamily="Inter"
+                            fontWeight="semibold"
+                            fontSize="17px"
+                            lineHeight="1.2"
+                            userSelect="none"
+                            whiteSpace="nowrap"
+                            overflow="hidden"
+                            textOverflow="ellipsis"
+                        >{username}</Text>
+
+                        {playing && !isPlaying && (
+                            <Text
+                                fontFamily="Inter"
+                                fontSize="11px"
+                                letterSpacing="0.06em"
+                                textTransform="uppercase"
+                                color="secondary.dark"
+                                userSelect="none"
+                                flexShrink="0"
+                            >Paused</Text>
+                        )}
+                    </HStack>
+
+                    <Text
+                        fontFamily="Inter"
+                        fontWeight="regular"
+                        fontSize="14px"
+                        lineHeight="1.3"
+                        color="text.color"
+                        opacity={playing ? 0.72 : 0.45}
+                        userSelect="none"
+                        whiteSpace="nowrap"
+                        overflow="hidden"
+                        textOverflow="ellipsis"
+                    >
+                        {playing
+                            ? `${playing.name} · ${playing.artists.map(v => v.name).join(", ")}`
+                            : "You are friends"}
+                    </Text>
+
+                    {playing && (
+                        <HStack gap="8px" align="center" marginTop="4px">
+                            <Box
+                                flex="1"
+                                height="3px"
+                                borderRadius="2px"
+                                background="rgba(255,255,255,0.09)"
+                                overflow="hidden"
+                                minWidth="0"
+                            >
+                                <Box
+                                    height="100%"
+                                    width={`${pct}%`}
+                                    borderRadius="2px"
+                                    background="accent.dark"
+                                    opacity={isPlaying ? 1 : 0.45}
+                                    // Short transition smooths the animation-frame
+                                    // updates without lagging behind real progress
+                                    transition="width .25s linear, opacity .2s ease"
+                                />
+                            </Box>
+                            <Text
+                                fontFamily="Inter"
+                                fontSize="11px"
+                                color="secondary.dark"
+                                userSelect="none"
+                                flexShrink="0"
+                                sx={{ fontVariantNumeric: "tabular-nums" }}
+                            >-{formatTime(remaining)}</Text>
+                        </HStack>
+                    )}
+                </Stack>
+
+                {/* What they are listening to */}
+                {playing && playing.imageUrl && (
+                    <Image
+                        width="46px"
+                        height="46px"
+                        minWidth="46px"
+                        borderRadius="10px"
+                        objectFit="cover"
+                        src={getSizedImageUrl(playing.imageUrl, 48, 48)}
+                        alt=""
+                        draggable={false}
+                        opacity={isPlaying ? 1 : 0.5}
+                        transition="opacity .2s ease"
+                        border="1px solid rgba(255,255,255,0.08)"
+                    />
+                )}
+            </HStack>
+        </>);
+    }
+
     return (<>
         {!firstItem && (
             <Box marginTop="10px" marginBottom="10px" width="100%" height="1px" background="rgba(255, 255, 255, 0.05)" />

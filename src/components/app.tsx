@@ -71,8 +71,10 @@ export default React.memo(function UIApp({
 }>) {
     // console.log("UI MOUNTED", prouter, user);
     
-    const [currentPage, setCurrentPage] = useState<string>("activity");
-    const [currentPageTitle, setCurrentPageTitle] = useState<string>("For You");
+    // Defaults follow the first visible entry in `pages` below — update both if
+    // Discover or For You are restored
+    const [currentPage, setCurrentPage] = useState<string>("friends");
+    const [currentPageTitle, setCurrentPageTitle] = useState<string>("Friends");
     const [prevPage, setPrevPage] = useState<string>("");
     const [pageSwitcherActive, setPageSwitcherActive] = useState<boolean>(false);
     const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -431,24 +433,29 @@ export default React.memo(function UIApp({
     }, [livePlaybackStates, streamer, streamerReset, livePlaybackStatesPlaceholderCount]);
 
     const pages: { name: string; menuName?: string; id: string; indexed: boolean }[] = [
+        // Discover is hidden for now. Its rendering and data loading are left in
+        // place below, so restoring it is a matter of putting this entry back:
+        // {
+        //     name: "Discover",
+        //     id: "discover",
+        //     indexed: true,
+        // },
+        // For You is hidden alongside Discover: its feed mixes friend activity
+        // with recommendations, which need the embeddings pipeline to have run.
+        // {
+        //     name: "For You",
+        //     id: "activity",
+        //     indexed: true,
+        // },
         {
-            name: "Discover",
-            id: "discover",
-            indexed: true,
-        },
-        {
-            name: "For You",
-            id: "activity",
+            // Landing page
+            name: "Friends",
+            id: "friends",
             indexed: true,
         },
         {
             name: "Playlists",
             id: "playlists",
-            indexed: true,
-        },
-        {
-            name: "Friends",
-            id: "friends",
             indexed: true,
         },
         {

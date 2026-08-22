@@ -168,7 +168,7 @@ export function PlaybackState({
 
                     makeULFV = true;
                 } else if (factPool.length > 0) {
-                    const electedFact = factPool[Math.floor((data.data.state?.entropy ?? 0) * factPool.length)];
+                    const electedFact = factPool[Math.floor((data.data.state?.displaySeed ?? 0) * factPool.length)];
 
                     setUserListenershipFact({
                         sid: data.data.state?.songId ?? "",

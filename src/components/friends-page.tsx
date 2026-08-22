@@ -1,9 +1,11 @@
 import User, { ClientUserAccount, UserFriendship } from "@/lib/usrlib";
-import { Box, Image, Spinner, Text } from "@chakra-ui/react";
-import { use, useEffect, useState } from "react";
+import { Avatar, Box, HStack, Image, Spinner, Stack, Text } from "@chakra-ui/react";
+import { use, useEffect, useMemo, useState } from "react";
 import { UserLookupResult } from "./user-lookup-result";
 import { DataStreamer, UpdateEvent } from "@/lib/live-ingest";
 import { findBestSCDNImageSize } from "@/lib/utils";
+import { getSizedImageUrl } from "@/lib/sized-img";
+import { FriendNowPlayingCard } from "./friend-now-playing-card";
 
 export default function FriendsPage({
     user,
@@ -18,57 +20,130 @@ export default function FriendsPage({
         user: ClientUserAccount;
         friendship: UserFriendship;
     }[]>(user.friends);
-    const [friends, setFriends] = useState<{
-        user: ClientUserAccount;
-        friendship: UserFriendship;
-    }[]>([])
     const [isLoading, setIsLoading] = useState<boolean>(true);
 
+    // Bumped when a friend's playback changes, so the ordering below is
+    // recomputed without keeping a second copy of the list in state
+    const [playbackTick, setPlaybackTick] = useState<number>(0);
+
     useEffect(() => {
-        if (friendsPre.length > 0) {
+        let cancelled = false;
+
+        const onFriendsUpdated = (updated: typeof user.friends) => {
+            if (cancelled)
+                return;
+
+            setFriendsPre([...updated]);
             setIsLoading(false);
-        }
+        };
 
         if (user.friends.length > 0) {
             setFriendsPre([...user.friends]);
+            setIsLoading(false);
         }
 
-        user.on("friends-updated", (friends) => {
-            setFriendsPre([...friends]);
-            // setIsLoading(false);
-        });
+        user.on("friends-updated", onFriendsUpdated);
 
-        user.refreshDetails();
-    }, []);
-
-    useEffect(() => {
-        setFriendsPre([...user.friends]);
-    }, [user.friends]);
-
-    useEffect(() => {
-        // Sort friends whenever the list changes
-        const sortedFriends = [...friendsPre].sort((a, b) =>
-            a.user.displayName.toLowerCase() < b.user.displayName.toLowerCase() ? -1 : 1
-        ).sort((a, b) => {
-            const aIsPlaying = streamer?.getPrevState(a.user.id);
-            const bIsPlaying = streamer?.getPrevState(b.user.id);
-
-            if (aIsPlaying && !bIsPlaying)
-                return -1;
-            else
-                return 1;
-        });
-
-        setFriends([...sortedFriends]);
-
-        if (sortedFriends.length > 0) {
-            setTimeout(() => {
+        // Resolve the spinner once the first refresh settles, whatever it returns
+        user.refreshDetails().finally(() => {
+            if (!cancelled)
                 setIsLoading(false);
-            }, 1e3);
-        } else {
-            setIsLoading(true);
+        });
+
+        return () => {
+            cancelled = true;
+
+            // Without this the listener outlives the component, so every visit
+            // to this page stacks another one and each event fires N setStates
+            user.off?.("friends-updated", onFriendsUpdated);
+        };
+    }, [user]);
+
+    useEffect(() => {
+        if (!streamer)
+            return;
+
+        const onUpdate = () => setPlaybackTick(v => v + 1);
+
+        streamer.on("update", onUpdate);
+        streamer.on("remove", onUpdate);
+
+        return () => {
+            streamer.off?.("update", onUpdate);
+            streamer.off?.("remove", onUpdate);
+        };
+    }, [streamer]);
+
+    /**
+     * Currently-playing friends first, then alphabetical.
+     *
+     * Derived rather than stored: the previous version kept a second copy in
+     * state and re-sorted in the render body too, where Array.sort mutated the
+     * state array in place. Its comparator also never returned 0 and returned 1
+     * for both-playing and both-idle, which is not a valid ordering — so the
+     * list could reshuffle between renders, and the alphabetical pass before it
+     * was discarded entirely.
+     */
+    const friends = useMemo(() => {
+        return [...friendsPre].sort((a, b) => {
+            const aPlaying = streamer?.getPrevState(a.user.id)?.data?.state ? 1 : 0;
+            const bPlaying = streamer?.getPrevState(b.user.id)?.data?.state ? 1 : 0;
+
+            if (aPlaying !== bPlaying)
+                return bPlaying - aPlaying;
+
+            return a.user.displayName.localeCompare(b.user.displayName, undefined, { sensitivity: "base" });
+        });
+    }, [friendsPre, streamer, playbackTick]);
+
+    /**
+     * Anyone currently listening gets an artwork card; everyone else collapses
+     * into a single avatar row. The split is derived from the same sorted list,
+     * so the two sections stay consistent with each other.
+     */
+    const { listening, idle } = useMemo(() => {
+        const listening: typeof friends = [];
+        const idle: typeof friends = [];
+
+        for (const friend of friends) {
+            const id = user.id
+                ? (friend.friendship.u1Id === user.id ? friend.friendship.u2Id : friend.friendship.u1Id)
+                : friend.user.id;
+
+            // Test the playback state, not the envelope. The streamer caches an
+            // entry even for a STOPPED payload, where data.state is undefined —
+            // bucketing on the envelope put idle friends in the listening group
+            // and their card rendered nothing.
+            const playing = streamer?.getPrevState(id)?.data?.state;
+
+            (playing ? listening : idle).push(friend);
         }
-    }, [friendsPre]);
+
+        return { listening, idle };
+    }, [friends, streamer, playbackTick, user.id]);
+
+    const resolveFriendId = (friend: typeof friends[number]) => user.id
+        ? (friend.friendship.u1Id === user.id ? friend.friendship.u2Id : friend.friendship.u1Id)
+        : friend.user.id;
+
+    /**
+     * Strip order: anyone playing first, everyone else after, each alphabetical.
+     *
+     * Sorted on the friendship-derived id rather than friend.user.id, which is
+     * the id the strip itself checks membership with — keying the two on
+     * different values lets the order disagree with the rings it draws.
+     */
+    const stripFriends = useMemo(() => {
+        return [...friends].sort((a, b) => {
+            const aPlaying = streamer?.getPrevState(resolveFriendId(a))?.data?.state ? 1 : 0;
+            const bPlaying = streamer?.getPrevState(resolveFriendId(b))?.data?.state ? 1 : 0;
+
+            if (aPlaying !== bPlaying)
+                return bPlaying - aPlaying;
+
+            return a.user.displayName.localeCompare(b.user.displayName, undefined, { sensitivity: "base" });
+        });
+    }, [friends, streamer, playbackTick, user.id]);
 
     return (<Box width="100%" paddingTop="20px">
         <Box
@@ -91,32 +166,114 @@ export default function FriendsPage({
                 size="lg"
             />
         </Box>
-        {friends.length > 0 ? (
-            friends.sort((a, b) => a.user.displayName.toLowerCase() < b.user.displayName.toLowerCase() ? -1 : 1).sort((a, b) => {
-                const aIsPlaying = streamer?.getPrevState(a.user.id);
-                const bIsPlaying = streamer?.getPrevState(b.user.id);
+        {friends.length > 0 ? (<>
+            {friends.length > 0 && (
+                <Box marginBottom="30px">
+                    <Text
+                        fontFamily="Inter"
+                        fontSize="11px"
+                        fontWeight="semibold"
+                        letterSpacing="0.08em"
+                        textTransform="uppercase"
+                        color="secondary.dark"
+                        marginBottom="12px"
+                        userSelect="none"
+                    >Your friends</Text>
 
-                if (aIsPlaying && !bIsPlaying)
-                    return -1;
-                else
-                    return 1;
-            }).map((friend, i) => (<UserLookupResult
-                    userId={user.id ? (friend.friendship.u1Id == user.id ? friend.friendship.u2Id : friend.friendship.u1Id) : friend.user.id}
-                    username={friend.user.displayName}
-                    pfpUrl={friend.user.images?.length > 0 ? findBestSCDNImageSize(friend.user.images, 56, 56) ?? undefined : undefined}
-                    firstItem={i === 0}
-                    mutualFriends={[]}
-                    friendState={friend.friendship.state}
-                    friendshipId={friend.friendship.id}
-                    user={user}
-                    streamer={streamer}
-                    key={i}
-                    openPubProfile={openPubProfile}
-                    
-                    friendsView
-                />
-            ))
-        ) : (<Box display={isLoading ? "none" : "block"}>
+                    {/* Always present, and scrolls sideways rather than wrapping,
+                        so the strip stays a fixed part of the page whether anyone
+                        is listening or not */}
+                    <HStack
+                        gap="11px"
+                        overflowX="auto"
+                        overflowY="hidden"
+                        paddingBottom="4px"
+                        marginX="-20px"
+                        paddingX="20px"
+                        sx={{
+                            scrollbarWidth: "none",
+                            "&::-webkit-scrollbar": { display: "none" },
+                        }}
+                    >
+                        {stripFriends.map(friend => {
+                            const id = resolveFriendId(friend);
+                            const pfp = friend.user.images?.length > 0
+                                ? findBestSCDNImageSize(friend.user.images, 56, 56) ?? undefined
+                                : undefined;
+                            const isListening = !!streamer?.getPrevState(id)?.data?.state;
+
+                            return (<Box
+                                key={friend.friendship.id}
+                                flexShrink="0"
+                                cursor="pointer"
+                                onClick={() => openPubProfile(id)}
+                                aria-label={friend.user.displayName}
+                            >
+                                <Box
+                                    position="relative"
+                                    borderRadius="14px"
+                                    padding={isListening ? "2px" : "0px"}
+                                    background={isListening ? "accent.dark" : "transparent"}
+                                    transition="padding .2s ease, background .2s ease"
+                                >
+                                    {pfp ? (
+                                        <Image
+                                            width="42px"
+                                            height="42px"
+                                            borderRadius={isListening ? "12px" : "14px"}
+                                            objectFit="cover"
+                                            src={getSizedImageUrl(pfp, 44, 44)}
+                                            alt=""
+                                            draggable={false}
+                                            opacity={isListening ? 1 : 0.72}
+                                        />
+                                    ) : (
+                                        <Avatar
+                                            name={friend.user.displayName + id}
+                                            width="42px"
+                                            height="42px"
+                                            borderRadius={isListening ? "12px" : "14px"}
+                                            opacity={isListening ? 1 : 0.72}
+                                        />
+                                    )}
+                                </Box>
+                            </Box>);
+                        })}
+                    </HStack>
+                </Box>
+            )}
+
+            {listening.length > 0 && (
+                <Box>
+                    <Text
+                        fontFamily="Inter"
+                        fontSize="11px"
+                        fontWeight="semibold"
+                        letterSpacing="0.08em"
+                        textTransform="uppercase"
+                        color="secondary.dark"
+                        marginBottom="16px"
+                        userSelect="none"
+                    >Listening now</Text>
+
+                    <Stack gap="20px">
+                    {listening.map(friend => {
+                        const id = resolveFriendId(friend);
+
+                        return (<FriendNowPlayingCard
+                            key={friend.friendship.id}
+                            userId={id}
+                            username={friend.user.displayName}
+                            pfpUrl={friend.user.images?.length > 0 ? findBestSCDNImageSize(friend.user.images, 56, 56) ?? undefined : undefined}
+                            streamer={streamer}
+                            openPubProfile={openPubProfile}
+                        />);
+                    })}
+                    </Stack>
+                </Box>
+            )}
+
+        </>) : (<Box display={isLoading ? "none" : "block"}>
             <Image
                 src={`/add-new-case-indication-arrow.svg`}
                 position="absolute"
