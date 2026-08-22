@@ -408,9 +408,25 @@ export default React.memo(function UIApp({
             // updateFriendsListenershipHistory(friendsListenershipPage);
         };
 
+        // `focus` alone is not enough for an installed PWA. Swiping the app away
+        // without closing it and reopening it restores the page without ever
+        // firing focus on some platforms, and iOS may serve it from the back
+        // /forward cache, which fires `pageshow` instead. Listening to all three
+        // means a resumed app notices its socket died and reconnects, rather
+        // than sitting on a dead connection showing stale playback.
+        const handleVisibility = () => {
+            if (document.visibilityState === "visible")
+                handleFocus();
+        };
+
         window.addEventListener("focus", handleFocus);
+        window.addEventListener("pageshow", handleFocus);
+        document.addEventListener("visibilitychange", handleVisibility);
+
         return () => {
             window.removeEventListener("focus", handleFocus);
+            window.removeEventListener("pageshow", handleFocus);
+            document.removeEventListener("visibilitychange", handleVisibility);
         };
     }, [streamer]);
 

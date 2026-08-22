@@ -101,6 +101,9 @@ const SOCKET_REPLACED_CODE = 4000;
 /** Server code telling us a friendship changed and should be refetched. */
 const FRIENDSHIP_CHANGED_CODE = -30;
 
+/** WebSocket.readyState when the connection is live. */
+const WS_OPEN = 1;
+
 export class DataStreamer extends EventEmitter {
     // private stream?: Stream;
     private sock?: WebSocket;
@@ -138,8 +141,19 @@ export class DataStreamer extends EventEmitter {
         return userIdFilter.some(v => !this.targets.includes(v));
     }
 
+    /**
+     * Whether the socket is genuinely connected.
+     *
+     * `sock.OPEN` is the readyState *constant* (1), not the socket's state, so
+     * every check written that way was unconditionally true — a dead socket
+     * still reported itself as ready, and callers happily sent into it.
+     */
+    private socketOpen() {
+        return this.sock?.readyState === WS_OPEN;
+    }
+
     isReady() {
-        return (this.sock && this.sock.OPEN);
+        return this.socketOpen();
     }
 
     cleanup() {
@@ -179,7 +193,7 @@ export class DataStreamer extends EventEmitter {
 
     getListeners() {
         return new Promise<string[]>(resolve => {
-            if (!this.sock || !this.sock.OPEN)
+            if (!this.socketOpen())
                 return resolve([]);
     
             const id = randomBytes(6).toString("hex");
@@ -195,7 +209,7 @@ export class DataStreamer extends EventEmitter {
                 resolve(payload.userIds);
             }
             
-            this.sock.send(JSON.stringify([
+            this.sock?.send(JSON.stringify([
                 "QUERY",
                 id,
             ]));
@@ -204,7 +218,7 @@ export class DataStreamer extends EventEmitter {
 
     queryRemoteLastStates(): Promise<(PlaybackState | undefined)[]> {
         return new Promise<(PlaybackState | undefined)[]>((resolve) => {
-            if (!this.sock || !this.sock.OPEN)
+            if (!this.socketOpen())
                 return [];
     
             const cbId = randomBytes(8).toString("hex");
@@ -213,7 +227,7 @@ export class DataStreamer extends EventEmitter {
                 resolve(data);
             }
     
-            this.sock.send(JSON.stringify([
+            this.sock?.send(JSON.stringify([
                 "QUERY-LAST-STATES",
                 cbId,
                 ...this.targets,
@@ -251,10 +265,10 @@ export class DataStreamer extends EventEmitter {
         const expiredListeners = currentListeners.filter(v => !sessions.includes(v));
 
         for (const id of expiredListeners) {
-            if (!this.sock || !this.sock.OPEN)
+            if (!this.socketOpen())
                 return;
 
-            this.sock.send(JSON.stringify([
+            this.sock?.send(JSON.stringify([
                 "RM",
                 id,
                 "nocb",
@@ -268,21 +282,24 @@ export class DataStreamer extends EventEmitter {
         // reported a difference whenever the server returned a different order
         const changed = sessions.slice().sort().join("|") !== currentListeners.slice().sort().join("|");
 
-        if (changed && this.sock && this.sock.OPEN) {
+        if (changed && this.socketOpen()) {
             console.log("Sending new sessions:", sessions);
-            this.sock.send(JSON.stringify(sessions));
+            this.sock?.send(JSON.stringify(sessions));
         }
 
         this.targets = sessions;
     }
 
     async init(prevUserIds?: string[]) {
-        // A fresh init means this streamer is wanted again
-        this.closed = false;
-
         this.emit("construct");
 
         this.cleanup();
+
+        // After cleanup, never before it: cleanup() sets `closed`, so clearing
+        // the flag first left it set again on the way out. Every socket then
+        // took the "closed after cleanup, not reconnecting" branch, which meant
+        // a streamer never recovered from a dropped connection on its own.
+        this.closed = false;
 
         const retryInterval = 6e3;
         const maxRetries = 50;
@@ -319,7 +336,7 @@ export class DataStreamer extends EventEmitter {
                 );
 
                 this.interval = setInterval(async () => {
-                    if (sessionReadyCb || !this.sock || !this.sock.OPEN || seshReqInProgress)
+                    if (sessionReadyCb || !this.socketOpen() || seshReqInProgress)
                         return;
 
                     try {
@@ -392,7 +409,7 @@ export class DataStreamer extends EventEmitter {
 
                         // This is a keepalive
                         if (this.sock && data.code == -1) {
-                            this.sock.send(JSON.stringify({
+                            this.sock?.send(JSON.stringify({
                                 code: -1
                             }));
 
@@ -555,9 +572,9 @@ export class DataStreamer extends EventEmitter {
 
                 this.sock.onopen = async() => {
                     sessionReadyCb = () => {
-                        if (this.sock && this.sock.OPEN) {
+                        if (this.socketOpen()) {
                             this.emit("open");
-                            this.sock.send(JSON.stringify(this.targets));
+                            this.sock?.send(JSON.stringify(this.targets));
                             sessionReadyCb = undefined;
                             this.isOpen = true;
                         }
@@ -566,13 +583,27 @@ export class DataStreamer extends EventEmitter {
                     this.emit("handshake");
 
                     // Wait until server has successfully responded to a ping
-                    await new Promise<void>(async (resolve, reject) => {
-                        if (!this.sock || (this.sock && !this.sock.OPEN))
+                    const handshake = new Promise<void>(async (resolve, reject) => {
+                        if (!this.socketOpen()) {
                             reject("socket is in an invalid state");
-                        
+
+                            return;
+                        }
+
                         let pingBackSuccess = false;
                         
                         while (!pingBackSuccess) {
+                            // The socket can die mid-handshake — a suspended PWA
+                            // is the common way. Without this the loop pings a
+                            // dead socket every 200ms for the life of the page,
+                            // which is where the endless "WebSocket is already
+                            // in CLOSING or CLOSED state" errors came from.
+                            if (!this.socketOpen()) {
+                                reject("socket closed during handshake");
+
+                                return;
+                            }
+
                             const pingId = randomBytes(6).toString("hex");
 
                             pingCompleteCb = (id: string) => {
@@ -592,6 +623,19 @@ export class DataStreamer extends EventEmitter {
                             });
                         }
                     });
+
+                    // onopen runs outside the try/catch around connect(), so an
+                    // unguarded rejection here would surface as an unhandled
+                    // rejection instead of a reconnect
+                    try {
+                        await handshake;
+                    } catch (ex) {
+                        console.warn("Socket handshake aborted:", ex);
+
+                        // The socket is already gone, so onclose fires and
+                        // drives the reconnect — nothing to do but stop here
+                        return;
+                    }
 
                     console.log("Socket is reaady!");
                     
