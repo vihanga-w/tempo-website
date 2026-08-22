@@ -357,17 +357,59 @@ export default class User extends EventEmitter {
         return res.data.me;
     }
 
+    /**
+     * Validator for the cached friends list.
+     *
+     * Cheap enough to call on every load: it returns a single hash covering each
+     * friendship's id and state, so the client can keep its cache without
+     * refetching the list and the per-friend profile lookups behind it.
+     */
+    public async getFriendsListHash(): Promise<string | null> {
+        try {
+            const req = await fetch(API_URL + "/me/friends/hash", {
+                headers: {
+                    ...(this.getAuthHeaders())
+                },
+                credentials: "include",
+            });
+
+            if (!req.ok)
+                return null;
+
+            const res = await req.json() as { error: boolean; hash?: string };
+
+            return (res.error || !res.hash) ? null : res.hash;
+        } catch {
+            // Offline or unreachable — the caller falls back to whatever it has
+            return null;
+        }
+    }
+
     public async getFriends(filter?: ("friends" | "incoming" | "request" | "blocked")[]) {
         const KEY = `${ME_FRIENDS_CACHE_KEY}${filter ? "-" + filter.sort().join("-") : ""}`;
 
         // Only use cache if no filter was specified or filter does not include incoming or request types
         const useCache = (!filter || !["incoming", "request"].some((v: any) => filter.includes(v)));
 
-        if (useCache) {
-            const cached = getCachedObject<UserFriendship[]>(KEY, 3600e3);
+        let cached: { hash: string; data: UserFriendship[] } | null = null;
 
-            if (cached)
-                return cached;
+        if (useCache) {
+            cached = getCachedObject<{ hash: string; data: UserFriendship[] }>(KEY, 3600e3);
+
+            if (cached?.data) {
+                const currentHash = await this.getFriendsListHash();
+
+                // Serve the cache only when the server agrees it is still current.
+                // A time-based cache alone meant a newly added friend — or a
+                // request being accepted, which keeps the same friendship id —
+                // stayed invisible until the entry expired.
+                if (currentHash && currentHash === cached.hash)
+                    return cached.data;
+
+                // Hash unavailable (offline): stale data beats no data
+                if (!currentHash)
+                    return cached.data;
+            }
         }
 
         const req = await fetch(API_URL + "/me/friends" + (filter ? `?state=${filter.join(",")}` : ""), {
@@ -384,13 +426,16 @@ export default class User extends EventEmitter {
             error: boolean;
             message?: string;
             data: UserFriendship[];
+            hash?: string;
         };
 
         if (res.error || !res.data)
             throw new Error("Failed to fetch friends, error: " + (res.message ?? "unknown error (check network logs)"));
 
-        if (useCache)
-            setCachedObject(KEY, res.data);
+        // Stored with the validator the server returned alongside it, so the
+        // next load can check it rather than trusting elapsed time
+        if (useCache && res.hash)
+            setCachedObject(KEY, { hash: res.hash, data: res.data });
 
         return res.data;
     }
@@ -687,15 +732,24 @@ export default class User extends EventEmitter {
     async getDetails(): Promise<undefined | ClientUserAccount> {
         return new Promise<undefined | ClientUserAccount>(async resolve => {
             try {
-                const loadFriends = async () => {
-                    if (this.id !== "") {
+                /**
+                 * Takes the id explicitly rather than reading this.id, which is
+                 * only assigned by refreshDetails *after* getDetails resolves.
+                 * Both call sites below therefore ran with an empty id on first
+                 * load, so friends were never fetched and "friends-updated"
+                 * never fired — leaving the friends page on its spinner forever.
+                 */
+                const loadFriends = async (userId?: string) => {
+                    const id = userId || this.id;
+
+                    if (id !== "") {
                         const friends = await this.getFriends(["friends"]);
 
                         const frtemp: typeof this.friends = [];
 
                         for (let i = 0; i < friends.length; i++) {
                             const f = friends[i];
-                            const otherId = (f.u1Id == this.id ? f.u2Id : f.u1Id);
+                            const otherId = (f.u1Id == id ? f.u2Id : f.u1Id);
                             
                             try {
                                 const user = await this.getRemoteUser(otherId);
@@ -737,7 +791,7 @@ export default class User extends EventEmitter {
                 if (req.status == 429)
                     return window.location.reload();
 
-                await loadFriends();
+                await loadFriends(cachedData?.id);
 
                 if (cachedData)
                     return;
@@ -755,7 +809,7 @@ export default class User extends EventEmitter {
                     return resolve(undefined);
                 }
 
-                await loadFriends();
+                await loadFriends(res.data?.id);
 
                 if (res.data)
                     setCachedObject(ME_CACHE_KEY, res.data);

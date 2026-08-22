@@ -33,7 +33,9 @@ interface PlaybackState {
     explicit: boolean;
     replayCount: number;
     name: string;
-    entropy: number;
+    /** Random value regenerated per song, so server and client agree on which
+     *  display variant (e.g. which fact) to show for this playback. */
+    displaySeed: number;
     artists: {
         name: string;
         url: string;
@@ -64,6 +66,38 @@ export interface UpdateEvent {
     data: ParsedStateUpdate;
 }
 
+/**
+ * Identifies this client's socket to the server, so a reconnect replaces its own
+ * previous socket rather than accumulating dead ones.
+ *
+ * Kept in sessionStorage so a reload reuses the same id — the replaced socket
+ * may not have closed yet — while a second tab or device gets its own and keeps
+ * its connection.
+ */
+function getSocketClientId(): string {
+    const KEY = "tempo.socket-client-id";
+
+    try {
+        const existing = window.sessionStorage.getItem(KEY);
+
+        if (existing)
+            return existing;
+
+        const generated = randomBytes(12).toString("hex");
+
+        window.sessionStorage.setItem(KEY, generated);
+
+        return generated;
+    } catch {
+        // Private mode or storage disabled — a per-instance id still de-dupes
+        // reconnects within this page
+        return randomBytes(12).toString("hex");
+    }
+}
+
+/** Close code the server uses when a newer socket from the same client arrives. */
+const SOCKET_REPLACED_CODE = 4000;
+
 export class DataStreamer extends EventEmitter {
     // private stream?: Stream;
     private sock?: WebSocket;
@@ -79,6 +113,8 @@ export class DataStreamer extends EventEmitter {
         d: PublicSessionResponse
     };
     public isOpen: boolean;
+    /** Set by cleanup() so a torn-down streamer does not resurrect itself. */
+    private closed = false;
 
     constructor(storedToken?: string, userIdFilter?: string[]) {
         super();
@@ -104,6 +140,8 @@ export class DataStreamer extends EventEmitter {
     }
 
     cleanup() {
+        this.closed = true;
+
         if (this.interval)
             try { clearInterval(this.interval); } catch { }
 
@@ -180,11 +218,35 @@ export class DataStreamer extends EventEmitter {
         });
     }
 
+    private processingSessions = false;
+
     private async processSessions(sessions: string[]) {
+        // Called from the 5s poll and from the server's state-change
+        // advertisement. Both await getListeners(), so overlapping runs each
+        // acted on a stale listener list — sending duplicate RMs and then
+        // re-binding a user that had just been removed, which showed as the
+        // entry flickering out and back.
+        if (this.processingSessions)
+            return;
+
+        this.processingSessions = true;
+
+        try {
+            await this._processSessions(sessions);
+        } finally {
+            this.processingSessions = false;
+        }
+    }
+
+    private async _processSessions(sessions: string[]) {
         const currentListeners = await this.getListeners();
 
+        // Unsubscribe from anyone who stopped. The server advertises a state
+        // change to sockets that are not watching a user when they start again
+        // (see advertisePlaybackStateChange), so dropping them here is safe and
+        // keeps the socket bound only to people actually playing.
         const expiredListeners = currentListeners.filter(v => !sessions.includes(v));
-        
+
         for (const id of expiredListeners) {
             if (!this.sock || !this.sock.OPEN)
                 return;
@@ -199,7 +261,11 @@ export class DataStreamer extends EventEmitter {
                 this.emit("remove", id);
         }
 
-        if (currentListeners.sort().join("") !== sessions.join("") && this.sock && this.sock.OPEN) {
+        // Both sides sorted — comparing a sorted list against an unsorted one
+        // reported a difference whenever the server returned a different order
+        const changed = sessions.slice().sort().join("|") !== currentListeners.slice().sort().join("|");
+
+        if (changed && this.sock && this.sock.OPEN) {
             console.log("Sending new sessions:", sessions);
             this.sock.send(JSON.stringify(sessions));
         }
@@ -208,6 +274,9 @@ export class DataStreamer extends EventEmitter {
     }
 
     async init(prevUserIds?: string[]) {
+        // A fresh init means this streamer is wanted again
+        this.closed = false;
+
         this.emit("construct");
 
         this.cleanup();
@@ -240,7 +309,11 @@ export class DataStreamer extends EventEmitter {
 
                 let sessionReadyCb: (() => void) | undefined;
 
-                this.sock = new WebSocket(API_URL_SOCK + "/stream/sessions" + (this.storedToken ? "/lazy" : ""));
+                const clientId = getSocketClientId();
+
+                this.sock = new WebSocket(
+                    API_URL_SOCK + "/stream/sessions" + (this.storedToken ? "/lazy" : "") + `?c=${clientId}`
+                );
 
                 this.interval = setInterval(async () => {
                     if (sessionReadyCb || !this.sock || !this.sock.OPEN || seshReqInProgress)
@@ -327,17 +400,25 @@ export class DataStreamer extends EventEmitter {
                             };
 
                             if (parsed.state && parsed.state.imageUrl.includes("https://i.scdn.co/image/")) {
-                                parsed.state.imageUrl = parsed.state.imageUrl.replace("https://i.scdn.co/image/", "https://imgcdn.tempo-music.co/scdn/");
+                                parsed.state.imageUrl = parsed.state.imageUrl.replace("https://i.scdn.co/image/", API_URL + "/img/");
                             }
 
                             if (parsed.state && parsed.state.pfpUrl.includes("https://i.scdn.co/image/")) {
-                                parsed.state.pfpUrl = parsed.state.pfpUrl.replace("https://i.scdn.co/image/", "https://imgcdn.tempo-music.co/scdn/");
+                                parsed.state.pfpUrl = parsed.state.pfpUrl.replace("https://i.scdn.co/image/", API_URL + "/img/");
                             }
 
-                            const intervalId = (parsed.state?.userId ?? "");
+                            // Resolved from the envelope for the same reason as
+                            // below: on a stop there is no state to read it from,
+                            // so this cleared userIntervals[""] and left the
+                            // stopped user's progress timer running — which kept
+                            // re-emitting their last playing state and brought
+                            // them straight back on screen
+                            const intervalId = (parsed.state?.userId ?? (data as { userId?: string }).userId ?? "");
 
-                            if (userIntervals[intervalId])
+                            if (userIntervals[intervalId]) {
                                 clearInterval(userIntervals[intervalId]);
+                                delete userIntervals[intervalId];
+                            }
 
                             if (action?.startsWith("PLAYING") || action?.startsWith("SKIPPED") || action?.startsWith("LISTENED") || action?.startsWith("PAUSED") || action?.startsWith("REPLAYED")) {
                                 const targetAction = action.split(":")[0];
@@ -347,7 +428,12 @@ export class DataStreamer extends EventEmitter {
                                 parsed.action.songId = songId;
                             }
 
-                            const userId = (parsed.state?.userId ?? "");
+                            // Falls back to the envelope: a STOPPED update carries
+                            // no state, so parsed.state?.userId is undefined and
+                            // the event would be filed under "" and dropped —
+                            // meaning a friend stopping was never processed until
+                            // the next session poll noticed them missing
+                            const userId = (parsed.state?.userId ?? (data as { userId?: string }).userId ?? "");
 
                             if (parsed.state?.isPlaying) {
                                 const now = Date.now();
@@ -386,11 +472,34 @@ export class DataStreamer extends EventEmitter {
                                 data: parsed,
                             };
 
-                            this.cache[userId] = payload;
+                            // Someone starting or stopping changes who is in the
+                            // session list, and the socket knows before any poll
+                            // would — so drop the caches rather than serving a
+                            // stale membership list for up to 15 seconds
+                            const wasPlaying = !!this.cache[userId]?.data?.state;
+                            const nowPlaying = !!parsed.state;
+
+                            if (wasPlaying !== nowPlaying)
+                                this.invalidateSessionsCache();
+
+                            // Storing a stateless envelope on stop left
+                            // getPrevState returning a truthy object with no
+                            // state, so callers testing presence saw someone as
+                            // listening while the card beneath rendered nothing
+                            if (nowPlaying)
+                                this.cache[userId] = payload;
+                            else
+                                delete this.cache[userId];
 
                             if (this._isUserIdInFilter(userId)) {
                                 this.emit("update", payload);
                                 this.emit("update-" + userId, payload);
+
+                                // A stop is a removal as far as listeners are
+                                // concerned; emitting it here means the UI does
+                                // not wait for processSessions to notice
+                                if (!nowPlaying && wasPlaying)
+                                    this.emit("remove", userId);
                             }
                         }
                     } catch (ex) {
@@ -398,14 +507,33 @@ export class DataStreamer extends EventEmitter {
                     }
                 }
 
-                this.sock.onclose = async () => {
+                this.sock.onclose = async (event) => {
                     this.emit("close");
 
                     this.isOpen = false;
-                    
+
                     Object.values(userIntervals).forEach(v => {
                         try { clearInterval(v); } catch { }
                     });
+
+                    // 4000 means the server replaced this socket with a newer one
+                    // from the same client. Reconnecting would close the
+                    // replacement, which would then reconnect and close this one
+                    // — an endless ping-pong. In development two DataStreamer
+                    // instances can share a client id (StrictMode double-mount,
+                    // or a hot reload leaving the previous instance alive), which
+                    // is exactly how that loop starts.
+                    if (event?.code === SOCKET_REPLACED_CODE) {
+                        console.log("Session socket was replaced by a newer connection, not reconnecting");
+
+                        return;
+                    }
+
+                    if (this.closed) {
+                        console.log("Session socket closed after cleanup, not reconnecting");
+
+                        return;
+                    }
 
                     await new Promise(resolve => setTimeout(resolve, 1e3));
 
@@ -458,6 +586,7 @@ export class DataStreamer extends EventEmitter {
                     if (this.storedToken) {
                         this.sock?.send(JSON.stringify({
                             overrideToken: this.storedToken,
+                            clientId,
                         }));
                     } else {
                         sessionReadyCb();
@@ -489,6 +618,24 @@ export class DataStreamer extends EventEmitter {
             headers["x-api-token"] = this.storedToken;
         
         return headers;
+    }
+
+    /**
+     * Drops both layers of session caching.
+     *
+     * Called whenever a socket update shows someone starting or stopping, so
+     * membership is not left waiting on the next uncached poll. Without this the
+     * 5s poll interval is throttled by a 15s in-memory cache, and the stored
+     * list survives four hours, so a friend appearing or disappearing could take
+     * far longer to show than the socket already knew about.
+     */
+    public invalidateSessionsCache() {
+        this.playbackSessionsCache.t = -1;
+        this.playbackSessionsCache.d = [];
+
+        try {
+            setCachedObject(FRIENDS_PLAYBACK_SESSIONS_CACHE_KEY, undefined);
+        } catch { }
     }
 
     public async fetchFriendsStreams(useCache?: boolean) {
