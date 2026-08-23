@@ -211,6 +211,55 @@ export default function ProfilePage({
         themeColour?.setAttribute("content", colour);
     }
 
+    /**
+     * Pulls the listening figures again.
+     *
+     * These move with every track played, so the page has to go back for them
+     * rather than showing whatever it fetched when it opened. `force` skips the
+     * cache for a refresh the reader can feel — returning to the app and finding
+     * the same numbers as ten minutes ago reads as the page being broken.
+     */
+    const refreshListeningStats = (force?: boolean) => {
+        user.getRemoteUserPastWeekStats(targetUserId ?? user.id, force)
+        .then(d => {
+            setPastWeekStats(d);
+        })
+        .catch(e => {
+            console.error("Failed to fetch past week stats, error:", e);
+        });
+
+        user.getRemoteUserTopSongs(targetUserId ?? user.id, topSongsFilter, force)
+        .then(data => {
+            setUserTopSongs(data.slice(0, 5));
+        })
+        .catch(e => {
+            console.error("Failed to refresh top songs, error:", e);
+        });
+    };
+
+    // Kept in a ref so the listeners below are attached once rather than
+    // re-attached whenever the filter or the target changes
+    const refreshStatsRef = useRef(refreshListeningStats);
+
+    refreshStatsRef.current = refreshListeningStats;
+
+    useEffect(() => {
+        // While the page is open, and again whenever it is returned to. Coming
+        // back after listening is exactly when somebody looks at these.
+        const onReturn = () => refreshStatsRef.current(true);
+
+        const timer = setInterval(() => refreshStatsRef.current(true), 60e3);
+
+        window.addEventListener("focus", onReturn);
+        document.addEventListener("visibilitychange", onReturn);
+
+        return () => {
+            clearInterval(timer);
+            window.removeEventListener("focus", onReturn);
+            document.removeEventListener("visibilitychange", onReturn);
+        };
+    }, []);
+
     useEffect(() => {
         user.getRecaps(true)
         .then(recaps => {
@@ -220,13 +269,7 @@ export default function ProfilePage({
             console.error("Failed to fetch latest user recaps, error:", ex);
         });
 
-        user.getRemoteUserPastWeekStats(targetUserId ?? user.id)
-        .then(d => {
-            setPastWeekStats(d);
-        })
-        .catch(e => {
-            console.error("Failed to fetch past week stats, error:", e);
-        });
+        refreshListeningStats();
 
         user.getFriendProfileListenershipHistory(targetUserId ?? user.id, 0)
         .then(h => {

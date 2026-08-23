@@ -20,6 +20,13 @@ export const ME_FRIENDS_CACHE_KEY = "tempo-me-friends-cache";
 // again — silently, with no client-side error. Recording the key lets the app
 // notice the mismatch on load and re-subscribe instead of looking subscribed
 // while receiving nothing.
+// How long a profile's listening figures may be served from cache.
+//
+// They change with every track played, so a long cache means a profile that
+// simply does not move while you are looking at it. Short enough to feel live,
+// long enough that flicking between pages does not refetch on every tap.
+export const PROFILE_STATS_CACHE_MS = 60e3;
+
 export const NOTIF_VAPID_KEY = "tempo-notif-vapid";
 
 // Set once the user has answered the notification prompt, so they are only

@@ -1,5 +1,5 @@
 import EventEmitter from "events";
-import { API_URL, ME_CACHE_KEY, ME_FRIENDS_CACHE_KEY } from "./const";
+import { API_URL, ME_CACHE_KEY, ME_FRIENDS_CACHE_KEY, PROFILE_STATS_CACHE_MS } from "./const";
 import { Recap } from "@/components/recap-drawer";
 import { FaF } from "react-icons/fa6";
 import { DataStreamer } from "./live-ingest";
@@ -232,14 +232,14 @@ export default class User extends EventEmitter {
         return req.status == 200;
     }
     
-    public async getRemoteUserPastWeekStats(userId: string) {
+    public async getRemoteUserPastWeekStats(userId: string, forceRefresh?: boolean) {
         const KEY = `tempo-rusr-past-week-stats-${userId}`;
 
         const cached: {
             totalListeningDuration: number;
             uniqueSongsPlayedCount: number;
             longestStreak: number;
-        } | null = getCachedObject(KEY, 3600e3 * 12);
+        } | null = (forceRefresh ? null : getCachedObject(KEY, PROFILE_STATS_CACHE_MS));
 
         if (cached)
             return cached;
@@ -273,7 +273,7 @@ export default class User extends EventEmitter {
         return res.data;
     }
 
-    public async getRemoteUserTopSongs(userId: string, period: "day" | "week" | "month" | "year" | "all") {
+    public async getRemoteUserTopSongs(userId: string, period: "day" | "week" | "month" | "year" | "all", forceRefresh?: boolean) {
         const KEY = `tempo-rusr-top-songs-${period}-${userId}`;
 
         const cached = getCachedObject<{
@@ -284,9 +284,9 @@ export default class User extends EventEmitter {
             explicit: boolean;
             playCount: number;
             imageUrl: string;
-        }[]>(KEY, 3600e3 * 12);
+        }[]>(KEY, PROFILE_STATS_CACHE_MS);
 
-        if (cached)
+        if (cached && !forceRefresh)
             return cached;
 
         const req = await fetch(API_URL + `/profile/${userId}/topSongs/${period}`, {
