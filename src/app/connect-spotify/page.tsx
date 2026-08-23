@@ -23,6 +23,9 @@ export default function ConnectSpotify() {
     const [clientSecret, setClientSecret] = useState<string>("");
     const [submitting, setSubmitting] = useState<boolean>(false);
     const [error, setError] = useState<string>("");
+    const [identifier, setIdentifier] = useState<string>("");
+    const [resuming, setResuming] = useState<boolean>(false);
+    const [resumeError, setResumeError] = useState<string>("");
 
     const toast = useToast();
 
@@ -45,6 +48,52 @@ export default function ConnectSpotify() {
             toast({ title: "Redirect URI copied", status: "success", duration: 2000, position: "top" });
         } catch {
             toast({ title: "Couldn't copy — select it and copy manually", status: "error", duration: 3000, position: "top" });
+        }
+    };
+
+    /**
+     * Sends a returning user back to the Spotify app they already set up.
+     *
+     * Reinstalling wipes any record of which app this account used, so signing
+     * in reaches for Tempo's, Spotify refuses an account that is not on its
+     * development allowlist, and they land back here. The server still holds
+     * their app's credentials — it only needs to be told which account to look
+     * them up under, and nothing has to be entered a second time.
+     */
+    const resume = async () => {
+        setResumeError("");
+        setResuming(true);
+
+        try {
+            const req = await fetch(API_URL + "/auth/start", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify({ identifier: identifier.trim() }),
+            });
+
+            const res = await req.json() as { error: boolean; message?: string; url?: string; matched?: boolean };
+
+            if (res.error || !res.url) {
+                setResumeError(res.message ?? "Something went wrong. Please try again.");
+                setResuming(false);
+
+                return;
+            }
+
+            // Without an app of their own on file, following the URL would hand
+            // them the same refusal that sent them here. Say so instead.
+            if (!res.matched) {
+                setResumeError("We don't have a Spotify app saved for that username. Set one up below — it only takes a couple of minutes.");
+                setResuming(false);
+
+                return;
+            }
+
+            window.location.href = res.url;
+        } catch {
+            setResumeError("Couldn't reach Tempo. Check your connection and try again.");
+            setResuming(false);
         }
     };
 
@@ -116,6 +165,76 @@ export default function ConnectSpotify() {
                     Spotify only lets a small, fixed number of accounts use any one app,
                     and Tempo&apos;s is full. Creating your own takes about two minutes and
                     it only ever has to cover you.
+                </Text>
+
+                <Box
+                    border="1px solid #262626"
+                    borderRadius="12px"
+                    p="5"
+                    mb="8"
+                    bg="#131313"
+                >
+                    <Text fontSize="15px" fontWeight="semibold" fontFamily="Inter" color="#f5f5f5" mb="2">
+                        Done this before?
+                    </Text>
+
+                    <Text fontSize="14px" fontFamily="Inter" color="#a0a0a0" mb="4" lineHeight="1.6">
+                        If you&apos;ve already connected your own Spotify app to Tempo, it&apos;s still
+                        saved. Tell us your Spotify username and we&apos;ll take you straight
+                        there — nothing to set up again.
+                    </Text>
+
+                    <Stack gap="3">
+                        <Input
+                            value={identifier}
+                            onChange={e => setIdentifier(e.target.value)}
+                            onKeyDown={e => {
+                                if (e.key === "Enter" && identifier.trim() !== "" && !resuming)
+                                    resume();
+                            }}
+                            placeholder="Spotify username or profile link"
+                            bg="#0d0d0d"
+                            border="1px solid #2a2a2a"
+                            borderRadius="10px"
+                            color="#f5f5f5"
+                            fontFamily="Inter"
+                            fontSize="14px"
+                            _placeholder={{ color: "#5a5a5a" }}
+                            autoCapitalize="none"
+                            autoCorrect="off"
+                            spellCheck={false}
+                        />
+
+                        {resumeError !== "" && (
+                            <Text fontSize="13px" fontFamily="Inter" color="#ff8a8a" lineHeight="1.5">
+                                {resumeError}
+                            </Text>
+                        )}
+
+                        <Button
+                            onClick={resume}
+                            isDisabled={identifier.trim() === "" || resuming}
+                            isLoading={resuming}
+                            bg="#1f1f1f"
+                            color="#f5f5f5"
+                            fontFamily="Inter"
+                            fontSize="14px"
+                            borderRadius="10px"
+                            _hover={{ bg: "#272727" }}
+                            _active={{ bg: "#2f2f2f" }}
+                        >
+                            Continue
+                        </Button>
+                    </Stack>
+
+                    <Text fontSize="12px" fontFamily="Inter" color="#6b6b6b" mt="3" lineHeight="1.5">
+                        Your username is on Spotify under Account &rsaquo; Account details, or
+                        paste a link to your profile.
+                    </Text>
+                </Box>
+
+                <Text fontSize="13px" fontFamily="Inter" color="#6b6b6b" mb="7" textAlign="center">
+                    or set one up for the first time
                 </Text>
 
                 <Stack gap="22px" mb="9">
