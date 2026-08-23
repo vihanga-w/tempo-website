@@ -239,12 +239,30 @@ export default function ConnectSpotify() {
 
                 <Stack gap="22px" mb="9">
                     {step(1, "Open the Spotify dashboard", (<>
-                        Go to{" "}
-                        <Link href={dashboardUrl} isExternal color="#c4a8ff" textDecoration="underline">
-                            developer.spotify.com/dashboard
-                        </Link>{" "}
-                        and sign in with the same Spotify account you use for music. Then
-                        choose <b>Create app</b>.
+                        <Text mb="2">
+                            Sign in to{" "}
+                            <Link href="https://accounts.spotify.com/login" isExternal color="#c4a8ff" textDecoration="underline">
+                                Spotify
+                            </Link>{" "}
+                            first, with the same account you use for music. Then open{" "}
+                            <Link href={dashboardUrl} isExternal color="#c4a8ff" textDecoration="underline">
+                                developer.spotify.com/dashboard
+                            </Link>{" "}
+                            and choose <b>Create app</b>.
+                        </Text>
+
+                        {/*
+                          * The dashboard does not send a signed-out visitor to a login
+                          * page. It shows a generic failure that suggests trying again
+                          * later, which reads as Spotify being down rather than as
+                          * needing to sign in — so signing in is given as the first
+                          * step rather than something to work out after it goes wrong.
+                          */}
+                        <Text fontSize="13px" color="#8a8a8a" lineHeight="1.5">
+                            If the dashboard says something went wrong and to try again
+                            later, that usually means you&apos;re signed out — it doesn&apos;t
+                            offer a login page. Sign in above and reload it.
+                        </Text>
                     </>))}
 
                     {step(2, "Name it anything", "The name and description are only ever seen by you. \"Tempo\" is fine.")}
