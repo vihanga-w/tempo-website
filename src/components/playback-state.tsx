@@ -139,18 +139,28 @@ export function PlaybackState({
 
                 let makeULFV = false;
 
-                // Process song stats for the day and generate facts
-                const stats = data.data.state?.todayStats;
+                // Nothing playing, so there is nothing to say about it
+                if (!data.data.state) {
+                    setUserListenershipFactVisible(false);
 
-                if (!stats)
                     return;
+                }
+
+                // Process song stats for the day and generate facts
+                //
+                // Missing stats used to end the whole function, which left the
+                // line hidden and its visibility never updated — so a track with
+                // no stats yet showed a blank gap under the name. They are just
+                // one source of facts among several, and their absence only means
+                // this pool is empty.
+                const stats = data.data.state?.todayStats;
 
                 const factPool: string[] = [];
 
-                if (stats.completeListenCount >= 5)
+                if (stats && stats.completeListenCount >= 5)
                     factPool.push("Listened to song " + stats.completeListenCount + " times");
 
-                if (stats.totalSessionDuration >= 4 && data.data.state?.duration)
+                if (stats && stats.totalSessionDuration >= 4 && data.data.state?.duration)
                     factPool.push("Spent " + formatTimeToMinAndHour(stats.totalSessionDuration * data.data.state?.duration) + " listening to song");
 
                 if (data.data.state?.replayCount && data.data.state?.replayCount > 0) {
@@ -184,7 +194,11 @@ export function PlaybackState({
                     });
 
                     makeULFV = true;
-                } else if (data.data.state.playSessionStart !== -1) {
+                } else {
+                    // Something is playing and nothing above had anything to say
+                    // about it — including a session with no start time recorded,
+                    // which previously matched no branch at all and left the line
+                    // blank rather than falling through to here.
                     setUserListenershipFact({
                         sid: data.data.state?.songId ?? "",
                         text: "Started listening recently",

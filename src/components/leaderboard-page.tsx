@@ -439,10 +439,10 @@ export default function LeaderboardPage({ user }: { user: User }) {
     const leader = entries[0]?.listeningMs ?? 0;
 
     return (
-        // Full width with the same padding the other pages use. Capping the
-        // column and centring it left the board narrower than the header above
-        // it and pushed off to one side of it.
-        <Box px="20px" pb="24">
+        // width is explicit for the same reason the other pages set it: without
+        // one this box is sized to its contents by the parent, which left the
+        // board about two thirds of the screen wide and the padding meaningless.
+        <Box width="100%" px="20px" pb="24">
             <Stack gap="1" mb="5" mt="2">
                 <Text fontSize="26px" fontWeight="bold" color="#f5f5f5">
                     This week
