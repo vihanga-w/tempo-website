@@ -6,6 +6,15 @@ const withPWA = npwa({
   dest: "public",
   register: true,
   skipWaiting: true,
+  // Pulls the push handler into the generated worker.
+  //
+  // A scope holds exactly one service worker registration, and next-pwa
+  // registers /sw.js at the root. Registering notify-sw.js separately did not
+  // add a second worker, it fought over the same slot — and /sw.js won, so
+  // every push arrived at a worker with no push listener and nothing was ever
+  // displayed. Importing it means the worker that actually runs is the one that
+  // knows what to do with a push.
+  importScripts: ["/notify-sw.js"],
 });
 
 const nextConfig = withPWA({

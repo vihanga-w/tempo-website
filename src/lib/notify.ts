@@ -173,18 +173,38 @@ const useSubscribe = () => {
     return { getSubscription };
 };
 
-// Function to register the service worker
+/**
+ * Waits for the service worker that will receive pushes.
+ *
+ * This used to register notify-sw.js itself. That did not add a worker — a
+ * scope only ever has one registration, and next-pwa already claims the root
+ * with /sw.js — so the two overwrote each other and whichever registered last
+ * decided whether a push handler existed at all. /sw.js won, and it had none.
+ * The handler is imported into it now (see importScripts in next.config.mjs),
+ * leaving nothing to register here.
+ *
+ * The wait is bounded because serviceWorker.ready never rejects: with no
+ * registration at all it simply hangs, taking the subscribe flow down with it
+ * and reporting nothing.
+ */
 const registerServiceWorker = async () => {
-    if ('serviceWorker' in navigator) {
-        try {
-            await navigator.serviceWorker.register('/notify-sw.js');
-            console.log('Service Worker registered successfully.');
-        } catch (error) {
-            console.error('Service Worker registration failed:', error);
-        }
-    } else {
+    if (!('serviceWorker' in navigator)) {
         console.warn('Service Worker is not supported in this browser.');
+
+        return;
     }
+
+    const timeout = new Promise<null>(resolve => setTimeout(() => resolve(null), 10e3));
+
+    const registration = await Promise.race([navigator.serviceWorker.ready, timeout]);
+
+    if (!registration) {
+        console.warn('No service worker became ready — push notifications cannot be displayed.');
+
+        return;
+    }
+
+    console.log('Service Worker ready:', registration.active?.scriptURL);
 };
 
 // Function to remove the subscription
