@@ -25,3 +25,8 @@ export const NOTIF_VAPID_KEY = "tempo-notif-vapid";
 // Set once the user has answered the notification prompt, so they are only
 // asked the once. Cleared whenever NOTIF_VAPID_KEY goes stale.
 export const NOTIF_PROCESSED_KEY = "tempo-notif-processed";
+
+// The id this device files its subscription under, kept so re-registering
+// overwrites the same server-side record instead of piling up a new one per app
+// start. The server stores subscriptions as `<userId>-<deviceId>`.
+export const NOTIF_SUB_ID_KEY = "tempo-notif-subid";

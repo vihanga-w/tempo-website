@@ -25,7 +25,7 @@ import { AndroidViewStyle, DefaultAndroidSystemBrowserOptions, DefaultSystemBrow
 import { Preferences } from '@capacitor/preferences';
 
 import User from "@/lib/usrlib";
-import { API_URL, API_URL_SOCK, NOTIF_PROCESSED_KEY } from "@/lib/const";
+import { API_URL, API_URL_SOCK, NOTIF_PROCESSED_KEY, NOTIF_SUB_ID_KEY } from "@/lib/const";
 import { registerServiceWorker, removeSubscription, resetStaleSubscription, useSubscribe } from "@/lib/notify";
 import { randomBytes } from "crypto";
 import { Modal } from "@/components/modal";
@@ -188,6 +188,41 @@ export default function Home() {
         return;
       }
 
+      // Files the subscription with the server, under a device id that is kept
+      // so this is idempotent — re-running it overwrites the same record rather
+      // than leaving a trail of one per app start.
+      //
+      // The response is checked. fetch only rejects on a network failure, so a
+      // 403 or a 500 here used to be logged and stepped straight over, leaving
+      // the browser holding a subscription the server had never heard of — and
+      // since the key still matched, nothing downstream ever retried it.
+      const registerSubscription = async (subscription: PushSubscription) => {
+        const subId = window.localStorage.getItem(NOTIF_SUB_ID_KEY) ?? randomBytes(8).toString("hex");
+
+        const res = await fetch(API_URL + "/notify/subscribe", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(user.getAuthHeaders()),
+          },
+          credentials: "include",
+          body: JSON.stringify({
+            id: `${user.id}-${subId}`,
+            subscription: subscription.toJSON()
+          }),
+        });
+
+        if (!res.ok) {
+          const detail = await res.text().catch(() => "");
+
+          throw new Error(`Failed to register push subscription (${res.status}) ${detail}`);
+        }
+
+        window.localStorage.setItem(NOTIF_SUB_ID_KEY, subId);
+
+        console.log("Registered notification handler with id:", subId);
+      };
+
       // Devices subscribed under an older VAPID key hold an endpoint the push
       // service will never accept again, and nothing about that is visible to
       // the user — the app looks subscribed and simply receives nothing. This
@@ -195,8 +230,23 @@ export default function Home() {
       // runs again and a fresh subscription is made against the current key.
       await resetStaleSubscription();
 
-      if (window.localStorage.getItem(NOTIF_PROCESSED_KEY))
+      if (window.localStorage.getItem(NOTIF_PROCESSED_KEY)) {
+        // Already opted in — but the browser holding a subscription says nothing
+        // about whether the server still has it. The registration can fail, and
+        // the volume it is stored on can be replaced. Re-filing it on each start
+        // is the only way this device finds out, and costs one small request.
+        try {
+          const registration = ('serviceWorker' in navigator ? await navigator.serviceWorker.ready : null);
+          const existing = await registration?.pushManager?.getSubscription();
+
+          if (existing)
+            await registerSubscription(existing);
+        } catch (e) {
+          console.warn("Could not re-register the existing push subscription:", e);
+        }
+
         return;
+      }
 
       const localAllow = await new Promise<boolean>(resolve => {
         triggerModal("Notifications", (<>
@@ -242,34 +292,10 @@ export default function Home() {
       try {
         // Get the subscription object using the getSubscription function
         const subscription = await getSubscription();
-        const subId = randomBytes(8).toString("hex");
 
-        console.log("Registering notification handler with id:", subId);
-
-        // Send the subscription object and ID to the server for registration
         // Authenticated: the server files the subscription against the token's
         // user, so an unauthenticated call would be rejected outright
-        const res = await fetch(API_URL + "/notify/subscribe", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...(user.getAuthHeaders()),
-          },
-          credentials: "include",
-          body: JSON.stringify({
-            id: `${user.id}-${subId}`,
-            subscription: subscription.toJSON()
-          }),
-        });
-
-        console.log(await res.json());
-        // await axios.post('/api/subscribe', {
-        //     subscription: subscription,
-        //     id: subscribeId
-        // });
-
-        // // Log a message in case of successful subscription
-        // console.log('Subscribe success');
+        await registerSubscription(subscription);
       } catch (e) {
         // Log a warning in case of an error
         console.warn(e);
