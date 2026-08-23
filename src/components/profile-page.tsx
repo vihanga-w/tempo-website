@@ -15,6 +15,7 @@ import { FaCog, FaHistory } from "react-icons/fa";
 import { Recap } from "./recap-drawer";
 import FriendHistoryFeed from "./friend-history-feed";
 import { SongLeaderboardComponent } from "./recap-drawer";
+import { InitialAvatar } from "./initial-avatar";
 
 const LOAD_TRACKER_TIMEOUT_MS = 5000;
 
@@ -728,14 +729,13 @@ export default function ProfilePage({
                                 }}
                             />
                         ) : (
-                            <Avatar
-                                // Append user id so that different users potentially with same name has different bg colours
-                                name={profileData?.displayName ?? "" + profileData?.id ?? ""}
+                            <InitialAvatar
+                                userId={profileData?.id ?? ""}
+                                displayName={profileData?.displayName}
                                 borderRadius="14px"
                                 transition=".15s"
                                 border={playbackState ? "2px solid transparent" : "0px"}
-                                width={playbackState ? "82px" : "88px"}
-                                height={playbackState ? "82px" : "88px"}
+                                size={playbackState ? "82px" : "88px"}
                             />
                         )}
                     </Box>

@@ -5,6 +5,7 @@ import User, { UserFriendship } from "@/lib/usrlib";
 import { Avatar, Box, Button, HStack, Image, Stack, Text } from "@chakra-ui/react";
 import { useEffect, useRef, useState } from "react";
 import { FaPaperPlane, FaPlane } from "react-icons/fa6";
+import { InitialAvatar } from "./initial-avatar";
 
 export type UserLookupResultType = {
     id: string;
@@ -210,10 +211,11 @@ export function UserLookupResult({
                             onError={() => setPfpLoadFailed(true)}
                         />
                     ) : (
-                        <Avatar
-                            name={username + userId}
-                            width="100%"
-                            height="100%"
+                        <InitialAvatar
+                            userId={userId}
+                            displayName={username}
+                            size="100%"
+                            fontSize="22px"
                             borderRadius={playing ? "13px" : "15px"}
                         />
                     )}
@@ -346,12 +348,11 @@ export function UserLookupResult({
                         }}
                     />
                 ) : (
-                    <Avatar
-                        // Append user id so that different users potentially with same name has different bg colours
-                        name={username + userId}
+                    <InitialAvatar
+                        userId={userId}
+                        displayName={username}
                         borderRadius="10px"
-                        width={friendsView ? (livePlaybackState ? "48px" : "52px") : "36px"}
-                        height={friendsView ? (livePlaybackState ? "48px" : "52px") : "36px"}
+                        size={friendsView ? (livePlaybackState ? "48px" : "52px") : "36px"}
                         border={livePlaybackState ? "2px solid #0D0D0E" : ""}
                         transition=".15s"
                     />

@@ -1,6 +1,7 @@
 import { DataStreamer, UpdateEvent } from "@/lib/live-ingest";
 import { getSizedImageUrl } from "@/lib/sized-img";
-import { Avatar, Box, HStack, Image, Stack, Text } from "@chakra-ui/react";
+import { Box, HStack, Image, Stack, Text } from "@chakra-ui/react";
+import { InitialAvatar } from "./initial-avatar";
 import { useEffect, useMemo, useState } from "react";
 import { formatTimeToMinAndHour, getSpotifyDeeplink } from "./playback-state";
 
@@ -95,7 +96,9 @@ export function FriendNowPlayingCard({
         if (stats?.skipCount >= 3)
             pool.push(`Skipped ${stats.skipCount} times today`);
 
-        if (pool.length === 0 && start !== -1)
+        // Something is playing, so there is always something to say. Gating this
+        // on a start time meant a session without one left the line blank.
+        if (pool.length === 0)
             pool.push("Started listening recently");
 
         return pool;
@@ -251,7 +254,7 @@ export function FriendNowPlayingCard({
                                 opacity="0.85"
                             />
                         ) : (
-                            <Avatar name={username + userId} width="15px" height="15px" minWidth="15px" borderRadius="5px" />
+                            <InitialAvatar userId={userId} displayName={username} size="15px" borderRadius="5px" fontSize="9px" />
                         )}
                         <Text
                             fontFamily="Inter"

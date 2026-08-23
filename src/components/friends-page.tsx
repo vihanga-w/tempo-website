@@ -1,5 +1,6 @@
 import User, { ClientUserAccount, UserFriendship } from "@/lib/usrlib";
 import { Avatar, Box, HStack, Image, Spinner, Stack, Text } from "@chakra-ui/react";
+import { InitialAvatar } from "./initial-avatar";
 import { use, useEffect, useMemo, useState } from "react";
 import { UserLookupResult } from "./user-lookup-result";
 import { DataStreamer, UpdateEvent } from "@/lib/live-ingest";
@@ -294,10 +295,10 @@ export default function FriendsPage({
                                             opacity={isListening ? 1 : 0.72}
                                         />
                                     ) : (
-                                        <Avatar
-                                            name={friend.user.displayName + id}
-                                            width="42px"
-                                            height="42px"
+                                        <InitialAvatar
+                                            userId={id}
+                                            displayName={friend.user.displayName}
+                                            size="42px"
                                             borderRadius={isListening ? "12px" : "14px"}
                                             opacity={isListening ? 1 : 0.72}
                                         />

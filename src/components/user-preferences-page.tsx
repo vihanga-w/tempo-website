@@ -30,6 +30,7 @@ import User, { ClientUserAccount } from "@/lib/usrlib";
 import { DataStreamer, UpdateEvent } from "@/lib/live-ingest";
 import { MdEdit } from "react-icons/md";
 import { enablePushNotifications, getPushStatus, type PushStatus } from "@/lib/notify";
+import { InitialAvatar } from "./initial-avatar";
 
 const ripple = keyframes`
     0% {
@@ -283,13 +284,13 @@ export default function UserPreferencesPage({ user }: { user: User }) {
                                     onError={() => setPfpLoadFailed(true)}
                                 />
                             ) : (
-                                <Avatar
-                                    name={(profileData?.displayName ?? "") + (profileData?.id ?? "")}
+                                <InitialAvatar
+                                    userId={profileData?.id ?? ""}
+                                    displayName={profileData?.displayName}
                                     borderRadius="14px"
                                     transition=".15s"
                                     border={playbackState ? "2px solid transparent" : "0px"}
-                                    width={playbackState ? "82px" : "88px"}
-                                    height={playbackState ? "82px" : "88px"}
+                                    size={playbackState ? "82px" : "88px"}
                                 />
                             )}
                         </Box>

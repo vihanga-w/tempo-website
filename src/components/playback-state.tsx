@@ -4,6 +4,7 @@ import { MdAddReaction, MdExplicit } from "react-icons/md";
 import { ReactEventHandler, useEffect, useState } from "react";
 import { keyframes } from "@emotion/react";
 import { getSizedImageUrl } from "@/lib/sized-img";
+import { InitialAvatar } from "./initial-avatar";
 
 function formatTime(ms: number) {
     if (ms < 0)
@@ -247,12 +248,11 @@ export function PlaybackState({
                                     }}
                                 />
                             ) : (
-                                <Avatar
-                                    // Append user id so that different users potentially with same name has different bg colours
-                                    name={data?.state?.username ?? "" + data?.state?.userId ?? ""}
+                                <InitialAvatar
+                                    userId={userId}
+                                    displayName={data?.state?.username}
+                                    size="36px"
                                     borderRadius="6px"
-                                    width="36px"
-                                    height="36px"
                                 />
                             )}
                             <Stack spacing="0">

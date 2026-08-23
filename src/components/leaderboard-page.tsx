@@ -2,6 +2,7 @@ import { API_URL } from "@/lib/const";
 import { getSizedImageUrl } from "@/lib/sized-img";
 import User from "@/lib/usrlib";
 import { Avatar, Box, Center, HStack, keyframes, Spinner, Stack, Text } from "@chakra-ui/react";
+import { InitialAvatar } from "./initial-avatar";
 import { useEffect, useRef, useState } from "react";
 
 interface LeaderboardEntry {
@@ -218,11 +219,19 @@ function Podium({ entries }: { entries: LeaderboardEntry[] }) {
                                     overflow="hidden"
                                     border={`3px solid ${PLACING_COLOURS[entry.position - 1]?.rim ?? "transparent"}`}
                                 >
-                                    <Avatar
-                                        size={isFirst ? "lg" : "md"}
-                                        name={entry.displayName}
-                                        src={entry.imageUrl ? getSizedImageUrl(entry.imageUrl, 96, 96) : undefined}
-                                    />
+                                    {entry.imageUrl ? (
+                                        <Avatar
+                                            size={isFirst ? "lg" : "md"}
+                                            name={entry.displayName}
+                                            src={getSizedImageUrl(entry.imageUrl, 96, 96)}
+                                        />
+                                    ) : (
+                                        <InitialAvatar
+                                            userId={entry.userId}
+                                            displayName={entry.displayName}
+                                            size={isFirst ? "64px" : "48px"}
+                                        />
+                                    )}
 
                                     {isFirst && (
                                         <Box
@@ -340,11 +349,19 @@ function Row({ entry, leader, index }: { entry: LeaderboardEntry; leader: number
                     flexShrink={0}
                     border={entry.isViewer ? "2px solid #c4a8ff" : "2px solid transparent"}
                 >
-                    <Avatar
-                        size="sm"
-                        name={entry.displayName}
-                        src={entry.imageUrl ? getSizedImageUrl(entry.imageUrl, 64, 64) : undefined}
-                    />
+                    {entry.imageUrl ? (
+                        <Avatar
+                            size="sm"
+                            name={entry.displayName}
+                            src={getSizedImageUrl(entry.imageUrl, 64, 64)}
+                        />
+                    ) : (
+                        <InitialAvatar
+                            userId={entry.userId}
+                            displayName={entry.displayName}
+                            size="32px"
+                        />
+                    )}
                 </Box>
 
                 <Stack gap="0" flex="1" minW="0">

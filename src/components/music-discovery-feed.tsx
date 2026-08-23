@@ -27,6 +27,7 @@ import { API_URL } from "@/lib/const";
 
 import YoutubeBg from 'youtube-bg-react';
 import 'youtube-bg-react/dist/index.css';
+import { InitialAvatar } from "./initial-avatar";
 
 export interface Song {
     id: string;
@@ -1149,11 +1150,11 @@ const MusicDiscoveryFeed: React.FC<{
                                                                 onError={() => {}}
                                                             />
                                                         ) : (
-                                                            <Avatar
-                                                                name={username ?? "" + history.userId ?? ""}
+                                                            <InitialAvatar
+                                                                userId={history.userId}
+                                                                displayName={username}
                                                                 borderRadius="6px"
-                                                                width="76px"
-                                                                height="76px"
+                                                                size="76px"
                                                             />
                                                         )}
                                                         <Text
