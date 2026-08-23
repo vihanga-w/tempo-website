@@ -29,6 +29,7 @@ import UserPreferencesPage from "./user-preferences-page";
 
 const MusicDiscoveryFeed = lazy(() => import("./music-discovery-feed"));
 const FriendsPage = lazy(() => import("./friends-page"));
+const LeaderboardPage = lazy(() => import("./leaderboard-page"));
 const AddFriendsPage = lazy(() => import("./add-friends-page"));
 const ProfilePage = lazy(() => import("./profile-page"));
 const ReactionDrawer = lazy(() => import("./reaction-drawer"));
@@ -519,6 +520,11 @@ export default React.memo(function UIApp({
             indexed: true,
         },
         {
+            name: "Leaderboard",
+            id: "leaderboard",
+            indexed: true,
+        },
+        {
             name: "Playlists",
             id: "playlists",
             indexed: true,
@@ -937,6 +943,12 @@ export default React.memo(function UIApp({
                     )}
 
                     {/* Playlists page */}
+                    {currentPage == "leaderboard" && (
+                        <Suspense fallback={<SuspenseSpinner />}>
+                            <LeaderboardPage user={user} />
+                        </Suspense>
+                    )}
+
                     {currentPage == "playlists" && (
                         <Suspense fallback={<SuspenseSpinner />}>
                             <PlaylistsPage
