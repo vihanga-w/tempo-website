@@ -25,9 +25,8 @@ import { AndroidViewStyle, DefaultAndroidSystemBrowserOptions, DefaultSystemBrow
 import { Preferences } from '@capacitor/preferences';
 
 import User from "@/lib/usrlib";
-import { API_URL, API_URL_SOCK, NOTIF_PROCESSED_KEY, NOTIF_SUB_ID_KEY } from "@/lib/const";
-import { registerServiceWorker, removeSubscription, resetStaleSubscription, useSubscribe, waitForServiceWorker } from "@/lib/notify";
-import { randomBytes } from "crypto";
+import { API_URL, API_URL_SOCK, NOTIF_PROCESSED_KEY } from "@/lib/const";
+import { registerServiceWorker, registerSubscription, removeSubscription, resetStaleSubscription, useSubscribe, waitForServiceWorker } from "@/lib/notify";
 import { Modal } from "@/components/modal";
 import { SafeArea, initialize } from "@capacitor-community/safe-area";
 import { SplashScreen } from "@capacitor/splash-screen";
@@ -201,32 +200,9 @@ export default function Home() {
       // 403 or a 500 here used to be logged and stepped straight over, leaving
       // the browser holding a subscription the server had never heard of — and
       // since the key still matched, nothing downstream ever retried it.
-      const registerSubscription = async (subscription: PushSubscription) => {
-        const subId = window.localStorage.getItem(NOTIF_SUB_ID_KEY) ?? randomBytes(8).toString("hex");
-
-        const res = await fetch(API_URL + "/notify/subscribe", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...(user.getAuthHeaders()),
-          },
-          credentials: "include",
-          body: JSON.stringify({
-            id: `${user.id}-${subId}`,
-            subscription: subscription.toJSON()
-          }),
-        });
-
-        if (!res.ok) {
-          const detail = await res.text().catch(() => "");
-
-          throw new Error(`Failed to register push subscription (${res.status}) ${detail}`);
-        }
-
-        window.localStorage.setItem(NOTIF_SUB_ID_KEY, subId);
-
-        console.log("Registered notification handler with id:", subId);
-      };
+      // Shared with the settings page, so the two cannot drift apart
+      const fileSubscription = (subscription: PushSubscription) =>
+        registerSubscription(subscription, user.id, user.getAuthHeaders());
 
       // Devices subscribed under an older VAPID key hold an endpoint the push
       // service will never accept again, and nothing about that is visible to
@@ -251,7 +227,7 @@ export default function Home() {
           // volume holding it can be replaced. Re-filing is idempotent and is
           // the only way this device can find out.
           if (existing) {
-            await registerSubscription(existing);
+            await fileSubscription(existing);
 
             return true;
           }
@@ -265,7 +241,7 @@ export default function Home() {
           if (typeof Notification !== "undefined" && Notification.permission === "granted") {
             console.log("Push subscription had been withdrawn — resubscribing");
 
-            await registerSubscription(await getSubscription());
+            await fileSubscription(await getSubscription());
 
             return true;
           }
@@ -333,7 +309,7 @@ export default function Home() {
 
         // Authenticated: the server files the subscription against the token's
         // user, so an unauthenticated call would be rejected outright
-        await registerSubscription(subscription);
+        await fileSubscription(subscription);
       } catch (e) {
         // Log a warning in case of an error
         console.warn(e);

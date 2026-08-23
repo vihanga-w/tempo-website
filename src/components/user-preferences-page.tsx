@@ -29,6 +29,7 @@ import { getSizedImageUrl } from "@/lib/sized-img";
 import User, { ClientUserAccount } from "@/lib/usrlib";
 import { DataStreamer, UpdateEvent } from "@/lib/live-ingest";
 import { MdEdit } from "react-icons/md";
+import { enablePushNotifications, getPushStatus, type PushStatus } from "@/lib/notify";
 
 const ripple = keyframes`
     0% {
@@ -108,6 +109,10 @@ export default function UserPreferencesPage({ user }: { user: User }) {
     const [weeklyRecapNotifications, setWeeklyRecapNotifications] = useState(false);
     const [reactionNotifications, setReactionNotifications] = useState(false);
 
+    const [pushStatus, setPushStatus] = useState<PushStatus | null>(null);
+    const [enablingPush, setEnablingPush] = useState(false);
+    const [pushMessage, setPushMessage] = useState<string>("");
+
     useEffect(() => {
         user.getRemoteUser(user.id)
         .then(r => {
@@ -140,6 +145,48 @@ export default function UserPreferencesPage({ user }: { user: User }) {
             newStreamer.cleanup();
         };
     }, [user.isLoggedIn]);
+
+    // Re-read on focus as well as on mount: undoing a block happens in the
+    // browser's own settings, so the app finds out by being returned to, not by
+    // anything it can observe itself.
+    useEffect(() => {
+        const readStatus = () => {
+            getPushStatus()
+                .then(setPushStatus)
+                .catch(() => setPushStatus(null));
+        };
+
+        readStatus();
+
+        window.addEventListener("focus", readStatus);
+        document.addEventListener("visibilitychange", readStatus);
+
+        return () => {
+            window.removeEventListener("focus", readStatus);
+            document.removeEventListener("visibilitychange", readStatus);
+        };
+    }, []);
+
+    const onEnablePush = async () => {
+        setPushMessage("");
+        setEnablingPush(true);
+
+        const result = await enablePushNotifications(user.id, user.getAuthHeaders());
+
+        setPushStatus(await getPushStatus());
+        setEnablingPush(false);
+
+        if (result.ok) {
+            setPushMessage("Notifications are on for this device.");
+
+            return;
+        }
+
+        if (result.reason === "dismissed")
+            setPushMessage("No answer given — you can try again whenever you like.");
+        else if (result.reason === "failed")
+            setPushMessage("Couldn't turn notifications on. Check your connection and try again.");
+    };
 
     useEffect(() => {
         const handleFocus = async () => {
@@ -304,6 +351,71 @@ export default function UserPreferencesPage({ user }: { user: User }) {
                     <Text fontSize="15px" lineHeight="18px" mb={4}>
                         Disable specific notifications to reduce distractions.
                     </Text>
+
+                    {pushStatus !== null && pushStatus !== "on" && (
+                        <Box
+                            border="1px solid #262626"
+                            borderRadius="12px"
+                            p="4"
+                            mb="5"
+                            bg="#131313"
+                        >
+                            <Text fontSize="15px" fontWeight="semibold" color="#f5f5f5" mb="1">
+                                {pushStatus === "unsupported"
+                                    ? "Notifications aren't available here"
+                                    : "Notifications are off"}
+                            </Text>
+
+                            <Text fontSize="14px" color="#a0a0a0" lineHeight="1.6" mb={pushStatus === "off" ? 4 : 0}>
+                                {pushStatus === "denied" ? (
+                                    <>
+                                        Your browser is blocking notifications from Tempo, and only you
+                                        can undo that. Open the padlock or site settings next to the
+                                        address bar, set Notifications to Allow, then come back — on
+                                        iPhone, Tempo also has to be added to your Home Screen.
+                                    </>
+                                ) : pushStatus === "unsupported" ? (
+                                    <>
+                                        This browser can&apos;t receive push notifications. On iPhone,
+                                        add Tempo to your Home Screen and open it from there.
+                                    </>
+                                ) : (
+                                    <>
+                                        You won&apos;t hear when a friend lands on the same song as you,
+                                        reacts to what you&apos;re playing, or when a recap is ready.
+                                    </>
+                                )}
+                            </Text>
+
+                            {pushStatus === "off" && (
+                                <Button
+                                    onClick={onEnablePush}
+                                    isLoading={enablingPush}
+                                    size="sm"
+                                    bg="#1f1f1f"
+                                    color="#f5f5f5"
+                                    borderRadius="10px"
+                                    _hover={{ bg: "#272727" }}
+                                    _active={{ bg: "#2f2f2f" }}
+                                >
+                                    Turn on notifications
+                                </Button>
+                            )}
+
+                            {pushMessage !== "" && (
+                                <Text fontSize="13px" color="#a0a0a0" mt="3" lineHeight="1.5">
+                                    {pushMessage}
+                                </Text>
+                            )}
+                        </Box>
+                    )}
+
+                    {pushStatus === "on" && pushMessage !== "" && (
+                        <Text fontSize="14px" color="#8fdc9b" mb="5" lineHeight="1.5">
+                            {pushMessage}
+                        </Text>
+                    )}
+
                     <Toggle
                         label="Friend Requests"
                         description="Be notified of new friend requests"

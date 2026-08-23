@@ -1,4 +1,4 @@
-import { API_URL, NOTIF_PROCESSED_KEY, NOTIF_VAPID_KEY } from "./const";
+import { API_URL, NOTIF_PROCESSED_KEY, NOTIF_SUB_ID_KEY, NOTIF_VAPID_KEY } from "./const";
 
 // Function to convert Base64URL to Uint8Array
 const urlBase64ToUint8Array = (base64String: string) => {
@@ -120,9 +120,84 @@ const resetStaleSubscription = async (): Promise<boolean> => {
     return true;
 };
 
-// Hook for subscribing to push notifications
-const useSubscribe = () => {
-    const getSubscription = async () => {
+/** Whether this browser can receive push at all. */
+const pushSupported = (): boolean => (
+    typeof window !== "undefined" &&
+    'serviceWorker' in navigator &&
+    'PushManager' in window &&
+    typeof Notification !== "undefined"
+);
+
+/**
+ * What this device's push notifications are currently doing.
+ *
+ * "unsupported" — the browser cannot receive push.
+ * "denied"      — blocked at the browser level. requestPermission() will not
+ *                 prompt again, so only the user can undo this, in site settings.
+ * "off"         — permission has never been granted or refused, so asking works.
+ * "on"          — granted, with a live subscription.
+ */
+type PushStatus = "unsupported" | "denied" | "off" | "on";
+
+const getPushStatus = async (): Promise<PushStatus> => {
+    if (!pushSupported())
+        return "unsupported";
+
+    if (Notification.permission === "denied")
+        return "denied";
+
+    if (Notification.permission !== "granted")
+        return "off";
+
+    // Granted is not the same as subscribed: permission survives a subscription
+    // being withdrawn, and the two have to agree before this reads as on.
+    const registration = await waitForServiceWorker();
+    const existing = await registration?.pushManager?.getSubscription();
+
+    return (existing ? "on" : "off");
+};
+
+/**
+ * Files a subscription with the server under this device's stored id.
+ *
+ * The id is kept so re-registering overwrites the same record instead of adding
+ * another, and the response is checked — fetch does not reject on 4xx or 5xx, so
+ * an unchecked call leaves the browser holding a subscription the server never
+ * stored.
+ */
+const registerSubscription = async (
+    subscription: PushSubscription,
+    userId: string,
+    authHeaders: Record<string, string>,
+) => {
+    const stored = window.localStorage.getItem(NOTIF_SUB_ID_KEY);
+    const subId = stored ?? Array.from(crypto.getRandomValues(new Uint8Array(8)))
+        .map(b => b.toString(16).padStart(2, "0"))
+        .join("");
+
+    const res = await fetch(API_URL + "/notify/subscribe", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            ...authHeaders,
+        },
+        credentials: "include",
+        body: JSON.stringify({
+            id: `${userId}-${subId}`,
+            subscription: subscription.toJSON(),
+        }),
+    });
+
+    if (!res.ok) {
+        const detail = await res.text().catch(() => "");
+
+        throw new Error(`Failed to register push subscription (${res.status}) ${detail}`);
+    }
+
+    window.localStorage.setItem(NOTIF_SUB_ID_KEY, subId);
+};
+
+const createPushSubscription = async () => {
         // Check for ServiceWorker and PushManager support
         if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
             throw { errorCode: "ServiceWorkerAndPushManagerNotSupported" };
@@ -171,10 +246,79 @@ const useSubscribe = () => {
         // never claims a subscription that does not exist
         window.localStorage.setItem(NOTIF_VAPID_KEY, publicKey);
 
-        return subscription;
-    };
+    return subscription;
+};
 
-    return { getSubscription };
+// Hook for subscribing to push notifications
+const useSubscribe = () => {
+    return { getSubscription: createPushSubscription };
+};
+
+/**
+ * Result of asking to turn notifications on from the UI.
+ *
+ * "denied" is separated from "dismissed" because they need different words: a
+ * denial cannot be undone by asking again, only in the browser's own settings,
+ * whereas a dismissal can simply be retried.
+ */
+type EnableResult =
+    | { ok: true }
+    | { ok: false; reason: "unsupported" | "denied" | "dismissed" | "failed"; detail?: string };
+
+/**
+ * Turns push notifications on for this device, from a settings control rather
+ * than the first-run prompt.
+ *
+ * Someone who refused the first-run prompt has no way back to it — the stored
+ * flag makes sure it is never shown twice — so without this the decision is
+ * permanent. The same flow runs either way, and the flag is set here too so the
+ * prompt does not reappear afterwards.
+ */
+const enablePushNotifications = async (
+    userId: string,
+    authHeaders: Record<string, string>,
+): Promise<EnableResult> => {
+    if (!pushSupported())
+        return { ok: false, reason: "unsupported" };
+
+    // Returns immediately with the standing answer when already denied; it does
+    // not re-prompt, which is why the caller has to say so in words instead.
+    const permission = await Notification.requestPermission();
+
+    if (permission === "denied")
+        return { ok: false, reason: "denied" };
+
+    if (permission !== "granted")
+        return { ok: false, reason: "dismissed" };
+
+    try {
+        await registerServiceWorker();
+
+        let subscription: PushSubscription;
+
+        try {
+            subscription = await createPushSubscription();
+        } catch (e) {
+            // Already subscribed on the current key — re-file it rather than
+            // treating a healthy subscription as a failure
+            const existing = (e as { errorCode?: string; sub?: PushSubscription });
+
+            if (existing?.errorCode !== "ExistingSubscription" || !existing.sub)
+                throw e;
+
+            subscription = existing.sub;
+        }
+
+        await registerSubscription(subscription, userId, authHeaders);
+
+        window.localStorage.setItem(NOTIF_PROCESSED_KEY, "true");
+
+        return { ok: true };
+    } catch (e) {
+        console.warn("Failed to enable push notifications:", e);
+
+        return { ok: false, reason: "failed", detail: (e instanceof Error ? e.message : undefined) };
+    }
 };
 
 /**
@@ -256,4 +400,5 @@ const removeSubscription = async () => {
     }
 };
 
-export { urlBase64ToUint8Array, useSubscribe, registerServiceWorker, waitForServiceWorker, removeSubscription, fetchVapidPublicKey, resetStaleSubscription };
+export { urlBase64ToUint8Array, useSubscribe, registerServiceWorker, waitForServiceWorker, removeSubscription, fetchVapidPublicKey, resetStaleSubscription, registerSubscription, enablePushNotifications, getPushStatus, pushSupported };
+export type { PushStatus, EnableResult };
