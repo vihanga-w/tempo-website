@@ -439,10 +439,10 @@ export default function LeaderboardPage({ user }: { user: User }) {
     const leader = entries[0]?.listeningMs ?? 0;
 
     return (
-        // Held to a column and centred, rather than stretched to whatever the
-        // window happens to be. The podium is centred on its own, so a full width
-        // list beside it leaves the two disagreeing about where the middle is.
-        <Box px="20px" pb="24" maxW="520px" mx="auto">
+        // Full width with the same padding the other pages use. Capping the
+        // column and centring it left the board narrower than the header above
+        // it and pushed off to one side of it.
+        <Box px="20px" pb="24">
             <Stack gap="1" mb="5" mt="2">
                 <Text fontSize="26px" fontWeight="bold" color="#f5f5f5">
                     This week
