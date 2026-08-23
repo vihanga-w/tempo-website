@@ -1,9 +1,8 @@
 import { API_URL } from "@/lib/const";
 import { getSizedImageUrl } from "@/lib/sized-img";
 import User from "@/lib/usrlib";
-import { Avatar, Box, Center, HStack, keyframes, Stack, Text } from "@chakra-ui/react";
+import { Avatar, Box, Center, HStack, keyframes, Spinner, Stack, Text } from "@chakra-ui/react";
 import { useEffect, useRef, useState } from "react";
-import { Loader } from "./loader";
 
 interface LeaderboardEntry {
     userId: string;
@@ -208,16 +207,16 @@ function Podium({ entries }: { entries: LeaderboardEntry[] }) {
                             <Box position="relative" flexShrink={0} mb="2">
                                 {/*
                                   * The rim carries the placing, so the colour says it
-                                  * before the number is read. A second ring outside it
-                                  * marks the reader, separated by the page colour so
-                                  * the two do not blur into one thick band.
+                                  * before the number is read. Nothing marks the reader
+                                  * here — the label under the picture already says
+                                  * "You", and a second ring would compete with the
+                                  * placing colour for the same edge.
                                   */}
                                 <Box
                                     position="relative"
                                     borderRadius="full"
                                     overflow="hidden"
                                     border={`3px solid ${PLACING_COLOURS[entry.position - 1]?.rim ?? "transparent"}`}
-                                    boxShadow={entry.isViewer ? "0 0 0 2px #0D0D0E, 0 0 0 4px #c4a8ff" : undefined}
                                 >
                                     <Avatar
                                         size={isFirst ? "lg" : "md"}
@@ -332,11 +331,21 @@ function Row({ entry, leader, index }: { entry: LeaderboardEntry; leader: number
                     {entry.position}
                 </Text>
 
-                <Avatar
-                    size="sm"
-                    name={entry.displayName}
-                    src={entry.imageUrl ? getSizedImageUrl(entry.imageUrl, 64, 64) : undefined}
-                />
+                {/*
+                  * Off the podium there is no placing colour on the picture, so
+                  * this is where the reader's own ring earns its place.
+                  */}
+                <Box
+                    borderRadius="full"
+                    flexShrink={0}
+                    border={entry.isViewer ? "2px solid #c4a8ff" : "2px solid transparent"}
+                >
+                    <Avatar
+                        size="sm"
+                        name={entry.displayName}
+                        src={entry.imageUrl ? getSizedImageUrl(entry.imageUrl, 64, 64) : undefined}
+                    />
+                </Box>
 
                 <Stack gap="0" flex="1" minW="0">
                     <Text fontSize="15px" fontWeight="semibold" color="#f5f5f5" noOfLines={1}>
@@ -412,9 +421,12 @@ export default function LeaderboardPage({ user }: { user: User }) {
     }
 
     if (!entries) {
+        // The same spinner the other pages wait behind. Loader is the full
+        // screen logo the app opens with, and using it here reads as the app
+        // starting up again rather than as a page fetching its contents.
         return (
             <Center height="60vh">
-                <Loader />
+                <Spinner size="lg" />
             </Center>
         );
     }
