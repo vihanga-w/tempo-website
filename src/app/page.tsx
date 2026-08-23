@@ -67,15 +67,36 @@ export default function Home() {
   // Notification subscription
   const { getSubscription } = useSubscribe();
 
+  /**
+   * Runs when the modal goes away by any route, including the close button and
+   * the overlay. A modal whose whole purpose is to send the reader somewhere
+   * cannot treat being closed as declining.
+   *
+   * One-shot: cleared as it fires, so dismissing through a button and through
+   * the close control cannot both run it.
+   */
+  const modalDismissRef = useRef<(() => void) | undefined>(undefined);
+
+  const runModalDismiss = () => {
+    const dismiss = modalDismissRef.current;
+
+    modalDismissRef.current = undefined;
+
+    dismiss?.();
+  };
+
   const triggerModal = (title: string, content: JSX.Element, primaryButton?: {
     text?: string;
     callback: () => void;
   }, secondaryButton?: {
     text?: string;
     callback: () => void;
-  }) => {
+  }, onDismiss?: () => void) => {
     setModalTitle(title);
     setModalContent(content);
+
+    // Set unconditionally, so a modal without one cannot inherit the last one's
+    modalDismissRef.current = onDismiss;
 
     if (primaryButton?.text)
       setModalPBtn(primaryButton as {
@@ -546,6 +567,45 @@ export default function Home() {
                     primaryButtonText?: string;
                     secondaryButtonText?: string;
                     secondaryButtonPage?: string;
+                    reauth?: boolean;
+                  };
+
+                  /**
+                   * Sends the reader back through sign-in.
+                   *
+                   * Logging out and reloading rather than redirecting directly:
+                   * the sign-in that runs on the next load already handles this
+                   * platform, whether that is a redirect or the native browser
+                   * hand-off, and duplicating either of those here would be a
+                   * second path to keep working.
+                   */
+                  const beginReauth = async () => {
+                    try {
+                      await user.logout();
+                    } catch (e) {
+                      console.warn("Could not sign out before re-authorising:", e);
+                    }
+
+                    try {
+                      if (Capacitor.isNativePlatform())
+                        await Preferences.remove({ key: "tempo.s.a" });
+                    } catch { }
+
+                    window.location.reload();
+                  };
+
+                  const dismissNotice = () => {
+                    window.localStorage.setItem("tempo-local-version-notice", remoteVersion.toString());
+
+                    if (notice.reauth) {
+                      beginReauth();
+
+                      // Deliberately not resolved: the page is on its way out,
+                      // and letting startup carry on would race the reload
+                      return;
+                    }
+
+                    resolve();
                   };
 
                   triggerModal(notice.title, (<>
@@ -563,22 +623,23 @@ export default function Home() {
                   </>), {
                     text: notice.primaryButtonText ?? "Got it!",
                     callback() {
-                      window.localStorage.setItem("tempo-local-version-notice", remoteVersion.toString());
                       onModalClose();
-                      resolve();
+                      runModalDismiss();
                     },
                   }, {
+                    // Hidden unless the notice asks for one
                     text: notice.secondaryButtonText,
                     callback() {
                       window.localStorage.setItem("tempo-local-version-notice", remoteVersion.toString());
-                      
+
                       if (notice.secondaryButtonPage)
                         prouter.setMainUIPage(notice.secondaryButtonPage);
-                      
+
                       onModalClose();
+                      modalDismissRef.current = undefined;
                       resolve();
                     },
-                  });
+                  }, dismissNotice);
                 }
               } catch (ex) {
                 console.error("Failed to check application version, error:", ex);
@@ -650,7 +711,10 @@ export default function Home() {
         title={modalTitle}
         isOpen={isModalOpen}
         onOpen={onModalOpen}
-        onClose={onModalClose}
+        onClose={() => {
+          runModalDismiss();
+          onModalClose();
+        }}
         primaryButton={modalPBtn}
         secondaryButton={modalSBtn}
     >
