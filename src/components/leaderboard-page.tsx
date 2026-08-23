@@ -159,7 +159,7 @@ function standingLine(entries: LeaderboardEntry[]): string {
         return "Nobody to race yet — add a friend and see who listens more.";
 
     if (me.listeningMs === 0)
-        return "You haven't listened this week. Press play and you're on the board.";
+        return "You haven't listened in the past week. Press play and you're on the board.";
 
     if (me.position === 1) {
         const next = entries.find(e => !e.isViewer);
@@ -370,7 +370,7 @@ function Row({ entry, leader, index }: { entry: LeaderboardEntry; leader: number
                     </Text>
                     <Text fontSize="12px" color="#6b6b6b">
                         {entry.uniqueSongs === 0
-                            ? "nothing yet this week"
+                            ? "nothing in the past week"
                             : `${entry.uniqueSongs} song${entry.uniqueSongs === 1 ? "" : "s"}`}
                     </Text>
                 </Stack>
@@ -461,8 +461,13 @@ export default function LeaderboardPage({ user }: { user: User }) {
         // board about two thirds of the screen wide and the padding meaningless.
         <Box width="100%" px="20px" pb="24">
             <Stack gap="1" mb="5" mt="2">
+                {/*
+                  * Not "This week": the board is a rolling seven days, and a
+                  * calendar week is what "this week" means to somebody reading
+                  * it on a Tuesday.
+                  */}
                 <Text fontSize="26px" fontWeight="bold" color="#f5f5f5">
-                    This week
+                    Past week
                 </Text>
                 <Text fontSize="15px" color="#a0a0a0" lineHeight="1.5">
                     {standingLine(entries)}
