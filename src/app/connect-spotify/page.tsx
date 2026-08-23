@@ -3,6 +3,8 @@
 import { API_URL } from "@/lib/const";
 import { Box, Button, Center, HStack, Input, Link, Stack, Text, useToast } from "@chakra-ui/react";
 import { useEffect, useState } from "react";
+import { Capacitor } from "@capacitor/core";
+import { DefaultSystemBrowserOptions, InAppBrowser } from "@capacitor/inappbrowser";
 
 /**
  * Sets an account up against its own Spotify app.
@@ -16,6 +18,9 @@ import { useEffect, useState } from "react";
  * the one value that must match the deployment exactly and is the usual reason
  * a set-up fails.
  */
+/** Where a half finished client ID waits while the user is on the dashboard. */
+const CLIENT_ID_DRAFT_KEY = "tempo-byo-client-id-draft";
+
 export default function ConnectSpotify() {
     const [redirectUri, setRedirectUri] = useState<string>("");
     const [dashboardUrl, setDashboardUrl] = useState<string>("https://developer.spotify.com/dashboard");
@@ -28,6 +33,52 @@ export default function ConnectSpotify() {
     const [resumeError, setResumeError] = useState<string>("");
 
     const toast = useToast();
+
+    /**
+     * Opens a link outside the app.
+     *
+     * This page is the one place someone has to fetch two values from another
+     * site and bring them back. Following a link in place means leaving the
+     * page, and returning to it means an empty form and a second trip for the
+     * value they had already copied — twice over, since the ID and the secret
+     * are revealed separately. Somewhere they can switch away from and back to
+     * keeps the form exactly where they left it.
+     */
+    const openExternally = async (url: string) => {
+        if (Capacitor.isNativePlatform()) {
+            try {
+                await InAppBrowser.openInSystemBrowser({ url, options: DefaultSystemBrowserOptions });
+
+                return;
+            } catch (e) {
+                console.warn("Could not open the system browser, falling back:", e);
+            }
+        }
+
+        window.open(url, "_blank", "noopener,noreferrer");
+    };
+
+    /**
+     * Keeps the client ID across a trip to the dashboard.
+     *
+     * A belt-and-braces measure for the case where the link opens in place after
+     * all. The secret is deliberately not kept: it is the more sensitive of the
+     * two and it is copied last, so the trip that would lose it is the one the
+     * user is already on their way back from.
+     */
+    useEffect(() => {
+        const saved = window.localStorage.getItem(CLIENT_ID_DRAFT_KEY);
+
+        if (saved)
+            setClientId(saved);
+    }, []);
+
+    useEffect(() => {
+        if (clientId.trim() === "")
+            window.localStorage.removeItem(CLIENT_ID_DRAFT_KEY);
+        else
+            window.localStorage.setItem(CLIENT_ID_DRAFT_KEY, clientId.trim());
+    }, [clientId]);
 
     useEffect(() => {
         fetch(API_URL + "/spotify/byo/info")
@@ -117,6 +168,8 @@ export default function ConnectSpotify() {
 
                 return;
             }
+
+            try { window.localStorage.removeItem(CLIENT_ID_DRAFT_KEY); } catch { }
 
             // Straight into Spotify's consent screen, now under their own app
             window.location.href = res.authUrl;
@@ -241,14 +294,25 @@ export default function ConnectSpotify() {
                     {step(1, "Open the Spotify dashboard", (<>
                         <Text mb="2">
                             Sign in to{" "}
-                            <Link href="https://accounts.spotify.com/login" isExternal color="#c4a8ff" textDecoration="underline">
+                            <Link
+                                onClick={() => openExternally("https://accounts.spotify.com/login")}
+                                color="#c4a8ff"
+                                textDecoration="underline"
+                                cursor="pointer"
+                            >
                                 Spotify
                             </Link>{" "}
                             first, with the same account you use for music. Then open{" "}
-                            <Link href={dashboardUrl} isExternal color="#c4a8ff" textDecoration="underline">
+                            <Link
+                                onClick={() => openExternally(dashboardUrl)}
+                                color="#c4a8ff"
+                                textDecoration="underline"
+                                cursor="pointer"
+                            >
                                 developer.spotify.com/dashboard
                             </Link>{" "}
-                            and choose <b>Create app</b>.
+                            and choose <b>Create app</b>. Both open in your browser, so
+                            you can switch back here with what you copied.
                         </Text>
 
                         {/*
