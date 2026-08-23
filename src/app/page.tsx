@@ -26,7 +26,7 @@ import { Preferences } from '@capacitor/preferences';
 
 import User from "@/lib/usrlib";
 import { API_URL, API_URL_SOCK, NOTIF_PROCESSED_KEY, NOTIF_SUB_ID_KEY } from "@/lib/const";
-import { registerServiceWorker, removeSubscription, resetStaleSubscription, useSubscribe } from "@/lib/notify";
+import { registerServiceWorker, removeSubscription, resetStaleSubscription, useSubscribe, waitForServiceWorker } from "@/lib/notify";
 import { randomBytes } from "crypto";
 import { Modal } from "@/components/modal";
 import { SafeArea, initialize } from "@capacitor-community/safe-area";
@@ -188,6 +188,11 @@ export default function Home() {
         return;
       }
 
+      // Before anything below asks the worker for a subscription. A browser
+      // that has never registered one — or had its registration removed — has
+      // nothing for those calls to resolve against.
+      await registerServiceWorker();
+
       // Files the subscription with the server, under a device id that is kept
       // so this is idempotent — re-running it overwrites the same record rather
       // than leaving a trail of one per app start.
@@ -230,22 +235,57 @@ export default function Home() {
       // runs again and a fresh subscription is made against the current key.
       await resetStaleSubscription();
 
-      if (window.localStorage.getItem(NOTIF_PROCESSED_KEY)) {
-        // Already opted in — but the browser holding a subscription says nothing
-        // about whether the server still has it. The registration can fail, and
-        // the volume it is stored on can be replaced. Re-filing it on each start
-        // is the only way this device finds out, and costs one small request.
+      /**
+       * Brings a device that has already opted in back to a working state.
+       *
+       * Returns false only when there is nothing left to restore and the user
+       * has to be asked again.
+       */
+      const recoverSubscription = async (): Promise<boolean> => {
         try {
-          const registration = ('serviceWorker' in navigator ? await navigator.serviceWorker.ready : null);
-          const existing = await registration?.pushManager?.getSubscription();
+          const registration = await waitForServiceWorker();
+          const existing = (await registration?.pushManager?.getSubscription()) ?? null;
 
-          if (existing)
+          // The browser holding a subscription says nothing about whether the
+          // server still has the record: the registration can fail, and the
+          // volume holding it can be replaced. Re-filing is idempotent and is
+          // the only way this device can find out.
+          if (existing) {
             await registerSubscription(existing);
-        } catch (e) {
-          console.warn("Could not re-register the existing push subscription:", e);
-        }
 
-        return;
+            return true;
+          }
+
+          // No subscription on the device any more. Push services withdraw them
+          // on their own — notably when a worker keeps accepting pushes without
+          // displaying anything, which is exactly what a worker with no push
+          // handler did here. The stored flag says this user already agreed and
+          // the permission is still granted, so restore it quietly rather than
+          // asking a second time for something they already said yes to.
+          if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+            console.log("Push subscription had been withdrawn — resubscribing");
+
+            await registerSubscription(await getSubscription());
+
+            return true;
+          }
+
+          // Subscription and permission are both gone, so there is nothing to
+          // restore without the user in the loop.
+          window.localStorage.removeItem(NOTIF_PROCESSED_KEY);
+
+          return false;
+        } catch (e) {
+          // A failure here is not evidence the user needs asking again
+          console.warn("Could not restore the push subscription:", e);
+
+          return true;
+        }
+      };
+
+      if (window.localStorage.getItem(NOTIF_PROCESSED_KEY)) {
+        if (await recoverSubscription())
+          return;
       }
 
       const localAllow = await new Promise<boolean>(resolve => {
@@ -286,8 +326,6 @@ export default function Home() {
 
         return;
       }
-
-      await registerServiceWorker();
 
       try {
         // Get the subscription object using the getSubscription function

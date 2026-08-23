@@ -82,7 +82,7 @@ const resetStaleSubscription = async (): Promise<boolean> => {
         return false;
     }
 
-    const registration = ('serviceWorker' in navigator ? await navigator.serviceWorker.ready : null);
+    const registration = await waitForServiceWorker();
     const existing = (await registration?.pushManager?.getSubscription()) ?? null;
 
     const knownKey = window.localStorage.getItem(NOTIF_VAPID_KEY);
@@ -129,7 +129,11 @@ const useSubscribe = () => {
         }
 
         // Wait for Service Worker to be ready
-        const registration = await navigator.serviceWorker.ready;
+        const registration = await waitForServiceWorker();
+
+        if (!registration) {
+            throw { errorCode: "ServiceWorkerNotReady" };
+        }
 
         // Check for pushManager in registration
         if (!registration.pushManager) {
@@ -187,6 +191,15 @@ const useSubscribe = () => {
  * registration at all it simply hangs, taking the subscribe flow down with it
  * and reporting nothing.
  */
+const waitForServiceWorker = async (): Promise<ServiceWorkerRegistration | null> => {
+    if (!('serviceWorker' in navigator))
+        return null;
+
+    const timeout = new Promise<null>(resolve => setTimeout(() => resolve(null), 10e3));
+
+    return await Promise.race([navigator.serviceWorker.ready, timeout]);
+};
+
 const registerServiceWorker = async () => {
     if (!('serviceWorker' in navigator)) {
         console.warn('Service Worker is not supported in this browser.');
@@ -194,9 +207,24 @@ const registerServiceWorker = async () => {
         return;
     }
 
-    const timeout = new Promise<null>(resolve => setTimeout(() => resolve(null), 10e3));
+    // Registered here rather than left to next-pwa. Its `register: true` injects
+    // the registration into _app, which the App Router does not have, so nothing
+    // in this app ever actually registered a worker — the /sw.js registration
+    // devices were running had simply persisted from an older build, and any
+    // browser that unregistered it never got another.
+    //
+    // /sw.js is the generated worker, which imports the push handler. Registering
+    // the same script at the same scope twice is a no-op, so this stays correct
+    // if next-pwa ever does inject its own.
+    try {
+        await navigator.serviceWorker.register('/sw.js');
+    } catch (error) {
+        console.error('Service Worker registration failed:', error);
 
-    const registration = await Promise.race([navigator.serviceWorker.ready, timeout]);
+        return;
+    }
+
+    const registration = await waitForServiceWorker();
 
     if (!registration) {
         console.warn('No service worker became ready — push notifications cannot be displayed.');
@@ -211,8 +239,8 @@ const registerServiceWorker = async () => {
 const removeSubscription = async () => {
     if ('serviceWorker' in navigator) {
         try {
-            const registration = await navigator.serviceWorker.ready;
-            const subscription = await registration.pushManager.getSubscription();
+            const registration = await waitForServiceWorker();
+            const subscription = (await registration?.pushManager?.getSubscription()) ?? null;
             if (subscription) {
                 await subscription.unsubscribe();
                 try { window.localStorage.removeItem(NOTIF_VAPID_KEY); } catch { }
@@ -228,4 +256,4 @@ const removeSubscription = async () => {
     }
 };
 
-export { urlBase64ToUint8Array, useSubscribe, registerServiceWorker, removeSubscription, fetchVapidPublicKey, resetStaleSubscription };
+export { urlBase64ToUint8Array, useSubscribe, registerServiceWorker, waitForServiceWorker, removeSubscription, fetchVapidPublicKey, resetStaleSubscription };
