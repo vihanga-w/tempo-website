@@ -560,7 +560,12 @@ export default function Home() {
 
                   return resolve();
                 } else if (localVersion === remoteVersion && localVersionNotice < remoteVersion) {
-                  const req = await fetch(API_URL + "/.version-notice");
+                  // Authenticated, so the server can tell whether this account
+                  // still needs the sign-in the notice may ask for
+                  const req = await fetch(API_URL + "/.version-notice", {
+                    headers: { ...(user.getAuthHeaders()) },
+                    credentials: "include",
+                  });
                   const notice = (await req.json()) as {
                     title: string;
                     text: string[];

@@ -412,20 +412,23 @@ export default function LeaderboardPage({ user }: { user: User }) {
         return () => { cancelled = true; };
     }, [user]);
 
+    // Centred the way the other pages centre theirs: filling the viewport rather
+    // than a fraction of it. A percentage of the height puts the middle of that
+    // fraction on screen, which is not the middle of anything the reader can see.
     if (error !== "") {
         return (
-            <Center height="60vh" px="6">
+            <Center position="absolute" top="0" left="0" width="100vw" height="100vh" px="8">
                 <Text fontSize="15px" color="#ff8a8a" textAlign="center">{error}</Text>
             </Center>
         );
     }
 
     if (!entries) {
-        // The same spinner the other pages wait behind. Loader is the full
-        // screen logo the app opens with, and using it here reads as the app
-        // starting up again rather than as a page fetching its contents.
+        // The spinner the other pages wait behind. Loader is the full screen
+        // logo the app opens with, and using it here reads as the app starting
+        // up again rather than as a page fetching its contents.
         return (
-            <Center height="60vh">
+            <Center position="absolute" top="0" left="0" width="100vw" height="100vh">
                 <Spinner size="lg" />
             </Center>
         );
@@ -436,7 +439,10 @@ export default function LeaderboardPage({ user }: { user: User }) {
     const leader = entries[0]?.listeningMs ?? 0;
 
     return (
-        <Box px="20px" pb="24">
+        // Held to a column and centred, rather than stretched to whatever the
+        // window happens to be. The podium is centred on its own, so a full width
+        // list beside it leaves the two disagreeing about where the middle is.
+        <Box px="20px" pb="24" maxW="520px" mx="auto">
             <Stack gap="1" mb="5" mt="2">
                 <Text fontSize="26px" fontWeight="bold" color="#f5f5f5">
                     This week
@@ -454,18 +460,14 @@ export default function LeaderboardPage({ user }: { user: User }) {
                 ))}
             </Stack>
 
-            {/* The reader is on the podium, so their row is not in the list below */}
-            {entries.length > 3 && !rest.some(e => e.isViewer) && (
-                <Text fontSize="12px" color="#4a4a4a" textAlign="center" mt="5">
-                    Resets every week · counts time listened, not tracks skipped
-                </Text>
-            )}
-
-            {entries.length <= 3 && (
-                <Text fontSize="12px" color="#4a4a4a" textAlign="center" mt="4">
-                    Resets every week · counts time listened, not tracks skipped
-                </Text>
-            )}
+            {/*
+              * A rolling window rather than a weekly reset: the board is the last
+              * seven days from whenever it is read, so saying it resets would be
+              * describing something it does not do.
+              */}
+            <Text fontSize="12px" color="#4a4a4a" textAlign="center" mt="5">
+                Last 7 days · counts time listened
+            </Text>
         </Box>
     );
 }
