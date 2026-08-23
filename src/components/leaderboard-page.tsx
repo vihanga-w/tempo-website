@@ -104,11 +104,10 @@ function formatListening(ms: number): string {
     if (minutes < 60)
         return `${minutes}m`;
 
-    const remainder = minutes % 60;
-
-    // Padded so "7h 08m" lines up with "7h 26m" in a column, but a bare zero is
-    // not a two digit number and "00m" reads as a stopwatch rather than a total
-    return `${Math.floor(minutes / 60)}h ${remainder === 0 ? "0" : String(remainder).padStart(2, "0")}m`;
+    // Written the way somebody would say it. Padding the minutes lines a column
+    // up, but "1h 08m" is a stopwatch reading rather than an amount of listening
+    // to anyone who has not spent their life looking at zero padded numbers.
+    return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
 }
 
 /**
