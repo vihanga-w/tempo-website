@@ -15,6 +15,15 @@ const withPWA = npwa({
   // displayed. Importing it means the worker that actually runs is the one that
   // knows what to do with a push.
   importScripts: ["/notify-sw.js"],
+  // Kept out of the precache manifest because the static export never emits it.
+  //
+  // Workbox fetches every precached URL during install and a single 404 rejects
+  // the whole install, so the worker never activates. next-pwa lists this file
+  // for the App Router, Next does not write it under `output: "export"`, and the
+  // result was a service worker that could not update: the one already installed
+  // on a device kept running and every new version failed silently. That is why
+  // a worker with no push handler survived being replaced.
+  buildExcludes: [/app-build-manifest\.json$/],
 });
 
 const nextConfig = withPWA({
