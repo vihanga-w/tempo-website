@@ -237,6 +237,16 @@ export default function ProfilePage({
         });
     };
 
+    /**
+     * Bumped whenever the listening history should go back for anything new.
+     *
+     * Paired with the song currently playing below, so the feed also refreshes
+     * the moment a track ends — which is exactly when the entry for it is
+     * written, and the one time somebody watching the page expects to see it
+     * appear.
+     */
+    const [historyRefreshTick, setHistoryRefreshTick] = useState(0);
+
     // Kept in a ref so the listeners below are attached once rather than
     // re-attached whenever the filter or the target changes
     const refreshStatsRef = useRef(refreshListeningStats);
@@ -246,9 +256,15 @@ export default function ProfilePage({
     useEffect(() => {
         // While the page is open, and again whenever it is returned to. Coming
         // back after listening is exactly when somebody looks at these.
-        const onReturn = () => refreshStatsRef.current(true);
+        const onReturn = () => {
+            refreshStatsRef.current(true);
+            setHistoryRefreshTick(t => t + 1);
+        };
 
-        const timer = setInterval(() => refreshStatsRef.current(true), 60e3);
+        const timer = setInterval(() => {
+            refreshStatsRef.current(true);
+            setHistoryRefreshTick(t => t + 1);
+        }, 60e3);
 
         window.addEventListener("focus", onReturn);
         document.addEventListener("visibilitychange", onReturn);
@@ -1076,7 +1092,8 @@ export default function ProfilePage({
                             >
                                 <FriendHistoryFeed
                                     userId={targetUserId ?? user.id}
-                                    fetchHistory={(userId, page) => user.getFriendProfileListenershipHistory(userId, page)}
+                                    fetchHistory={(userId, page, forceRefresh) => user.getFriendProfileListenershipHistory(userId, page, forceRefresh)}
+                                    refreshSignal={`${playbackState?.data.state?.songId ?? ""}:${historyRefreshTick}`}
                                 />
                             </Stack>
                         </Box>

@@ -639,7 +639,7 @@ export default class User extends EventEmitter {
         }
     }
 
-    public async getFriendProfileListenershipHistory(userId: string, page: number) {
+    public async getFriendProfileListenershipHistory(userId: string, page: number, forceRefresh?: boolean) {
         if (page < 0)
             page = 0;
 
@@ -651,7 +651,7 @@ export default class User extends EventEmitter {
             data: FriendListenershipItem[];
         }>(KEY, 300e3);
 
-        if (cached)
+        if (cached && !forceRefresh)
             return cached;
 
         const req = await fetch(API_URL + `/profile/${userId}/history/${page}`, {

@@ -6,9 +6,15 @@ import { FriendListenershipItem } from "@/lib/usrlib";
 export default function FriendListenershipHistory({
     userId,
     fetchHistory,
+    refreshSignal,
 }: {
     userId: string;
-    fetchHistory: (userId: string, page: number) => Promise<{ data: FriendListenershipItem[]; isFinalPage: boolean }>;
+    fetchHistory: (userId: string, page: number, forceRefresh?: boolean) => Promise<{ data: FriendListenershipItem[]; isFinalPage: boolean }>;
+    /**
+     * Changes whenever the feed should go back for anything new — a track
+     * finishing, the app being returned to, or simply time passing.
+     */
+    refreshSignal?: string;
 }) {
     const [items, setItems] = useState<FriendListenershipItem[]>([]);
     const [currentPage, setCurrentPage] = useState(0);
@@ -17,6 +23,48 @@ export default function FriendListenershipHistory({
     const [reachedEnd, setReachedEnd] = useState(false);
 
     const loaderRef = useRef<HTMLDivElement>(null);
+
+    // The first signal arrives with the initial load, which has already fetched
+    const seenFirstSignal = useRef(false);
+
+    /**
+     * Brings in anything played since the feed was opened.
+     *
+     * Only the newest page is refetched, and only entries newer than the one at
+     * the top are kept. Replacing the list outright would throw away every page
+     * already scrolled through, and re-adding what is already there would
+     * duplicate it — a track that has not moved is the same track.
+     */
+    useEffect(() => {
+        if (!seenFirstSignal.current) {
+            seenFirstSignal.current = true;
+
+            return;
+        }
+
+        let cancelled = false;
+
+        (async () => {
+            try {
+                const res = await fetchHistory(userId, 0, true);
+
+                if (cancelled)
+                    return;
+
+                setItems(prev => {
+                    if (prev.length === 0)
+                        return res.data;
+
+                    const newest = prev[0]?.timestamp ?? 0;
+                    const fresh = res.data.filter(v => v.timestamp > newest);
+
+                    return (fresh.length > 0 ? [...fresh, ...prev] : prev);
+                });
+            } catch { }
+        })();
+
+        return () => { cancelled = true; };
+    }, [refreshSignal, userId]);
 
     useEffect(() => {
         // Initial page load
