@@ -35,7 +35,7 @@ export default function ConnectSpotify() {
     const toast = useToast();
 
     /**
-     * Opens a link outside the app.
+     * Sends a link to the browser instead of following it in place.
      *
      * This page is the one place someone has to fetch two values from another
      * site and bring them back. Following a link in place means leaving the
@@ -43,19 +43,22 @@ export default function ConnectSpotify() {
      * value they had already copied — twice over, since the ID and the secret
      * are revealed separately. Somewhere they can switch away from and back to
      * keeps the form exactly where they left it.
+     *
+     * On the web the anchor is left to do it. iOS only honours a window it was
+     * asked to open synchronously from the gesture that asked for it, so
+     * anything scripted behind an await is dropped without a word — and letting
+     * the browser follow the href sidesteps that entirely, while keeping
+     * long-press and open-in-new-tab working. Only a native build intercepts,
+     * because a Capacitor webview has no browser tab to hand off to.
      */
-    const openExternally = async (url: string) => {
-        if (Capacitor.isNativePlatform()) {
-            try {
-                await InAppBrowser.openInSystemBrowser({ url, options: DefaultSystemBrowserOptions });
+    const handleExternalLink = (url: string) => (event: { preventDefault: () => void }) => {
+        if (!Capacitor.isNativePlatform())
+            return;
 
-                return;
-            } catch (e) {
-                console.warn("Could not open the system browser, falling back:", e);
-            }
-        }
+        event.preventDefault();
 
-        window.open(url, "_blank", "noopener,noreferrer");
+        InAppBrowser.openInSystemBrowser({ url, options: DefaultSystemBrowserOptions })
+            .catch(e => console.warn("Could not open the system browser:", e));
     };
 
     /**
@@ -295,19 +298,21 @@ export default function ConnectSpotify() {
                         <Text mb="2">
                             Sign in to{" "}
                             <Link
-                                onClick={() => openExternally("https://accounts.spotify.com/login")}
+                                href="https://accounts.spotify.com/login"
+                                isExternal
+                                onClick={handleExternalLink("https://accounts.spotify.com/login")}
                                 color="#c4a8ff"
                                 textDecoration="underline"
-                                cursor="pointer"
                             >
                                 Spotify
                             </Link>{" "}
                             first, with the same account you use for music. Then open{" "}
                             <Link
-                                onClick={() => openExternally(dashboardUrl)}
+                                href={dashboardUrl}
+                                isExternal
+                                onClick={handleExternalLink(dashboardUrl)}
                                 color="#c4a8ff"
                                 textDecoration="underline"
-                                cursor="pointer"
                             >
                                 developer.spotify.com/dashboard
                             </Link>{" "}
