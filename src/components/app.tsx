@@ -102,6 +102,21 @@ export default React.memo(function UIApp({
     const [visibleHistoryCount, setVisibleHistoryCount] = useState<number>(ITEMS_PER_BATCH);
     const historyEndRef = useRef<HTMLDivElement | null>(null);
 
+    // Resuming fires focus, pageshow and visibilitychange together, and each one
+    // used to run the reconnect check independently — so a single resume tore the
+    // socket down two or three times over, each teardown blanking the activity
+    // list and refilling it. This collapses a burst into one check.
+    const resumeCheckInFlight = useRef<boolean>(false);
+
+    // Mirrors livePlaybackStates for the socket callbacks and the resume check,
+    // which need to know whether anything is currently on screen without being
+    // re-created (and re-subscribed) every time the list changes.
+    const livePlaybackStatesRef = useRef<UpdateEvent[]>([]);
+
+    useEffect(() => {
+        livePlaybackStatesRef.current = livePlaybackStates;
+    }, [livePlaybackStates]);
+
     const { isOpen: isReactionDrawerVisible, onOpen: openReactionDrawer, onClose: closeReactionDrawer } = useDisclosure();
     const { isOpen: isRecapDrawerVisible, onOpen: openRecapDrawer, onClose: closeRecapDrawer } = useDisclosure();
 
@@ -262,7 +277,11 @@ export default React.memo(function UIApp({
         setStreamer(newStreamer);
 
         newStreamer.on("construct", () => {
-            setShowLivePlaybackStates(false);
+            // Only hide while there is nothing worth looking at. On a reconnect
+            // the previous states stay on screen until "open" replaces them,
+            // rather than collapsing to placeholders and popping back.
+            if (livePlaybackStatesRef.current.length === 0)
+                setShowLivePlaybackStates(false);
             
             newStreamer.fetchFriendsStreams()
             .then(s => {
@@ -382,6 +401,25 @@ export default React.memo(function UIApp({
 
     useEffect(() => {
         const handleFocus = async () => {
+            if (resumeCheckInFlight.current)
+                return;
+
+            resumeCheckInFlight.current = true;
+
+            try {
+                await runResumeCheck();
+            } finally {
+                // Held briefly after the check rather than released immediately:
+                // the events do not always arrive together, and offline the
+                // version fetch rejects fast enough that a plain in-flight flag
+                // lets the next one straight through.
+                setTimeout(() => {
+                    resumeCheckInFlight.current = false;
+                }, 1e3);
+            }
+        };
+
+        const runResumeCheck = async () => {
             const localVersion = parseInt(window.localStorage.getItem("tempo-local-version") ?? "-1");
             
             try {
@@ -399,9 +437,15 @@ export default React.memo(function UIApp({
                 }
             } catch {}
 
-            if (streamer && !streamer.isReady()) {
-                setActivityPageLoading(true);
-                setLivePlaybackStates([]);
+            // A socket still negotiating is not a dead socket: tearing it down
+            // restarts the very connection it was about to complete.
+            if (streamer && !streamer.isReady() && !streamer.isConnecting()) {
+                // The list is deliberately left alone. Reconnecting replaces it
+                // wholesale on "open", so clearing it here only guarantees a gap
+                // where the activity page shows nothing at all.
+                if (livePlaybackStatesRef.current.length === 0)
+                    setActivityPageLoading(true);
+
                 setStreamerReset(true);
             }
             // Pass the current friendsListenershipPage explicitly
@@ -444,12 +488,14 @@ export default React.memo(function UIApp({
     }, [livePlaybackStates, livePlaybackStatesPlaceholderCount, showLivePlaybackStates]);
 
     useEffect(() => {
-        if (streamerReset && streamer && livePlaybackStates.length == 0) {
-            streamer.cleanup();
+        // Gated on an empty list until now, which only ever held while the resume
+        // handler was blanking it. init() runs its own cleanup, so calling
+        // cleanup() here as well tore the socket down twice per reconnect.
+        if (streamerReset && streamer) {
             streamer.init();
             setStreamerReset(false);
         }
-    }, [livePlaybackStates, streamer, streamerReset, livePlaybackStatesPlaceholderCount]);
+    }, [streamer, streamerReset]);
 
     const pages: { name: string; menuName?: string; id: string; indexed: boolean }[] = [
         // Discover is hidden for now. Its rendering and data loading are left in

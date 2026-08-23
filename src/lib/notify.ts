@@ -1,3 +1,5 @@
+import { API_URL, NOTIF_PROCESSED_KEY, NOTIF_VAPID_KEY } from "./const";
+
 // Function to convert Base64URL to Uint8Array
 const urlBase64ToUint8Array = (base64String: string) => {
     const padding = '='.repeat((4 - base64String.length % 4) % 4);
@@ -15,10 +17,111 @@ const urlBase64ToUint8Array = (base64String: string) => {
     return outputArray;
 };
 
+/**
+ * Fetches the application server key from the API.
+ *
+ * This used to be a constant in the page. A hardcoded copy stops matching the
+ * moment the server's key changes, and nothing about the failure is visible
+ * here — the browser subscribes happily and the push service rejects every
+ * send. Asking the server means the two cannot drift apart.
+ */
+const fetchVapidPublicKey = async (): Promise<string> => {
+    const res = await fetch(API_URL + "/notify/pubkey");
+
+    if (!res.ok)
+        throw { errorCode: "VapidPublicKeyUnavailable", status: res.status };
+
+    const body = await res.json();
+    const publicKey = body?.data?.publicKey;
+
+    if (typeof publicKey !== "string" || publicKey === "")
+        throw { errorCode: "VapidPublicKeyUnavailable" };
+
+    return publicKey;
+};
+
+/** The key a subscription was actually created with, base64url encoded. */
+const subscriptionPublicKey = (subscription: PushSubscription): string | null => {
+    const raw = subscription.options?.applicationServerKey;
+
+    if (!raw)
+        return null;
+
+    const bytes = new Uint8Array(raw as ArrayBuffer);
+
+    let binary = "";
+
+    for (let i = 0; i < bytes.length; ++i)
+        binary += String.fromCharCode(bytes[i]);
+
+    return window.btoa(binary)
+        .replace(/\+/g, "-")
+        .replace(/\//g, "_")
+        .replace(/=+$/, "");
+};
+
+/**
+ * Clears this device's notification state when the server is signing with a
+ * different VAPID key than the one it last subscribed under.
+ *
+ * Returns true when a reset happened, meaning the caller should run the
+ * subscribe flow again — the permission prompt included, since the old
+ * subscription is gone.
+ *
+ * Deliberately does nothing when the key cannot be fetched: a backend blip must
+ * not throw away a subscription that is still perfectly good.
+ */
+const resetStaleSubscription = async (): Promise<boolean> => {
+    let serverKey: string;
+
+    try {
+        serverKey = await fetchVapidPublicKey();
+    } catch (e) {
+        console.warn("Could not check the server's VAPID key, leaving the subscription alone:", e);
+
+        return false;
+    }
+
+    const registration = ('serviceWorker' in navigator ? await navigator.serviceWorker.ready : null);
+    const existing = (await registration?.pushManager?.getSubscription()) ?? null;
+
+    const knownKey = window.localStorage.getItem(NOTIF_VAPID_KEY);
+
+    // The marker is written on every successful subscribe, so its absence means
+    // either no subscription or one from before this check existed — and the
+    // latter is exactly the population that has to be reset.
+    const current = (existing ? subscriptionPublicKey(existing) : knownKey);
+
+    if (current === serverKey) {
+        // Backfills the marker for a device that is already on the right key
+        window.localStorage.setItem(NOTIF_VAPID_KEY, serverKey);
+
+        return false;
+    }
+
+    if (!existing && !knownKey)
+        return false;
+
+    console.log("Push subscription was made with a stale VAPID key, resetting it");
+
+    if (existing) {
+        try {
+            await existing.unsubscribe();
+        } catch (e) {
+            console.warn("Failed to unsubscribe the stale push subscription:", e);
+        }
+    }
+
+    try {
+        window.localStorage.removeItem(NOTIF_VAPID_KEY);
+        window.localStorage.removeItem(NOTIF_PROCESSED_KEY);
+    } catch { }
+
+    return true;
+};
+
 // Hook for subscribing to push notifications
-const useSubscribe = ({ publicKey }: {
-    publicKey: string;
-}) => {
+const useSubscribe = () => {
     const getSubscription = async () => {
         // Check for ServiceWorker and PushManager support
         if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
@@ -33,20 +136,38 @@ const useSubscribe = ({ publicKey }: {
             throw { errorCode: "PushManagerUnavailable" };
         }
 
+        const publicKey = await fetchVapidPublicKey();
+
         // Check for existing subscription
         const existingSubscription = await registration.pushManager.getSubscription();
 
         if (existingSubscription) {
-            throw { errorCode: "ExistingSubscription", sub: existingSubscription };
+            // Only an existing subscription on the current key is worth keeping.
+            // One on an older key cannot receive anything, so it is replaced
+            // rather than reported back as already-subscribed.
+            if (subscriptionPublicKey(existingSubscription) === publicKey)
+                throw { errorCode: "ExistingSubscription", sub: existingSubscription };
+
+            try {
+                await existingSubscription.unsubscribe();
+            } catch (e) {
+                console.warn("Failed to unsubscribe a subscription on an old VAPID key:", e);
+            }
         }
 
         // Convert VAPID key for use in subscription
         const convertedVapidKey = urlBase64ToUint8Array(publicKey);
-        
-        return await registration.pushManager.subscribe({
+
+        const subscription = await registration.pushManager.subscribe({
             applicationServerKey: convertedVapidKey,
             userVisibleOnly: true,
         });
+
+        // Recorded only once the browser has accepted the key, so the marker
+        // never claims a subscription that does not exist
+        window.localStorage.setItem(NOTIF_VAPID_KEY, publicKey);
+
+        return subscription;
     };
 
     return { getSubscription };
@@ -74,6 +195,7 @@ const removeSubscription = async () => {
             const subscription = await registration.pushManager.getSubscription();
             if (subscription) {
                 await subscription.unsubscribe();
+                try { window.localStorage.removeItem(NOTIF_VAPID_KEY); } catch { }
                 console.log('Push subscription removed successfully.');
             } else {
                 console.log('No push subscription found.');
@@ -86,4 +208,4 @@ const removeSubscription = async () => {
     }
 };
 
-export { urlBase64ToUint8Array, useSubscribe, registerServiceWorker, removeSubscription };
+export { urlBase64ToUint8Array, useSubscribe, registerServiceWorker, removeSubscription, fetchVapidPublicKey, resetStaleSubscription };

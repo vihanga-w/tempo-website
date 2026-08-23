@@ -25,8 +25,8 @@ import { AndroidViewStyle, DefaultAndroidSystemBrowserOptions, DefaultSystemBrow
 import { Preferences } from '@capacitor/preferences';
 
 import User from "@/lib/usrlib";
-import { API_URL, API_URL_SOCK } from "@/lib/const";
-import { registerServiceWorker, removeSubscription, useSubscribe } from "@/lib/notify";
+import { API_URL, API_URL_SOCK, NOTIF_PROCESSED_KEY } from "@/lib/const";
+import { registerServiceWorker, removeSubscription, resetStaleSubscription, useSubscribe } from "@/lib/notify";
 import { randomBytes } from "crypto";
 import { Modal } from "@/components/modal";
 import { SafeArea, initialize } from "@capacitor-community/safe-area";
@@ -66,10 +66,7 @@ export default function Home() {
   const bgColour = "bg.dark";
 
   // Notification subscription
-  const { getSubscription } = useSubscribe({
-    // TODO: Load VAPID public key from server?
-    publicKey: "BNFOFLUsXVVvitmhdnJ_jCR9U-c0RAudISRpeDBL-wTOBZaz2y6cltxJa7WbGHLj-6FEI8fJ7g5g8EMmyVkMIMA",
-  });
+  const { getSubscription } = useSubscribe();
 
   const triggerModal = (title: string, content: JSX.Element, primaryButton?: {
     text?: string;
@@ -191,7 +188,14 @@ export default function Home() {
         return;
       }
 
-      if (window.localStorage.getItem("tempo-notif-processed"))
+      // Devices subscribed under an older VAPID key hold an endpoint the push
+      // service will never accept again, and nothing about that is visible to
+      // the user — the app looks subscribed and simply receives nothing. This
+      // drops the dead subscription and clears the flag below, so the prompt
+      // runs again and a fresh subscription is made against the current key.
+      await resetStaleSubscription();
+
+      if (window.localStorage.getItem(NOTIF_PROCESSED_KEY))
         return;
 
       const localAllow = await new Promise<boolean>(resolve => {
@@ -216,11 +220,11 @@ export default function Home() {
         })
       });
 
-      window.localStorage.setItem("tempo-notif-processed", "true");
+      window.localStorage.setItem(NOTIF_PROCESSED_KEY, "true");
       onModalClose();
 
       if (!localAllow) {
-        window.localStorage.setItem("tempo-notif-processed", "true");
+        window.localStorage.setItem(NOTIF_PROCESSED_KEY, "true");
 
         return;
       }
@@ -270,7 +274,7 @@ export default function Home() {
         // Log a warning in case of an error
         console.warn(e);
 
-        try { window.localStorage.removeItem("tempo-notif-processed"); } catch { }
+        try { window.localStorage.removeItem(NOTIF_PROCESSED_KEY); } catch { }
         removeSubscription();
       }
     };

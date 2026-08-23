@@ -103,6 +103,8 @@ const FRIENDSHIP_CHANGED_CODE = -30;
 
 /** WebSocket.readyState when the connection is live. */
 const WS_OPEN = 1;
+/** WebSocket.readyState while the connection is still being negotiated. */
+const WS_CONNECTING = 0;
 
 export class DataStreamer extends EventEmitter {
     // private stream?: Stream;
@@ -156,7 +158,27 @@ export class DataStreamer extends EventEmitter {
         return this.socketOpen();
     }
 
-    cleanup() {
+    /**
+     * Whether a connection is already on its way up.
+     *
+     * Distinct from isReady(): a resumed app checking only for "open" sees a
+     * socket mid-handshake as dead and tears it down, restarting the connection
+     * it was about to get and blanking the UI a second time.
+     */
+    isConnecting() {
+        return this.sock?.readyState === WS_CONNECTING;
+    }
+
+    /**
+     * Tears the connection down.
+     *
+     * `silent` suppresses the per-user "remove" events. A reconnect replaces the
+     * whole list from queryRemoteLastStates() the moment the socket opens, so
+     * announcing every user as gone on the way out only empties the UI for the
+     * length of the handshake — which is the flicker seen when resuming the app
+     * from the background. A genuine teardown still announces them.
+     */
+    cleanup(options?: { silent?: boolean }) {
         this.closed = true;
 
         if (this.interval)
@@ -165,10 +187,12 @@ export class DataStreamer extends EventEmitter {
         if (this.sock && !this.sock.CLOSED)
             try { this.sock.close(); } catch { }
 
-        for (const k of Object.keys(this.cache)) {
-            const ev = this.cache[k];
+        if (!options?.silent) {
+            for (const k of Object.keys(this.cache)) {
+                const ev = this.cache[k];
 
-            this.emit("remove", ev.userId);
+                this.emit("remove", ev.userId);
+            }
         }
 
         this.cache = {};
@@ -293,7 +317,7 @@ export class DataStreamer extends EventEmitter {
     async init(prevUserIds?: string[]) {
         this.emit("construct");
 
-        this.cleanup();
+        this.cleanup({ silent: true });
 
         // After cleanup, never before it: cleanup() sets `closed`, so clearing
         // the flag first left it set again on the way out. Every socket then
