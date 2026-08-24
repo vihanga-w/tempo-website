@@ -1,9 +1,12 @@
 import { API_URL } from "@/lib/const";
 import { getSizedImageUrl } from "@/lib/sized-img";
 import User from "@/lib/usrlib";
-import { Avatar, Box, Center, HStack, keyframes, Spinner, Stack, Text } from "@chakra-ui/react";
+import { Avatar, Box, Center, HStack, Spinner, Stack, Text } from "@chakra-ui/react";
+import { keyframes } from "@emotion/react";
 import { InitialAvatar } from "./initial-avatar";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
+import { formatListening } from "@/lib/utils";
+import { useCountUp } from "@/lib/use-count-up";
 
 interface LeaderboardEntry {
     userId: string;
@@ -88,61 +91,6 @@ function PlacingBadge({ position, size }: { position: number; size: number }) {
             </text>
         </svg>
     );
-}
-
-/** "4h 12m", "38m", "—" — short enough to sit inside a row. */
-function formatListening(ms: number): string {
-    const minutes = Math.round(ms / 60e3);
-
-    // Nothing at all reads as nothing, rather than as a very short something
-    if (ms <= 0)
-        return "—";
-
-    if (minutes < 1)
-        return "under a minute";
-
-    if (minutes < 60)
-        return `${minutes}m`;
-
-    // Written the way somebody would say it. Padding the minutes lines a column
-    // up, but "1h 08m" is a stopwatch reading rather than an amount of listening
-    // to anyone who has not spent their life looking at zero padded numbers.
-    return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
-}
-
-/**
- * Counts a figure up when it first appears.
- *
- * A leaderboard that simply renders its numbers reads as a table. Watching the
- * total climb is most of what makes checking it feel like anything, and it costs
- * one animation frame loop.
- */
-function useCountUp(target: number, durationMs = 900): number {
-    const [value, setValue] = useState(0);
-    const frame = useRef<number>();
-
-    useEffect(() => {
-        const start = performance.now();
-
-        const step = (nowMs: number) => {
-            const progress = Math.min(1, (nowMs - start) / durationMs);
-
-            // Eases out, so it arrives rather than stopping dead
-            setValue(target * (1 - Math.pow(1 - progress, 3)));
-
-            if (progress < 1)
-                frame.current = requestAnimationFrame(step);
-        };
-
-        frame.current = requestAnimationFrame(step);
-
-        return () => {
-            if (frame.current)
-                cancelAnimationFrame(frame.current);
-        };
-    }, [target, durationMs]);
-
-    return value;
 }
 
 /**

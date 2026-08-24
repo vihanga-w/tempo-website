@@ -38,3 +38,27 @@ export function findBestSCDNImageSize(
 
     return bestImage ? bestImage.url : null;
 }
+/**
+ * A length of listening, written the way somebody would say it.
+ *
+ * "4h 12m", "38m", "—". Shared by the leaderboard and the profile so the same
+ * seven days of listening cannot be quoted two different ways on two screens.
+ */
+export function formatListening(ms: number): string {
+    const minutes = Math.round(ms / 60e3);
+
+    // Nothing at all reads as nothing, rather than as a very short something
+    if (ms <= 0)
+        return "—";
+
+    if (minutes < 1)
+        return "under a minute";
+
+    if (minutes < 60)
+        return `${minutes}m`;
+
+    // Padding the minutes lines a column up, but "1h 08m" is a stopwatch reading
+    // rather than an amount of listening to anyone who has not spent their life
+    // looking at zero padded numbers.
+    return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
+}

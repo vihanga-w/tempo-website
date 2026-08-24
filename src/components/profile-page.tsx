@@ -1,145 +1,597 @@
 import { DataStreamer, UpdateEvent } from "@/lib/live-ingest";
 import User, { ClientUserAccount } from "@/lib/usrlib";
-import { HStack, Stack, Box, Image, Text, Avatar, Tabs, TabList, Tab, TabPanels, TabPanel, Center, Spinner } from "@chakra-ui/react";
-import { use, useEffect, useRef, useState } from "react";
-import ReactTimeAgo from "react-time-ago";
-import { formatTimeToMinAndHour, getSpotifyDeeplink, PlaybackState, SkeletonImage } from "./playback-state";
-import { FastAverageColor } from 'fast-average-color';
+import { Box, Center, Grid, GridItem, HStack, Skeleton, Spinner, Stack, Text } from "@chakra-ui/react";
+import { keyframes } from "@emotion/react";
+import { ReactNode, useEffect, useRef, useState } from "react";
+import { getSpotifyDeeplink, SkeletonImage } from "./playback-state";
+import { FastAverageColor } from "fast-average-color";
 import { apcach, crToBg } from "apcach";
-import { oklch, formatHex } from 'culori';
-import LeaderboardSongItem from "./leaderboard-song-item";
+import { oklch, formatHex } from "culori";
 import { MdExplicit } from "react-icons/md";
 import { getSizedImageUrl } from "@/lib/sized-img";
-import { findBestSCDNImageSize } from "@/lib/utils";
+import { findBestSCDNImageSize, formatListening } from "@/lib/utils";
+import { useCountUp } from "@/lib/use-count-up";
 import { FaCog, FaHistory } from "react-icons/fa";
 import { Recap } from "./recap-drawer";
 import FriendHistoryFeed from "./friend-history-feed";
-import { SongLeaderboardComponent } from "./recap-drawer";
 import { InitialAvatar } from "./initial-avatar";
 
-const LOAD_TRACKER_TIMEOUT_MS = 5000;
+/**
+ * The page reads as a record sleeve and a printed week card rather than as a
+ * dashboard, because that is the voice the rest of the app already speaks in —
+ * the frame sets every page title in Libre Franklin Black Italic, and the
+ * leaderboard draws its own medals rather than borrowing three emoji.
+ *
+ * So: no surface is outlined, no two radii match by accident, and the figures
+ * are set in the same italic the app titles are. Panels are told apart by fill
+ * and by the space around them, which is what stops a page of stacked cards from
+ * reading as a settings screen.
+ */
+const INK = "#f6f5f8";
+const INK_DIM = "#9d9aa6";
+const INK_FAINT = "#65626e";
+
+/** Flat, borderless, one step off the page. */
+const SURFACE = "#151517";
+const SURFACE_HI = "#1c1b20";
+
+/** The app's own accent, for when there is no artwork to take a colour from. */
+const ACCENT = "#A480FF";
+const PAGE_BG = "#0D0D0E";
+
+/** Shape carries meaning here, so the radii are deliberately unalike. */
+const SLEEVE_RADIUS = "6px";
+const TILE_RADIUS = "22px";
+
+interface Rgb {
+    r: number;
+    g: number;
+    b: number;
+}
+
+interface TopSong {
+    id: string;
+    title: string;
+    artists: string[];
+    index: number;
+    explicit: boolean;
+    playCount: number;
+    imageUrl: string;
+}
+
+type TopSongsPeriod = "day" | "week" | "month";
+
+const TOP_SONG_PERIODS: { id: TopSongsPeriod; label: string }[] = [
+    { id: "day", label: "24h" },
+    { id: "week", label: "7d" },
+    { id: "month", label: "30d" },
+];
+
+/** How long a session has to run before it is worth calling a streak. */
+const STREAK_MIN_MS = 60e3 * 5;
+
+const rise = keyframes`
+    from { transform: translateY(14px); opacity: 0; }
+    to   { transform: translateY(0); opacity: 1; }
+`;
+
+/** The record turning behind the sleeve. Slow enough to notice only if you look. */
+const spin = keyframes`
+    from { transform: translateY(-50%) rotate(0deg); }
+    to   { transform: translateY(-50%) rotate(360deg); }
+`;
+
+/** "rgb(12, 34, 56)", as FastAverageColor hands it over. */
+function parseRgb(value: string): Rgb | null {
+    const parts = value.match(/\d+/g);
+
+    if (!parts || parts.length < 3)
+        return null;
+
+    return { r: Number(parts[0]), g: Number(parts[1]), b: Number(parts[2]) };
+}
+
+function componentToHex(c: number) {
+    const hex = Math.ceil(Math.min(Math.max(c, 0), 255)).toString(16);
+
+    return (hex.length === 1 ? "0" + hex : hex);
+}
+
+function rgbToHex({ r, g, b }: Rgb) {
+    return "#" + componentToHex(r) + componentToHex(g) + componentToHex(b);
+}
+
+function hexToRgb(hex: string): Rgb | null {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+
+    return (result
+        ? { r: parseInt(result[1], 16), g: parseInt(result[2], 16), b: parseInt(result[3], 16) }
+        : null);
+}
 
 /**
- * Waits for a set of named signals before completing.
+ * A colour off the artwork that text can actually sit on.
  *
- * Completes on a timeout as well, because not every signal is guaranteed to
- * arrive: "top-grad" only fires when the profile's owner happens to be playing
- * something, so an idle profile would otherwise sit on its spinner indefinitely.
- * A page rendered without its accent gradient beats a page that never renders.
+ * The average colour of a cover is whatever it is — often a mid grey, sometimes
+ * near black — so it is pushed to a lightness that clears APCA 60 against the
+ * page before being used for anything a reader has to read.
  */
-const loadTracker = (expectedCount: number, onComplete: () => void, timeoutMs = LOAD_TRACKER_TIMEOUT_MS) => {
-    let count = 0;
-    let executed = false;
-    let loadedIds: string[] = [];
+function readableAccent(rgb: Rgb): string {
+    const { r, g, b } = rgb;
+    const hex = rgbToHex(rgb);
 
-    const complete = () => {
-        if (executed)
-            return;
+    // A grey cover has no hue worth keeping; tinting off it produces an
+    // off-white that reads as a rendering fault rather than as a colour
+    const isGrey = Math.abs(r - g) < 15 && Math.abs(g - b) < 15 && Math.abs(r - b) < 15 && r > 100 && g > 100 && b > 100;
 
-        executed = true;
-        clearTimeout(timer);
-        onComplete();
-    };
+    if (isGrey)
+        return "#ffffff";
 
-    const timer = setTimeout(complete, timeoutMs);
+    let multiplier = 1;
 
-    return (id: string) => {
-        if (loadedIds.includes(id))
-            return;
+    if (r > 175 && g > 175 && b > 175)
+        multiplier = 2.75;
+    else if (r < 80 && g < 80 && b < 80)
+        multiplier = 1.25;
 
-        loadedIds.push(id);
+    const h = oklch(hex);
+    const ideal = apcach(crToBg(hex, 60), h?.c ?? 0, h?.h ?? 0);
 
-        // The gradient is progressive enhancement — it must never be what makes
-        // the page appear, or an idle profile waits on a signal that may never
-        // arrive
-        if (id === "top-grad")
-            return;
+    const lifted = hexToRgb(formatHex(oklch({
+        mode: "oklch",
+        l: Math.max(ideal.lightness, 0.865),
+        c: ideal.chroma,
+        h: ideal.hue,
+    })));
 
-        count += 1;
+    if (!lifted)
+        return "#ffffff";
 
-        if (count >= expectedCount)
-            complete();
-    }
+    return rgbToHex({ r: lifted.r * multiplier, g: lifted.g * multiplier, b: lifted.b * multiplier });
 }
 
-const PROFILE_ITEM_GAP = 18;
+function formatClock(ms: number) {
+    if (ms < 0)
+        ms = 0;
 
-function forcedPaddingSize(
-    originalSize: number,
-    // % (0 - 100)
-    percentVisible: number,
-    // % (0 - 100)
-    minPercent: number,
-    // A ratio (0 - 1)
-    target: number,
-    log?: boolean,
-    easing: number = 10,
-): number {
-    // Clamp visible percent between 0 and 100
-    const clampedVisible = Math.max(0, Math.min(100, percentVisible));
-    const clampedMin = Math.max(0, Math.min(100, minPercent));
+    const seconds = Math.floor(ms / 1e3);
 
-    if (clampedVisible <= clampedMin) {
-        if (log) console.log("Below minPercent → using originalSize:", originalSize, "clampedVisible:", clampedVisible);
-        return originalSize;
-    }
-
-    // Convert to normalized [0–1] scale
-    const normalizedProgress = (clampedVisible - clampedMin) / (100 - clampedMin);
-
-    // Apply easing
-    const easedProgress = Math.pow(normalizedProgress, easing);
-
-    // Interpolate toward target size
-    const targetSize = originalSize * target;
-    const interpolatedSize = originalSize - easedProgress * (originalSize - targetSize);
-
-    if (log) {
-        console.log(
-            `originalSize=${originalSize}, clampedVisible=${clampedVisible}, percentVisible=${percentVisible.toFixed(2)}, minPercent=${minPercent}, progress=${normalizedProgress.toFixed(2)}, easedProgress=${easedProgress.toFixed(2)}, interpolatedSize=${interpolatedSize}`
-        );
-    }
-
-    return interpolatedSize;
+    return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 }
 
-function dynamicForcedPaddingSize(
-    value: number,
-    percentVisible: number, // % (0 - 100)
-    minPercent: number,     // % (0 - 100)
-    target: number,         // Ratio (0 - 1)
-    log?: boolean,
-    easing: number = 2
-): number {
-    // Clamp visible percent between 0 and 100
-    const clampedVisible = Math.max(0, Math.min(100, percentVisible));
-    const clampedMin = Math.max(0, Math.min(100, minPercent));
-
-    if (clampedVisible <= clampedMin) {
-        if (log) console.log("Below minPercent → using value:", value, "clampedVisible:", clampedVisible);
-        
-        return value;
-    }
-
-    // Convert to normalized [0–1] scale
-    const normalizedProgress = (clampedVisible - clampedMin) / (100 - clampedMin);
-    
-    const interpolated = value - Math.pow(normalizedProgress, easing) * (value - target);
-
-    return Math.max(target, interpolated);
+/**
+ * A rubric, in the app's own italic, with a rule running out to the edge.
+ *
+ * Not a small-caps label in grey. Every page built out of grey letterspaced
+ * captions reads as the same page, and none of them read as this app.
+ */
+function Rubric({
+    children,
+    colour,
+    action,
+}: Readonly<{
+    children: ReactNode;
+    colour: string;
+    action?: ReactNode;
+}>) {
+    return (
+        <HStack gap="12px" alignItems="center" minHeight="32px" marginBottom="12px">
+            <Text
+                fontFamily="Libre Franklin"
+                fontWeight="black"
+                fontStyle="italic"
+                fontSize="19px"
+                letterSpacing="-0.01em"
+                color={colour}
+                whiteSpace="nowrap"
+                transition="color .45s"
+            >
+                {children}
+            </Text>
+            <Box flex="1" height="2px" borderRadius="full" background="rgba(255,255,255,0.06)" minWidth="8px" />
+            {action}
+        </HStack>
+    );
 }
 
-function easeInOutCubic(t: number): number {
-    return t < 0.5
-        ? 4 * t * t * t
-        : 1 - Math.pow(-2 * t + 2, 3) / 2;
+/**
+ * A figure, set the size it deserves.
+ *
+ * The count-up runs on the underlying number and the text is formatted from it
+ * every frame, so a duration climbs as a duration ("2h 41m") rather than
+ * arriving as a bare minute count the reader has to divide in their head.
+ */
+function Figure({
+    value,
+    format,
+    size,
+    colour,
+}: Readonly<{
+    value: number;
+    format: (value: number) => string;
+    size: string | Record<string, string>;
+    colour: string;
+}>) {
+    const counted = useCountUp(value);
+
+    return (
+        <Text
+            fontFamily="Libre Franklin"
+            fontWeight="black"
+            fontStyle="italic"
+            fontSize={size}
+            lineHeight="0.92"
+            letterSpacing="-0.035em"
+            color={colour}
+            whiteSpace="nowrap"
+            transition="color .45s"
+        >
+            {format(counted)}
+        </Text>
+    );
+}
+
+/**
+ * Something to say about the week, rather than a caption under a number.
+ *
+ * The leaderboard already talks to the reader like this, and it is the most
+ * characterful thing in the app. A profile that only prints totals is a receipt.
+ */
+function weekLine(
+    stats: { totalListeningDuration: number; uniqueSongsPlayedCount: number; longestStreak: number },
+    isOwnProfile: boolean,
+): string {
+    const hours = stats.totalListeningDuration / 3600e3;
+
+    if (stats.totalListeningDuration <= 0)
+        return (isOwnProfile ? "Press play and this starts filling in." : "Nothing played in the past week.");
+
+    if (hours >= 20)
+        return `Twenty hours and counting. ${isOwnProfile ? "Your" : "Their"} headphones have earned a rest.`;
+
+    if (hours >= 10)
+        return `A proper week — ${stats.uniqueSongsPlayedCount} different songs got a turn.`;
+
+    if (stats.longestStreak >= 3600e3)
+        return `Mostly in one sitting: ${formatListening(stats.longestStreak)} without stopping.`;
+
+    if (hours >= 3)
+        return `${stats.uniqueSongsPlayedCount} different songs across the week.`;
+
+    return `A quiet week — ${stats.uniqueSongsPlayedCount === 1 ? "one song" : `${stats.uniqueSongsPlayedCount} songs`} so far.`;
+}
+
+/**
+ * The record, showing from behind the sleeve.
+ *
+ * Drawn rather than fetched: it is a stack of radial gradients, so it costs
+ * nothing to load and stays sharp at any size. It turns only while something is
+ * actually playing — a disc spinning under a paused track is the sort of detail
+ * that makes an interface feel like it is not paying attention.
+ */
+function Record({ size, offset, playing, label }: Readonly<{ size: number; offset: number; playing: boolean; label: string }>) {
+    return (
+        <Box
+            pos="absolute"
+            top="50%"
+            left={`${offset}px`}
+            width={`${size}px`}
+            height={`${size}px`}
+            borderRadius="full"
+            zIndex={0}
+            aria-hidden
+            boxShadow="0 12px 28px rgba(0,0,0,0.6)"
+            sx={{
+                background: [
+                    // Spindle hole, then the centre label in the colour of
+                    // whatever is playing — the sleeve covers most of it, so only
+                    // a sliver of the colour comes out past the edge, which is
+                    // exactly how much of a label you see on a record in its sleeve
+                    "radial-gradient(circle at 50% 50%, #08080a 0 3.5%, transparent 3.8%)",
+                    `radial-gradient(circle at 50% 50%, ${label} 3.8% 30%, transparent 30.3%)`,
+                    // A lit edge, so the disc has a rim rather than fading into
+                    // the panel behind it
+                    "radial-gradient(circle at 50% 50%, transparent 0 92%, rgba(255,255,255,0.14) 93%, transparent 100%)",
+                    // The grooves. Fine and low contrast — at this size a coarse
+                    // ring pattern reads as a target rather than as vinyl
+                    "repeating-radial-gradient(circle at 50% 50%, #26262f 0 1px, #0d0d11 1px 2.5px)",
+                ].join(", "),
+                animation: `${spin} 9s linear infinite`,
+                animationPlayState: (playing ? "running" : "paused"),
+            }}
+        />
+    );
+}
+
+/**
+ * What is playing, given the whole top of the page.
+ *
+ * This is the only live thing on a profile and the reason somebody opens one, so
+ * it gets the artwork at a size worth looking at and the page's only surface
+ * painted in the artwork's own colour. Everything below it stays neutral, which
+ * is what keeps this one loud.
+ */
+function NowSpinning({
+    state,
+    tint,
+    accent,
+    progress,
+}: Readonly<{
+    state: NonNullable<UpdateEvent["data"]["state"]>;
+    tint: Rgb | null;
+    accent: string;
+    progress: number;
+}>) {
+    const elapsed = (state.duration ?? 0) * Math.min(progress, 1);
+
+    return (
+        <Box
+            borderRadius={TILE_RADIUS}
+            padding="18px"
+            overflow="hidden"
+            position="relative"
+            background={tint
+                ? `linear-gradient(145deg, rgba(${tint.r},${tint.g},${tint.b},0.92) 0%, rgba(${tint.r},${tint.g},${tint.b},0.34) 62%, ${SURFACE} 100%)`
+                : SURFACE_HI}
+            transition="background .6s"
+        >
+            <HStack gap="0" alignItems="center" marginBottom="18px">
+                <Box position="relative" width="112px" height="112px" flexShrink={0}>
+                    <Record size={116} offset={44} playing={state.isPlaying !== false} label={accent} />
+
+                    <Box position="relative" zIndex={1} boxShadow="0 8px 24px rgba(0,0,0,0.45)" borderRadius={SLEEVE_RADIUS}>
+                        <SkeletonImage
+                            width="112px"
+                            height="112px"
+                            borderRadius={SLEEVE_RADIUS}
+                            src={getSizedImageUrl(state.imageUrl ?? "", 300, 300)}
+                        />
+                    </Box>
+                </Box>
+
+                {/*
+                  * Pushed clear of the record's edge rather than set against the
+                  * sleeve, or the first letter of every title lands on the grooves.
+                  */}
+                <Stack gap="3px" minWidth="0" flex="1" paddingLeft="64px">
+                    <HStack gap="4px" minWidth="0">
+                        <Text fontSize="19px" fontWeight="bold" color="#ffffff" noOfLines={2} lineHeight="1.15">
+                            {state.name}
+                        </Text>
+                        {state.explicit && <Box color="rgba(255,255,255,0.5)" flexShrink={0}><MdExplicit /></Box>}
+                    </HStack>
+                    <Text fontSize="14px" color="rgba(255,255,255,0.72)" noOfLines={1}>
+                        {state.artists?.map(v => v.name).join(", ")}
+                    </Text>
+                </Stack>
+            </HStack>
+
+            <Stack gap="7px">
+                <Box height="4px" borderRadius="full" background="rgba(0,0,0,0.38)" overflow="hidden">
+                    <Box
+                        height="100%"
+                        borderRadius="full"
+                        width={`${Math.min(progress * 100, 100)}%`}
+                        background="#ffffff"
+                        transition="width .6s linear"
+                    />
+                </Box>
+                <HStack justifyContent="space-between" alignItems="center">
+                    <Text fontSize="11px" color="rgba(255,255,255,0.6)" sx={{ fontVariantNumeric: "tabular-nums" }}>
+                        {formatClock(elapsed)}
+                    </Text>
+                    <Text
+                        fontSize="11.5px"
+                        fontWeight="semibold"
+                        color="rgba(255,255,255,0.82)"
+                        cursor="pointer"
+                        onClick={() => {
+                            if (state.songId)
+                                window.open(getSpotifyDeeplink(state.songId));
+                        }}
+                    >
+                        Open in Spotify
+                    </Text>
+                    <Text fontSize="11px" color="rgba(255,255,255,0.6)" sx={{ fontVariantNumeric: "tabular-nums" }}>
+                        {formatClock(state.duration ?? 0)}
+                    </Text>
+                </HStack>
+            </Stack>
+        </Box>
+    );
+}
+
+/**
+ * The song at the top, treated as the thing it is.
+ *
+ * Five identical rows is a table of five songs. One of them was played more than
+ * anything else this person listened to, which is worth more than a row.
+ */
+function TopSongHero({ song, accent }: Readonly<{ song: TopSong; accent: string }>) {
+    return (
+        <HStack gap="15px" alignItems="center" marginBottom="20px">
+            <Box position="relative" flexShrink={0}>
+                <SkeletonImage
+                    width="96px"
+                    height="96px"
+                    borderRadius="10px"
+                    src={getSizedImageUrl(song.imageUrl, 300, 300)}
+                />
+                {/*
+                  * The placing sits on the corner of the sleeve rather than in a
+                  * column of numbers, so the picture and its rank read as one
+                  * object.
+                  */}
+                <Center
+                    position="absolute"
+                    left="-10px"
+                    top="-10px"
+                    width="34px"
+                    height="34px"
+                    borderRadius="full"
+                    background={accent}
+                    boxShadow="0 4px 14px rgba(0,0,0,0.5)"
+                    transition="background .45s"
+                >
+                    <Text
+                        fontFamily="Libre Franklin"
+                        fontWeight="black"
+                        fontStyle="italic"
+                        fontSize="18px"
+                        color="#101013"
+                        lineHeight="1"
+                    >
+                        1
+                    </Text>
+                </Center>
+            </Box>
+
+            <Stack gap="4px" minWidth="0" flex="1">
+                <HStack gap="4px" minWidth="0">
+                    <Text fontSize="20px" fontWeight="bold" color={INK} noOfLines={2} lineHeight="1.15">
+                        {song.title}
+                    </Text>
+                    {song.explicit && <Box color={INK_FAINT} flexShrink={0}><MdExplicit /></Box>}
+                </HStack>
+                <Text fontSize="14px" color={INK_DIM} noOfLines={1}>
+                    {song.artists.join(", ")}
+                </Text>
+                <Text fontSize="13px" color={accent} fontWeight="semibold" transition="color .45s">
+                    {song.playCount === 1 ? "Played once" : `Played ${song.playCount} times`}
+                </Text>
+            </Stack>
+        </HStack>
+    );
+}
+
+/**
+ * One of the runners-up.
+ *
+ * The rank is set in the same italic as the figures and left deliberately dim —
+ * big enough to scan down, quiet enough that the songs stay the subject.
+ */
+function TopSongRow({ song, rank }: Readonly<{ song: TopSong; rank: number }>) {
+    return (
+        <HStack gap="13px" alignItems="center">
+            <Text
+                fontFamily="Libre Franklin"
+                fontWeight="black"
+                fontStyle="italic"
+                fontSize="20px"
+                color="#37353d"
+                minWidth="24px"
+                textAlign="center"
+                flexShrink={0}
+                lineHeight="1"
+            >
+                {rank}
+            </Text>
+
+            <SkeletonImage
+                width="44px"
+                height="44px"
+                borderRadius="7px"
+                src={getSizedImageUrl(song.imageUrl, 96, 96)}
+                loading="lazy"
+            />
+
+            <Stack gap="0" flex="1" minWidth="0">
+                <HStack gap="4px" minWidth="0">
+                    <Text fontSize="15px" fontWeight="semibold" color={INK} noOfLines={1}>
+                        {song.title}
+                    </Text>
+                    {song.explicit && <Box color={INK_FAINT} flexShrink={0}><MdExplicit /></Box>}
+                </HStack>
+                <Text fontSize="13px" color={INK_DIM} noOfLines={1}>
+                    {song.artists.join(", ")}
+                </Text>
+            </Stack>
+
+            <Text fontSize="13px" color={INK_FAINT} whiteSpace="nowrap" flexShrink={0}>
+                {song.playCount === 1 ? "once" : `${song.playCount}×`}
+            </Text>
+        </HStack>
+    );
+}
+
+function TopSongSkeletons() {
+    return (
+        <Stack gap="16px">
+            <HStack gap="15px" alignItems="center">
+                <Skeleton height="96px" width="96px" borderRadius="10px" />
+                <Stack gap="8px" flex="1">
+                    <Skeleton height="18px" width="70%" borderRadius="3px" />
+                    <Skeleton height="13px" width="45%" borderRadius="3px" />
+                    <Skeleton height="12px" width="30%" borderRadius="3px" />
+                </Stack>
+            </HStack>
+            {[1, 2, 3, 4].map(i => (
+                <HStack key={i} gap="13px" alignItems="center">
+                    <Skeleton height="18px" width="14px" borderRadius="3px" />
+                    <Skeleton height="44px" width="44px" borderRadius="7px" />
+                    <Stack gap="6px" flex="1">
+                        <Skeleton height="13px" width="55%" borderRadius="3px" />
+                        <Skeleton height="11px" width="32%" borderRadius="3px" />
+                    </Stack>
+                </HStack>
+            ))}
+        </Stack>
+    );
+}
+
+/** Says nothing is here yet, and what would put something here. */
+function Empty({ children }: Readonly<{ children: ReactNode }>) {
+    return (
+        <Text fontSize="14px" color={INK_FAINT} lineHeight="1.55" paddingY="10px" maxWidth="34ch">
+            {children}
+        </Text>
+    );
+}
+
+/**
+ * A tappable icon with a target big enough to hit.
+ *
+ * The icons used to be bare glyphs with a click handler, which on a phone is a
+ * 26 pixel target sitting under the top edge of the screen.
+ */
+function HeaderAction({
+    label,
+    colour,
+    onClick,
+    children,
+}: Readonly<{
+    label: string;
+    colour: string;
+    onClick: () => void;
+    children: ReactNode;
+}>) {
+    return (
+        <Center
+            role="button"
+            aria-label={label}
+            tabIndex={0}
+            width="44px"
+            height="44px"
+            borderRadius="full"
+            color={colour}
+            transition="color .45s, background .15s"
+            cursor="pointer"
+            _active={{ background: "rgba(255,255,255,0.09)" }}
+            onClick={onClick}
+            onKeyDown={e => {
+                if (e.key === "Enter" || e.key === " ")
+                    onClick();
+            }}
+        >
+            {children}
+        </Center>
+    );
 }
 
 export default function ProfilePage({
     user,
     targetUserId,
     pageChanger,
-    admin,
     hideTopGradientCb,
     setComplementaryColour,
     setRecaps,
@@ -149,38 +601,33 @@ export default function ProfilePage({
     user: User;
     targetUserId?: string;
     pageChanger: (id: string, prevPage?: string) => void;
-    admin?: boolean;
     hideTopGradientCb: (hide: boolean) => void;
     setComplementaryColour: (hex: string) => void;
-    setRecaps:(data: {
+    setRecaps: (data: {
         daily: Recap | null;
         weekly: Recap | null;
     }) => void;
     openRecapDrawer: () => void;
     streamer?: DataStreamer;
 }>) {
+    const profileId = targetUserId ?? user.id;
+    const isOwnProfile = !targetUserId;
+
     const [profileData, setProfileData] = useState<ClientUserAccount | undefined>(user.object);
     const [pfpLoadFailed, setPfpLoadFailed] = useState(false);
-    // const [streamer, setStreamer] = useState<DataStreamer | null>(null);
-    const [streamerReset, setStreamerReset] = useState<boolean>(false);
     const [playbackState, setPlaybackState] = useState<UpdateEvent | null>(null);
-    const [reactiveDesignColour, setReactiveDesignColour] = useState<string | null>(null);
-    const [widgetBgColour, setWidgetBgColour] = useState<string | null>(null);
-    const [reactiveDesignColourCommited, setReactiveDesignColourCommited] = useState<string | null>(null);
-    const [displayReactiveDesignColour, setDisplayReactiveDesignColour] = useState<boolean>(false);
-    const [reactiveDesignComplementaryColour, setReactiveDesignComplementaryColour] = useState<string | null>(null);
+    const [streamerReset, setStreamerReset] = useState<boolean>(false);
+
+    /** The artwork colour as it arrives, and the copy the page is painted from. */
+    const [accent, setAccent] = useState<Rgb | null>(null);
+    const [committedAccent, setCommittedAccent] = useState<Rgb | null>(null);
+    const [accentVisible, setAccentVisible] = useState<boolean>(false);
+    /** The same colour, lifted until text set in it is legible. */
+    const [accentInk, setAccentInk] = useState<string>(ACCENT);
+
     const [listenershipHistoryAvailable, setListenershipHistoryAvailable] = useState<boolean>(false);
-    const [topSongsFilter, setTopSongsFilter] = useState<"day" | "week" | "month" | "year" | "all">("day");
-    const [userTopSongs, setUserTopSongs] = useState<{
-        id: string;
-        title: string;
-        artists: string[];
-        index: number;
-        explicit: boolean;
-        playCount: number;
-        imageUrl: string;
-    }[]>([]);
-    const [topSongOverflow, setTopSongOverflow] = useState<number>(-1);
+    const [topSongsFilter, setTopSongsFilter] = useState<TopSongsPeriod>("day");
+    const [userTopSongs, setUserTopSongs] = useState<TopSong[]>([]);
     const [topSongsLoading, setTopSongsLoading] = useState<boolean>(true);
     const [pageLoaded, setPageLoaded] = useState<boolean>(false);
     const [pastWeekStats, setPastWeekStats] = useState<{
@@ -195,47 +642,6 @@ export default function ProfilePage({
         daily: null,
         weekly: null,
     });
-    const [unscrollHistory, setUnscrollHistory] = useState<boolean>(false);
-    const [useHistoryFullPageView, setUseHistoryFullPageView] = useState<boolean>(false);
-    const [rescrollHeight, setRescrollHeight] = useState<number>(-999);
-    const [windowHeight, setWindowHeight] = useState<number>(-999);
-
-    const listenershipHistoryEl = useRef<HTMLDivElement>(null);
-
-    const scrollItemRef = useRef<HTMLDivElement>(null);
-
-    const lastActive = new Date().getTime();
-
-    const setStatusBarColour = (colour: string) => {
-        const themeColour = document.querySelector("meta[name=theme-color]");
-        themeColour?.setAttribute("content", colour);
-    }
-
-    /**
-     * Pulls the listening figures again.
-     *
-     * These move with every track played, so the page has to go back for them
-     * rather than showing whatever it fetched when it opened. `force` skips the
-     * cache for a refresh the reader can feel — returning to the app and finding
-     * the same numbers as ten minutes ago reads as the page being broken.
-     */
-    const refreshListeningStats = (force?: boolean) => {
-        user.getRemoteUserPastWeekStats(targetUserId ?? user.id, force)
-        .then(d => {
-            setPastWeekStats(d);
-        })
-        .catch(e => {
-            console.error("Failed to fetch past week stats, error:", e);
-        });
-
-        user.getRemoteUserTopSongs(targetUserId ?? user.id, topSongsFilter, force)
-        .then(data => {
-            setUserTopSongs(data.slice(0, 5));
-        })
-        .catch(e => {
-            console.error("Failed to refresh top songs, error:", e);
-        });
-    };
 
     /**
      * Bumped whenever the listening history should go back for anything new.
@@ -246,6 +652,36 @@ export default function ProfilePage({
      * appear.
      */
     const [historyRefreshTick, setHistoryRefreshTick] = useState(0);
+
+    const setStatusBarColour = (colour: string) => {
+        document.querySelector("meta[name=theme-color]")?.setAttribute("content", colour);
+    };
+
+    /**
+     * Pulls the listening figures again.
+     *
+     * These move with every track played, so the page has to go back for them
+     * rather than showing whatever it fetched when it opened. `force` skips the
+     * cache for a refresh the reader can feel — returning to the app and finding
+     * the same numbers as ten minutes ago reads as the page being broken.
+     */
+    const refreshListeningStats = (force?: boolean) => {
+        user.getRemoteUserPastWeekStats(profileId, force)
+        .then(d => {
+            setPastWeekStats(d);
+        })
+        .catch(e => {
+            console.error("Failed to fetch past week stats, error:", e);
+        });
+
+        user.getRemoteUserTopSongs(profileId, topSongsFilter, force)
+        .then(data => {
+            setUserTopSongs(data.slice(0, 5));
+        })
+        .catch(e => {
+            console.error("Failed to refresh top songs, error:", e);
+        });
+    };
 
     // Kept in a ref so the listeners below are attached once rather than
     // re-attached whenever the filter or the target changes
@@ -261,10 +697,7 @@ export default function ProfilePage({
             setHistoryRefreshTick(t => t + 1);
         };
 
-        const timer = setInterval(() => {
-            refreshStatsRef.current(true);
-            setHistoryRefreshTick(t => t + 1);
-        }, 60e3);
+        const timer = setInterval(onReturn, 60e3);
 
         window.addEventListener("focus", onReturn);
         document.addEventListener("visibilitychange", onReturn);
@@ -287,7 +720,7 @@ export default function ProfilePage({
 
         refreshListeningStats();
 
-        user.getFriendProfileListenershipHistory(targetUserId ?? user.id, 0)
+        user.getFriendProfileListenershipHistory(profileId, 0)
         .then(h => {
             if (h.data.length > 0)
                 setListenershipHistoryAvailable(true);
@@ -296,226 +729,208 @@ export default function ProfilePage({
             console.error("Failed to check if listenership history is available, error:", e);
         });
 
-        if (!targetUserId)
-            return;
-
-        setProfileData(undefined);
-    }, [])
-
-    useEffect(() => {
-        if (!scrollItemRef.current)
-            return;
-
-        if (scrollItemRef.current.getBoundingClientRect().width <= window.innerWidth - 155)
-            return;
-
-        const process = () => {
-            if (scrollItemRef.current && topSongOverflow <= 0)
-                setTopSongOverflow(scrollItemRef.current.getBoundingClientRect().width - (window.innerWidth - 162));
-            else
-                setTopSongOverflow(0);
-        }
-
-        if (topSongOverflow == -1)
-            setTimeout(() => { process() }, 2500);
-
-        setTimeout(() => { process() }, 10e3);
-    }, [scrollItemRef, topSongOverflow]);
+        // Somebody else's profile starts from nothing rather than from the
+        // signed-in account, which would otherwise flash the reader's own name
+        if (targetUserId)
+            setProfileData(undefined);
+    }, []);
 
     useEffect(() => {
         setTopSongsLoading(true);
 
-        setTimeout(() => {
-            // Load user's top songs
-            user.getRemoteUserTopSongs(targetUserId ?? user.id, topSongsFilter)
-            .then(data => {
-                setUserTopSongs(data.slice(0, 5));
-                setTopSongsLoading(false);
-            })
-            .catch(e => {
-                console.error("Failed to load top songs, error:", e);
-                
-                setUserTopSongs([]);
-                setTopSongsLoading(false);
-            });
-        }, 75);
-    }, [topSongsFilter]);
+        let cancelled = false;
 
-    useEffect(() => {
-        /**
-         * Only the profile and the live stream gate the page.
-         *
-         * The third signal was the artwork gradient, which is decorative and
-         * only ever arrives when the profile's owner happens to be playing
-         * something — so an idle profile waited for the timeout before showing
-         * anything. The gradient now fades in whenever it resolves.
-         */
-        const loadCb = loadTracker(2, () => {
-            setTimeout(() => {
-                setPageLoaded(true);
-            }, 100);
-        }, 1200);
+        user.getRemoteUserTopSongs(profileId, topSongsFilter)
+        .then(data => {
+            if (cancelled)
+                return;
 
-        const setWidgetBg = (colourHex: string) => {
-            const getColour = (value: number, divisor: number) => {
-                return Math.round(value / divisor);
-            }
-
-            const r = parseInt(colourHex.split("(")[1].split(" ").join("").split(",")[0]);
-            const g = parseInt(colourHex.split("(")[1].split(" ").join("").split(",")[1]);
-            const b = parseInt(colourHex.split("(")[1].split(" ").join("").split(",")[2]);
-
-            setWidgetBgColour(`linear-gradient(135deg, rgba(${getColour(r, 2)}, ${getColour(g, 2)}, ${getColour(b, 2)}, 1), rgba(${getColour(r, 4)}, ${getColour(g, 4)}, ${getColour(b, 4)}, 1))`);
-        }
-
-        user.getRemoteUser(targetUserId ?? user.id)
-        .then(r => {
-            setProfileData(r);
-            loadCb("remote-user-profile");
+            setUserTopSongs(data.slice(0, 5));
+            setTopSongsLoading(false);
         })
         .catch(e => {
-            console.error("Failed to get remote user for", targetUserId ?? user.id, " error:", e);
-            loadCb("remote-user-profile");
+            if (cancelled)
+                return;
+
+            console.error("Failed to load top songs, error:", e);
+
+            setUserTopSongs([]);
+            setTopSongsLoading(false);
+        });
+
+        return () => { cancelled = true; };
+    }, [topSongsFilter, profileId]);
+
+    /**
+     * The profile itself, and the live playback behind the page's colour.
+     *
+     * Nothing here gates the page beyond the profile: the artwork colour only
+     * arrives when the person happens to be playing something, so waiting on it
+     * left an idle profile sitting on a spinner until a timeout expired. It
+     * fades in whenever it resolves instead.
+     */
+    useEffect(() => {
+        let cancelled = false;
+
+        const settle = () => {
+            if (!cancelled)
+                setPageLoaded(true);
+        };
+
+        // A profile that will not load is still a page worth showing the rest of
+        const failsafe = setTimeout(settle, 4000);
+
+        user.getRemoteUser(profileId)
+        .then(r => {
+            if (!cancelled)
+                setProfileData(r);
+        })
+        .catch(e => {
+            console.error("Failed to get remote user for", profileId, "error:", e);
+        })
+        .finally(() => {
+            clearTimeout(failsafe);
+            settle();
         });
 
         const fac = new FastAverageColor();
 
         let streamerGotMsg = false;
 
+        // Until something is playing, the page takes its colour from the profile
+        // picture — an idle profile with no colour at all is the same near black
+        // rectangle for everybody
         if (user?.object && user.object.images.length > 0) {
-            fac.getColorAsync(user?.object?.images[0]?.url)
-            .then(color => {
-                if (streamerGotMsg)
+            fac.getColorAsync(user.object.images[0]?.url)
+            .then(colour => {
+                if (cancelled || streamerGotMsg)
                     return;
-                
-                setReactiveDesignColour(color.rgb);
-                setWidgetBg(color.rgb);
-                hideTopGradientCb(true);
+
+                setAccent(parseRgb(colour.rgb));
             })
             .catch(e => {
-                console.log(e);
-
-                // Still count it, or the page waits on a signal that never comes
-                loadCb("top-grad");
+                console.error("Failed to read a colour off the profile picture, error:", e);
             });
         }
-        
+
         if (!streamer)
-            return;
+            return () => {
+                cancelled = true;
+                clearTimeout(failsafe);
+            };
 
-        if (streamer.detachedListeningStateQuery([targetUserId ?? user.id]))
-            loadCb("top-grad");
+        streamer.detachedListeningStateQuery([profileId]);
 
-        if (streamer.isOpen) {
-            loadCb("remote-user-stream");
-        } else {
-            streamer.on("open", () => {
-                loadCb("remote-user-stream");
-            });
-        }
-
-        // streamer.on("not-listening", (userIds: string[]) => {
-        //     loadCb("top-grad");
-        // });
-
-        streamer.on("update", (data: UpdateEvent) => {
-            if (data.userId !== (targetUserId ?? user.id))
+        const onUpdate = (data: UpdateEvent) => {
+            if (data.userId !== profileId)
                 return;
 
-            setPlaybackState((v) => {
+            setPlaybackState(() => {
                 if (data.data.state) {
                     streamerGotMsg = true;
 
-                    const fac = new FastAverageColor();
-                    
-                    fac.getColorAsync(data.data.state.imageUrl)
-                    .then(color => {
-                        setReactiveDesignColour(color.rgb);
-                        setWidgetBg(color.rgb);
-                        hideTopGradientCb(true);
-                        loadCb("top-grad");
+                    new FastAverageColor().getColorAsync(data.data.state.imageUrl)
+                    .then(colour => {
+                        if (!cancelled)
+                            setAccent(parseRgb(colour.rgb));
                     })
                     .catch(e => {
-                        console.log(e);
-
-                        loadCb("top-grad");
+                        console.error("Failed to read a colour off the artwork, error:", e);
                     });
                 }
 
                 if (data.data.action.type == "STOPPED") {
-                    setReactiveDesignColour(null);
+                    setAccent(null);
 
                     return null;
                 }
-                
+
                 return data;
             });
-        });
+        };
 
-        streamer.on("remove", (userId) => {
-            if (userId === (targetUserId ?? user.id)) {
-                setPlaybackState(null);
-                setReactiveDesignColour(null);
-            }
-        });
-
-        streamer.on("close", () => {
-            // no-op, state will update once connection re-established
-        });
-
-        // newStreamer.init();
-
-        // return () => {
-        //     newStreamer.cleanup();
-        // };
-    }, [user.isLoggedIn]);
-
-    useEffect(() => {
-        if (reactiveDesignColour) {
-            setStatusBarColour("#0d0d0e");
-            setDisplayReactiveDesignColour(false);
-
-            setTimeout(() => {
-                setReactiveDesignColourCommited(reactiveDesignColour);
-            }, 230);
-            setTimeout(() => {
-                setDisplayReactiveDesignColour(true);
-            }, 250);
-        } else {
-            setReactiveDesignColourCommited(reactiveDesignColour);
-            setTimeout(() => {
-                setDisplayReactiveDesignColour(true);
-            }, 20);
-        }
-    }, [reactiveDesignColour]);
-
-    useEffect(() => {
-        hideTopGradientCb(reactiveDesignColour !== null);
-    }, [reactiveDesignColour]);
-
-    useEffect(() => {
-        if (reactiveDesignColourCommited) {
-            const rgbValues = reactiveDesignColourCommited
-                .match(/\d+/g)
-                ?.map(Number);
-            
-            if (!rgbValues)
+        const onRemove = (userId: string) => {
+            if (userId !== profileId)
                 return;
-            
-            const hex = rgbToHex(
-                0.5 * rgbValues[0] + (1 - 0.5) * 13,
-                0.5 * rgbValues[1] + (1 - 0.5) * 13,
-                0.5 * rgbValues[2] + (1 - 0.5) * 14
-            );
-            
-            setStatusBarColour(hex);
-        } else {
-            setStatusBarColour("#0d0d0e");
+
+            setPlaybackState(null);
+            setAccent(null);
+        };
+
+        streamer.on("update", onUpdate);
+        streamer.on("remove", onRemove);
+
+        return () => {
+            cancelled = true;
+            clearTimeout(failsafe);
+
+            // Without this the listeners outlive the component, so every visit to
+            // a profile stacks another pair and each event fires N setStates
+            streamer.off?.("update", onUpdate);
+            streamer.off?.("remove", onRemove);
+        };
+    }, [user.isLoggedIn, profileId]);
+
+    /**
+     * Cross-fades the page's colour rather than cutting to it.
+     *
+     * The new colour is held back until the old one has faded out, so a track
+     * change moves through the page background instead of snapping it.
+     */
+    useEffect(() => {
+        if (!accent) {
+            setCommittedAccent(null);
+
+            const timer = setTimeout(() => setAccentVisible(true), 20);
+
+            return () => clearTimeout(timer);
         }
-    }, [reactiveDesignColourCommited]);
+
+        setAccentVisible(false);
+
+        const commit = setTimeout(() => setCommittedAccent(accent), 230);
+        const show = setTimeout(() => setAccentVisible(true), 250);
+
+        return () => {
+            clearTimeout(commit);
+            clearTimeout(show);
+        };
+    }, [accent]);
 
     useEffect(() => {
-        const handleFocus = async () => {
+        hideTopGradientCb(accent !== null);
+    }, [accent]);
+
+    /**
+     * The status bar, and the colour the app frame draws its title in.
+     *
+     * The status bar takes the artwork colour mixed halfway into the page, so the
+     * bar reads as the top of the page rather than as a band of album cover above
+     * it. The title takes the lifted, legible version.
+     */
+    useEffect(() => {
+        if (!committedAccent) {
+            setStatusBarColour(PAGE_BG);
+            setAccentInk(ACCENT);
+            setComplementaryColour("#e9e7fb");
+
+            return;
+        }
+
+        setStatusBarColour(rgbToHex({
+            r: 0.5 * committedAccent.r + 0.5 * 13,
+            g: 0.5 * committedAccent.g + 0.5 * 13,
+            b: 0.5 * committedAccent.b + 0.5 * 14,
+        }));
+
+        const ink = readableAccent(committedAccent);
+
+        setAccentInk(ink);
+        setComplementaryColour(ink);
+    }, [committedAccent]);
+
+    useEffect(() => {
+        const handleFocus = () => {
             if (streamer && !streamer.isReady()) {
                 setPlaybackState(null);
                 setStreamerReset(true);
@@ -523,11 +938,12 @@ export default function ProfilePage({
         };
 
         window.addEventListener("focus", handleFocus);
+
         return () => {
             window.removeEventListener("focus", handleFocus);
         };
     }, [streamer]);
-    
+
     useEffect(() => {
         if (streamerReset && streamer && playbackState) {
             streamer.cleanup();
@@ -536,199 +952,57 @@ export default function ProfilePage({
         }
     }, [playbackState, streamer, streamerReset]);
 
-    function componentToHex(c: number) {
-        var hex = Math.ceil(Math.min(c, 255)).toString(16);
+    const tint = (accentVisible ? committedAccent : null);
+    const nowPlaying = playbackState?.data.state ?? null;
+    const hasListened = (pastWeekStats?.totalListeningDuration ?? 0) > 0 || (pastWeekStats?.uniqueSongsPlayedCount ?? 0) > 0;
 
-        return hex.length == 1 ? "0" + hex : hex;
-    }
-    
-    function rgbToHex(r: number, g: number, b: number) {
-        return "#" + componentToHex(r) + componentToHex(g) + componentToHex(b);
-    }
+    /**
+     * What the live panel is called.
+     *
+     * A session that has been running a while is worth saying out loud — it is
+     * the one number on the page that is still climbing while you read it. The
+     * page used to put this in an unstyled line under the name, where its idle
+     * state read "No active streak": a sentence whose only content is that the
+     * reader is not doing anything.
+     */
+    const sessionStart = nowPlaying?.playSessionStart;
+    const sessionMs = (sessionStart && sessionStart !== -1 ? Date.now() - sessionStart : 0);
 
-    function hexToRgb(hex: string) {
-        var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-        return result ? {
-            r: parseInt(result[1], 16),
-            g: parseInt(result[2], 16),
-            b: parseInt(result[3], 16)
-        } : null;
-    }
-
-    useEffect(() => {
-        if (reactiveDesignColourCommited) {
-            // Convert "rgb(r, g, b)" to an array of numbers [r, g, b]
-            const rgbValues = reactiveDesignColourCommited
-                .match(/\d+/g)
-                ?.map(Number);
-
-            if (rgbValues && rgbValues.length === 3) {
-                const [r, g, b] = rgbValues;
-                let hex = rgbToHex(r, g, b);
-
-                // Check if the color is a shade of white (r, g, b values close to each other and above 100)
-                const isShadeOfWhite = Math.abs(r - g) < 15 && Math.abs(g - b) < 15 && Math.abs(r - b) < 15 && r > 100 && g > 100 && b > 100;
-                
-                if (isShadeOfWhite) {
-                    setReactiveDesignComplementaryColour("#ffffff");
-                    setComplementaryColour("#ffffff");
-
-                    return;
-                }
-
-                let colourMultiplier = 1;
-
-                if (r > 175 && g > 175 && b > 175) {
-                    colourMultiplier = 2.75;
-                } else if (r < 80 && g < 80 && b < 80) {
-                    colourMultiplier = 1.25;
-                }
-
-                const h = oklch(hex);
-
-                const ideal = apcach(crToBg(hex, 60), h?.c ?? 0, h?.h ?? 0);
-                
-                const idealHexPre = formatHex(oklch({
-                    mode: "oklch",
-                    l: Math.max(ideal.lightness, 0.865),
-                    c: ideal.chroma,
-                    h: ideal.hue,
-                }));
-
-                const idealRgb = hexToRgb(idealHexPre);
-                const idealHex = rgbToHex((idealRgb?.r ?? 0) * colourMultiplier, (idealRgb?.g ?? 0) * colourMultiplier, (idealRgb?.b ?? 0) * colourMultiplier);
-                
-                setReactiveDesignComplementaryColour(idealHex);
-                setComplementaryColour(idealHex);
-            }
-        } else {
-            setReactiveDesignComplementaryColour("#ffffff");
-            setComplementaryColour("#ffffff");
-        }
-    }, [reactiveDesignColourCommited]);
-    
-    useEffect(() => {
-        if (!listenershipHistoryAvailable || !listenershipHistoryEl?.current) return;
-
-        setWindowHeight(window.innerHeight);
-
-        const scrollEl = document.querySelector("[data-profile-scroll-container]");
-
-        const handleScroll = (e: Event) => {
-            const el = listenershipHistoryEl.current;
-
-            const rect = el?.getBoundingClientRect();
-            const windowHeight = window.innerHeight;
-
-            if (!rect)
-                return;
-
-            if (unscrollHistory)
-                e.preventDefault();
-
-            const visibleTop = Math.max(rect.top, 0);
-            const visibleBottom = Math.min(rect.bottom, windowHeight);
-            const visibleHeight = Math.max(0, visibleBottom - visibleTop);
-
-            const percentVisible = (visibleHeight / rect.height) * 100;
-
-            if (scrollEl && !useHistoryFullPageView && percentVisible > 25 && percentVisible < 65)
-                setRescrollHeight(scrollEl.scrollTop);
-
-            const passedCriticalVisibility = percentVisible >= 85;
-
-            if (useHistoryFullPageView)
-                e.preventDefault();
-
-            if (!unscrollHistory && !useHistoryFullPageView && passedCriticalVisibility) {
-                e.preventDefault();
-
-                setUseHistoryFullPageView(true);
-                setUnscrollHistory(true);
-            } else if (percentVisible < 75) {
-                setUnscrollHistory(false);
-            }
-        }
-
-        const el = document.querySelector("[data-profile-scroll-container]") as HTMLDivElement;
-
-        el?.addEventListener("scroll", handleScroll, {
-            passive: false,
-        });
-
-        return () => {
-            el?.removeEventListener("scroll", handleScroll);
-        };
-    }, [listenershipHistoryAvailable, listenershipHistoryEl, useHistoryFullPageView, unscrollHistory]);
-
-    useEffect(() => {
-        if (!useHistoryFullPageView)
-            return;
-
-        const scrollEl = document.querySelector("[data-profile-scroll-container]");
-
-        if (!scrollEl)
-            return;
-
-        let c = 0;
-
-        const scroll = () => {
-            if (!useHistoryFullPageView || !listenershipHistoryEl.current) {
-                return;
-            }
-
-            const rect = listenershipHistoryEl.current.getBoundingClientRect();
-
-            if (rect.y > 0) {
-                scrollEl.scrollTo({
-                    top: rect.bottom + window.innerHeight,
-                    behavior: (c <= 500 ? "smooth" : "instant"),
-                });
-            }
-        }
-
-        scroll();
-
-        // Force the view to be at the correct level
-        const loop = setInterval(() => {
-            if (!useHistoryFullPageView || !listenershipHistoryEl.current) {
-                clearInterval(loop);
-
-                return;
-            }
-
-            scroll();
-
-            c++;
-        }, 320);
-
-        return () => {
-            clearInterval(loop);
-        };
-    }, [useHistoryFullPageView, listenershipHistoryEl]);
+    const nowHeading = (sessionMs >= STREAK_MIN_MS
+        ? `On a roll — ${formatListening(sessionMs)} straight`
+        : "Now spinning");
 
     return (<>
-        {!targetUserId && (
+        {isOwnProfile && (
             <HStack
                 pos="fixed"
+                top="0"
+                right="12px"
+                marginTop="env(safe-area-inset-top)"
                 height="48px"
-                top="5px"
-                right="20px"
                 zIndex="99999"
-                display="flex"
-                justifyContent="center"
                 alignItems="center"
-                gap="10px"
+                gap="0"
             >
                 {(recapState.daily || recapState.weekly) && (
-                    <FaHistory size="26px" color={reactiveDesignComplementaryColour ?? "text.dark"} onClick={() => {
-                        setRecaps(recapState);
-                        openRecapDrawer();
-                    }} />
+                    <HeaderAction
+                        label="Your recaps"
+                        colour={accentInk}
+                        onClick={() => {
+                            setRecaps(recapState);
+                            openRecapDrawer();
+                        }}
+                    >
+                        <FaHistory size="22px" />
+                    </HeaderAction>
                 )}
-                <FaCog size="26px" color={reactiveDesignComplementaryColour ?? "text.dark"} onClick={() => {
-                    pageChanger("preferences", "settings");
-                }} />
+                <HeaderAction
+                    label="Settings"
+                    colour={accentInk}
+                    onClick={() => pageChanger("preferences", "settings")}
+                >
+                    <FaCog size="22px" />
+                </HeaderAction>
             </HStack>
         )}
 
@@ -736,7 +1010,7 @@ export default function ProfilePage({
             display={pageLoaded ? "none" : "block"}
             width="100vw"
             height="100vh"
-            background="bg.dark"
+            background={PAGE_BG}
             pos="fixed"
             top="0"
             left="0"
@@ -746,360 +1020,315 @@ export default function ProfilePage({
                 <Spinner size="lg" />
             </Center>
         </Box>
+
+        {/*
+          * The artwork bleeding down from the top of the page.
+          *
+          * One layer rather than the two the page carried before — a gradient and
+          * a flat wash over the whole viewport, which together lifted the
+          * background far enough that every panel had to be painted in full
+          * saturation to be visible against it at all.
+          */}
         <Box
             pos="fixed"
             left="0"
             top="0"
             zIndex="0"
-            background={`linear-gradient(to bottom, ${reactiveDesignColourCommited ?? "#ffffff00"}, #ffffff00)`}
-            opacity={displayReactiveDesignColour ? "0.5" : 0}
-            transform={displayReactiveDesignColour ? "translateY(0px)" : "translateY(-100%)"}
-            padding="24px"
+            pointerEvents="none"
+            background={committedAccent
+                ? `linear-gradient(to bottom, rgb(${committedAccent.r},${committedAccent.g},${committedAccent.b}) 0%, rgba(0,0,0,0) 100%)`
+                : "transparent"}
+            opacity={accentVisible && committedAccent ? 0.34 : 0}
+            transform={accentVisible ? "translateY(0)" : "translateY(-24px)"}
             width="100vw"
-            height="340px"
+            height="320px"
             transition=".75s"
         />
-        <Box
-            pos="fixed"
-            left="0"
-            top="0"
-            zIndex="0"
-            background={reactiveDesignColourCommited ?? "#ffffff00"}
-            opacity={displayReactiveDesignColour ? "0.15" : 0}
-            padding="24px"
-            width="100vw"
-            height="100vh"
-            transition=".75s"
-        />
-        <Stack gap={`${PROFILE_ITEM_GAP}px`} width="100%" zIndex="1" position="relative" marginTop="-15px" paddingBottom="20px">
-            <Stack gap={`${PROFILE_ITEM_GAP}px`} paddingLeft="20px" width="calc(100% - 20px)">
-                <HStack gap="14px" marginTop="24px">
-                    <Box width="88px" height="88px" border={playbackState ? "3px solid #A480FF" : "0px"} borderRadius="17px" transition=".15s">
-                        {((profileData?.images.length ?? 0) > 0 && !pfpLoadFailed) ? (
-                            <SkeletonImage
-                                width={playbackState ? "82px" : "88px"}
-                                height={playbackState ? "82px" : "88px"}
-                                borderRadius="14px"
-                                transition=".15s"
-                                border={playbackState ? "2px solid transparent" : "0px"}
-                                src={getSizedImageUrl(findBestSCDNImageSize(profileData?.images ?? [], 120, 120) ?? "", 120, 120)}
-                                onError={() => {
-                                    setPfpLoadFailed(true);
-                                }}
-                            />
-                        ) : (
-                            <InitialAvatar
-                                userId={profileData?.id ?? ""}
-                                displayName={profileData?.displayName}
-                                borderRadius="14px"
-                                transition=".15s"
-                                border={playbackState ? "2px solid transparent" : "0px"}
-                                size={playbackState ? "82px" : "88px"}
-                            />
-                        )}
-                    </Box>
-                    <Stack gap="0" marginTop="-5px">
-                        <Text
-                            fontFamily="Inter"
-                            fontWeight="medium"
-                            fontSize="28px"
-                            color="text.dark"
-                            opacity="0.9"
-                            onClick={() => {
-                                pageChanger("edit-profile", "settings");
-                            }}
-                        >
-                        {profileData?.displayName}
-                        </Text>
-                        <Text
-                            fontFamily="Inter"
-                            fontWeight="regular"
-                            fontSize="14px"
-                            color="text.dark"
-                            opacity="0.75"
-                            marginTop="-4px"
-                            onClick={() => {
-                                pageChanger("edit-profile", "settings");
-                            }}
-                        >
-                        {profileData?.listenerTypeClassification ?? "Casual Listener"}
-                        </Text>
-                        {(playbackState?.data.state?.playSessionStart && playbackState?.data.state?.playSessionStart !== -1 && new Date().getTime() - playbackState.data.state.playSessionStart >= (60e3 * 5)) ? (
-                            <Text>{`🔥 ${formatTimeToMinAndHour(new Date().getTime() - playbackState?.data.state.playSessionStart, true)}`}</Text>
-                        ) : playbackState ? (
-                            <Text>Started listening recently</Text>
-                        ) : (
-                            <Text>No active streak</Text>
-                        )}
-                        {/* {!targetUserId && (
-                            <Text
-                                fontFamily="Inter"
-                                fontWeight="regular"
-                                fontSize="14px"
-                                color="skyblue"
-                                opacity="0.75"
-                                onClick={() => {
-                                    window.location.pathname = "/success";
-                                }}
-                            >
-                            Play with Card
-                            </Text>
-                        )} */}
-                    </Stack>
-                </HStack>
-                {playbackState && (
-                    <Stack gap="1px" overflow="hidden" transition=".5s">
-                        <Text
-                            fontFamily="Inter"
-                            fontWeight="bold"
-                            fontSize="24px"
-                            color={reactiveDesignComplementaryColour ?? "text.dark"}
-                            transition=".3s"
-                        >Listening to</Text>
-                        <PlaybackState
-                            stream={streamer ?? null}
-                            userId={targetUserId ?? user.id}
-                            theme={reactiveDesignComplementaryColour ?? undefined}
-                            hideProfile
+
+        <Stack
+            gap="30px"
+            width="calc(100% - 20px)"
+            paddingLeft="20px"
+            paddingTop="20px"
+            paddingBottom="36px"
+            marginTop="-15px"
+            zIndex="1"
+            position="relative"
+        >
+            {/*
+              * Who this is, kept to a strip.
+              *
+              * The frame above already announces the page, and on your own
+              * profile you are not the news — what you are playing is. Padded
+              * clear of the actions pinned to the top right, or a long display
+              * name comes out with a cog sitting in the middle of it.
+              */}
+            <HStack
+                gap="12px"
+                alignItems="center"
+                paddingRight={isOwnProfile ? "78px" : "20px"}
+                animation={`${rise} .3s ease-out both`}
+            >
+                <Box
+                    width="56px"
+                    height="56px"
+                    minWidth="56px"
+                    borderRadius="18px"
+                    flexShrink={0}
+                    boxShadow={playbackState ? `0 0 0 2.5px ${PAGE_BG}, 0 0 0 5px ${accentInk}` : "none"}
+                    transition="box-shadow .45s"
+                >
+                    {((profileData?.images.length ?? 0) > 0 && !pfpLoadFailed) ? (
+                        <SkeletonImage
+                            width="56px"
+                            height="56px"
+                            borderRadius="18px"
+                            src={getSizedImageUrl(findBestSCDNImageSize(profileData?.images ?? [], 120, 120) ?? "", 120, 120)}
+                            onError={() => setPfpLoadFailed(true)}
                         />
-                    </Stack>
-                )}
-                {pastWeekStats && (
-                    <Stack gap="1px" overflow="hidden" transition=".5s">
-                        <Text
-                            fontFamily="Inter"
-                            fontWeight="bold"
-                            fontSize="24px"
-                            color={reactiveDesignComplementaryColour ?? "text.dark"}
-                            transition=".3s"
-                        >Past Week</Text>
-                        <HStack
-                            width="100%"
-                            minHeight="70px"
-                            padding={{ base: "12px", md: "16px" }}
-                            borderRadius="20px"
-                            background={widgetBgColour ?? "linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02))"}
-                            spacing={0}
-                            pos="relative"
-                            boxShadow="0 4px 12px rgba(0, 0, 0, 0.15)"
-                        >
-                            {[{
-                                label: "Minutes Played",
-                                value: Math.round((pastWeekStats?.totalListeningDuration ?? 0) / 60e3),
-                            }, {
-                                label: "Songs Played",
-                                value: pastWeekStats?.uniqueSongsPlayedCount,
-                            }, {
-                                label: "Longest Streak",
-                                value: formatTimeToMinAndHour(pastWeekStats?.longestStreak ?? 0, false),
-                            }].map((item, index) => (
-                                <>
-                                    <Box
-                                        flex="1"
-                                        textAlign="center"
-                                        px={{ base: "6px", md: "10px" }}
-                                        py="6px"
-                                        minWidth="0"
-                                        overflow="hidden"
-                                        textOverflow="ellipsis"
-                                        whiteSpace="nowrap"
-                                    >
-                                        <Text
-                                            fontFamily="Libre Franklin"
-                                            fontSize={{ base: "18px", sm: "22px", md: "26px" }}
-                                            fontWeight="extrabold"
-                                            color="text.dark"
-                                            letterSpacing="tight"
-                                            whiteSpace="normal"
-                                        >
-                                            {item.value}
-                                        </Text>
-                                        <Text
-                                            fontSize="12px"
-                                            color="text.dark"
-                                            opacity="0.7"
-                                            mt="2px"
-                                            whiteSpace="nowrap"
-                                        >
-                                            {item.label}
-                                        </Text>
-                                    </Box>
-
-                                    {index < 2 && (
-                                        <Box
-                                            height={{ base: "60%", md: "75%" }}
-                                            width="1px"
-                                            background="rgba(255, 255, 255, 0.2)"
-                                            borderRadius="full"
-                                        />
-                                    )}
-                                </>
-                            ))}
-                        </HStack>
-                    </Stack>
-                )}
-                {(userTopSongs.length > 0 && userTopSongs.find(v => v.index == 0)) && (
-                    <Stack
-                        transition=".3s"
-                        pos="relative"
-                    >
-                        <Box>
-                            <Text
-                                fontFamily="Inter"
-                                fontWeight="bold"
-                                fontSize="24px"
-                                color={reactiveDesignComplementaryColour ?? "text.dark"}
-                                transition=".3s"
-                                float="left"
-                            >
-                                Top Songs
-                            </Text>
-                            <Tabs variant='unstyled' pointerEvents={topSongsLoading ? "none" : "all"} onChange={i => {
-                                const map: ("day" | "week" | "month" | "year" | "all")[] = [
-                                    "day",
-                                    "week",
-                                    "month",
-                                ];
-
-                                setTopSongsFilter(map[i]);
-                            }} float="right">
-                                <TabList width="124px" height="36px" border="2px solid rgba(255, 255, 255, 0.1)" bg={reactiveDesignColourCommited?.replace("(", "a(").replace(")", ",0.25)") ?? "rgba(255, 255, 255, 0.01)"} borderRadius="14px">
-                                    <Tab width="40px" fontSize="14px" borderRadius="12px" _selected={{ color: reactiveDesignComplementaryColour ?? "white", bg: reactiveDesignColourCommited?.replace("(", "a(").replace(")", ",0.9)") ?? "rgba(255, 255, 255, 0.01)" }}>24h</Tab>
-                                    <Tab width="40px" fontSize="14px" borderRadius="12px" _selected={{ color: reactiveDesignComplementaryColour ?? "white", bg: reactiveDesignColourCommited?.replace("(", "a(").replace(")", ",0.9)") ?? "rgba(255, 255, 255, 0.01)" }}>7d</Tab>
-                                    <Tab width="40px" fontSize="14px" borderRadius="12px" _selected={{ color: reactiveDesignComplementaryColour ?? "white", bg: reactiveDesignColourCommited?.replace("(", "a(").replace(")", ",0.9)") ?? "rgba(255, 255, 255, 0.01)" }}>30d</Tab>
-                                </TabList>
-                            </Tabs>
-                        </Box>
-                        <SongLeaderboardComponent
-                            background={widgetBgColour ?? "linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02))"}
-                            recapData={userTopSongs.map(v => {
-                                return {
-                                    ...v,
-                                    listenDuration: 0,
-                                }
-                            })}
-                            factProcessor={v => {
-                                if (!v)
-                                    return "";
-
-                                return `Listened ${v.playCount == 1 ? "once" : v.playCount + " times"}`;
-                            }}
+                    ) : (
+                        <InitialAvatar
+                            userId={profileData?.id ?? profileId}
+                            displayName={profileData?.displayName}
+                            borderRadius="18px"
+                            size="56px"
                         />
-                    </Stack>
-                )}
-            </Stack>
-            {listenershipHistoryAvailable && (<>
-                <Box maxH={windowHeight} pos="relative">
-                    <Stack
-                        transition="padding .45s"
-                        pos="sticky"
-                        ref={listenershipHistoryEl}
-                        paddingLeft={`${useHistoryFullPageView ? 0 : 20}px`}
-                        paddingRight={`${useHistoryFullPageView ? 0 : 20}px`}
-                        height={useHistoryFullPageView ? windowHeight : 500}
-                        pointerEvents="all"
-                        sx={{
-                            boxSizing: "border-box"
-                        }}
-                        onWheel={(e: React.WheelEvent<HTMLDivElement>) => {
-                            if (!useHistoryFullPageView)
-                                return;
-
-                            const el = document.querySelector("[data-profile-history-full-view]");
-
-                            if (!el)
-                                return;
-
-                            // If scrolling up and already at the top, pass scroll to parent with same delta
-                            if (e.deltaY < -2.5 && el.scrollTop <= 0) {
-                                const parent = document.querySelector("[data-profile-scroll-container]");
-
-                                if (parent) {
-                                    setUnscrollHistory(true);
-                                    setUseHistoryFullPageView(false);
-
-                                    parent.scrollTo({
-                                        top: (rescrollHeight ?? 0) - 120,
-                                        behavior: "smooth",
-                                    });
-                                }
-                            }
-                        }}
-                        onTouchStart={(e: React.TouchEvent<HTMLDivElement>) => {
-                            // Store initial touch position
-                            (e.currentTarget as any)._touchStartY = e.touches[0].clientY;
-                        }}
-                        onTouchMove={(e: React.TouchEvent<HTMLDivElement>) => {
-                            if (!useHistoryFullPageView)
-                                return e.preventDefault();
-
-                            const el = document.querySelector("[data-profile-history-full-view]");
-
-                            if (!el)
-                                return;
-
-                            const startY = (e.currentTarget as any)._touchStartY;
-                            const currentY = e.touches[0].clientY;
-                            const deltaY = startY - currentY;
-
-                            // If scrolling up and already at the top, pass scroll to parent with same delta
-                            if (deltaY < -2.5 && el.scrollTop <= 0) {
-                                const parent = document.querySelector("[data-profile-scroll-container]");
-
-                                if (parent) {
-                                    setUnscrollHistory(true);
-                                    setUseHistoryFullPageView(false);
-
-                                    parent.scrollTo({
-                                        top: (rescrollHeight ?? 0) - 120,
-                                        behavior: "smooth",
-                                    });
-                                }
-                            }
-                        }}
-                    >
-                        <Box>
-                            <Text
-                                fontFamily="Inter"
-                                fontWeight="bold"
-                                fontSize="24px"
-                                color={reactiveDesignComplementaryColour ?? "text.dark"}
-                                transition=".45s"
-                                float="left"
-                                marginBottom={`-${useHistoryFullPageView ? 60 : 0}px`}
-                                opacity={`${useHistoryFullPageView ? 0.5 : 1}`}
-                            >
-                                Listening History
-                            </Text>
-                            <Stack
-                                width="100%"
-                                height={useHistoryFullPageView ? windowHeight : 500}
-                                overflowY={useHistoryFullPageView ? "auto" : "hidden"}
-                                padding="12px"
-                                paddingTop={`${useHistoryFullPageView ? 64 : 12}px`}
-                                borderRadius={`${useHistoryFullPageView ? 0 : 20}px`}
-                                background={widgetBgColour ?? "linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02))"}
-                                gap="12px"
-                                pos="relative"
-                                transition="background .3s"
-                                sx={{
-                                    scrollbarWidth: "none",
-                                    "&::-webkit-scrollbar": {
-                                        display: "none",
-                                    },
-                                }}
-                                data-profile-history-full-view
-                            >
-                                <FriendHistoryFeed
-                                    userId={targetUserId ?? user.id}
-                                    fetchHistory={(userId, page, forceRefresh) => user.getFriendProfileListenershipHistory(userId, page, forceRefresh)}
-                                    refreshSignal={`${playbackState?.data.state?.songId ?? ""}:${historyRefreshTick}`}
-                                />
-                            </Stack>
-                        </Box>
-                    </Stack>
+                    )}
                 </Box>
-            </>)}
+
+                <Stack gap="6px" minWidth="0" flex="1">
+                    {profileData?.displayName ? (
+                        <Text
+                            fontFamily="Inter"
+                            fontWeight="bold"
+                            fontSize="21px"
+                            lineHeight="1.15"
+                            color={INK}
+                            noOfLines={2}
+                        >
+                            {profileData.displayName}
+                        </Text>
+                    ) : (
+                        <Skeleton height="20px" width="55%" borderRadius="4px" />
+                    )}
+
+                    {/*
+                      * The classification, stuck on at an angle.
+                      *
+                      * It is the one thing Tempo works out about somebody rather
+                      * than counts, and as a second line of grey text it read as
+                      * a caption nobody had bothered to write.
+                      */}
+                    <Box alignSelf="flex-start" transform="rotate(-2.2deg)">
+                        <Box paddingX="10px" paddingY="4px" borderRadius="full" background={SURFACE_HI}>
+                            <Text
+                                fontFamily="Libre Franklin"
+                                fontStyle="italic"
+                                fontWeight="black"
+                                fontSize="11.5px"
+                                color={accentInk}
+                                noOfLines={1}
+                                transition="color .45s"
+                            >
+                                {profileData?.listenerTypeClassification ?? "Casual Listener"}
+                            </Text>
+                        </Box>
+                    </Box>
+                </Stack>
+            </HStack>
+
+            {nowPlaying && (
+                <Box animation={`${rise} .3s ease-out both`} style={{ animationDelay: "50ms" }}>
+                    <Rubric colour={accentInk}>{nowHeading}</Rubric>
+                    <NowSpinning
+                        state={nowPlaying}
+                        tint={tint}
+                        accent={accentInk}
+                        progress={playbackState?.data.interpolatedProgress ?? nowPlaying.progressNormal ?? 0}
+                    />
+                </Box>
+            )}
+
+            {pastWeekStats && (
+                <Box animation={`${rise} .3s ease-out both`} style={{ animationDelay: "100ms" }}>
+                    <Rubric colour={accentInk}>Past week</Rubric>
+
+                    {/*
+                      * A week with nothing in it gets the sentence and no tiles.
+                      * Every figure would be zero, and a zero duration formats as
+                      * an em dash — which at this size is a stray horizontal line
+                      * sitting where the headline number should be.
+                      */}
+                    {!hasListened ? (
+                        <Empty>{weekLine(pastWeekStats, isOwnProfile)}</Empty>
+                    ) : (<>
+                    {/*
+                      * Bento rather than three equal columns: the tile that is
+                      * twice the size says which figure matters without a word of
+                      * explanation, and people look at the largest element on a
+                      * screen first and longest.
+                      */}
+                    <Grid templateColumns="1.32fr 1fr" templateRows="auto auto" gap="9px">
+                        <GridItem rowSpan={2}>
+                            <Stack
+                                height="100%"
+                                borderRadius={TILE_RADIUS}
+                                background={SURFACE}
+                                padding="18px"
+                                justifyContent="center"
+                                gap="9px"
+                            >
+                                <Figure
+                                    value={pastWeekStats.totalListeningDuration}
+                                    format={formatListening}
+                                    size={{ base: "42px", sm: "50px" }}
+                                    colour={accentInk}
+                                />
+                                <Text fontSize="13px" color={INK_DIM} lineHeight="1.4">
+                                    spent listening
+                                </Text>
+                            </Stack>
+                        </GridItem>
+
+                        <GridItem>
+                            <Stack borderRadius={TILE_RADIUS} background={SURFACE} padding="14px 16px" gap="4px">
+                                {/*
+                                  * The server counts a Set of song ids, so this is
+                                  * how many different songs were played rather
+                                  * than how many plays there were — which is what
+                                  * the label used to claim.
+                                  */}
+                                <Figure
+                                    value={pastWeekStats.uniqueSongsPlayedCount}
+                                    format={v => `${Math.round(v)}`}
+                                    size="28px"
+                                    colour={INK}
+                                />
+                                <Text fontSize="12px" color={INK_DIM}>different songs</Text>
+                            </Stack>
+                        </GridItem>
+
+                        <GridItem>
+                            <Stack borderRadius={TILE_RADIUS} background={SURFACE} padding="14px 16px" gap="4px">
+                                <Figure
+                                    value={pastWeekStats.longestStreak}
+                                    format={formatListening}
+                                    size="28px"
+                                    colour={INK}
+                                />
+                                <Text fontSize="12px" color={INK_DIM}>longest streak</Text>
+                            </Stack>
+                        </GridItem>
+                    </Grid>
+
+                    <Text fontSize="13.5px" color={INK_FAINT} lineHeight="1.5" marginTop="13px" maxWidth="38ch">
+                        {weekLine(pastWeekStats, isOwnProfile)}
+                    </Text>
+                    </>)}
+                </Box>
+            )}
+
+            <Box animation={`${rise} .3s ease-out both`} style={{ animationDelay: "150ms" }}>
+                <Rubric
+                    colour={accentInk}
+                    action={
+                        /*
+                         * A switch rather than a tab bar. The three tabs it
+                         * replaces were fixed at 40px each inside a 124px track
+                         * with a 2px border, so the last one sat on the edge of
+                         * its own box.
+                         */
+                        <HStack
+                            gap="1px"
+                            padding="2px"
+                            borderRadius="full"
+                            background={SURFACE}
+                            flexShrink={0}
+                            pointerEvents={topSongsLoading ? "none" : "all"}
+                            role="tablist"
+                            aria-label="Top songs period"
+                        >
+                            {TOP_SONG_PERIODS.map(period => {
+                                const selected = (topSongsFilter === period.id);
+
+                                return (
+                                    <Center
+                                        key={period.id}
+                                        role="tab"
+                                        aria-selected={selected}
+                                        tabIndex={0}
+                                        minWidth="40px"
+                                        height="26px"
+                                        paddingX="9px"
+                                        borderRadius="full"
+                                        cursor="pointer"
+                                        userSelect="none"
+                                        transition="background .2s, color .2s"
+                                        background={selected ? accentInk : "transparent"}
+                                        color={selected ? "#101013" : INK_FAINT}
+                                        onClick={() => setTopSongsFilter(period.id)}
+                                        onKeyDown={e => {
+                                            if (e.key === "Enter" || e.key === " ")
+                                                setTopSongsFilter(period.id);
+                                        }}
+                                    >
+                                        <Text fontSize="12.5px" fontWeight="bold">{period.label}</Text>
+                                    </Center>
+                                );
+                            })}
+                        </HStack>
+                    }
+                >
+                    Top songs
+                </Rubric>
+
+                {topSongsLoading ? (
+                    <TopSongSkeletons />
+                ) : userTopSongs.length === 0 ? (
+                    <Empty>
+                        {topSongsFilter === "day"
+                            ? "Nothing in the last 24 hours. Check back after a listen."
+                            : "Nothing played in this stretch."}
+                    </Empty>
+                ) : (<>
+                    {/*
+                      * Ranked by position in the list rather than by the `index`
+                      * the server sends. That index is assigned before songs with
+                      * no cached metadata are dropped, so a missing track leaves a
+                      * hole in it — and the page used to key its whole top songs
+                      * section off finding index 0, which meant one uncached track
+                      * hid the section entirely.
+                      */}
+                    <TopSongHero song={userTopSongs[0]} accent={accentInk} />
+                    <Stack gap="15px">
+                        {userTopSongs.slice(1).map((song, i) => (
+                            <TopSongRow key={song.id + i} song={song} rank={i + 2} />
+                        ))}
+                    </Stack>
+                </>)}
+            </Box>
+
+            {listenershipHistoryAvailable && (
+                /*
+                 * Simply the rest of the page.
+                 *
+                 * This section used to take the scroll over once it was 85%
+                 * visible, become full screen, and hold itself in place with a
+                 * setInterval calling scrollTo every 320ms while wheel and touch
+                 * handlers tried to hand the scroll back. It fought the reader for
+                 * control of the page, and it is the reason the profile felt
+                 * broken to scroll. The feed pages itself as it comes into view,
+                 * which is all it ever needed to do.
+                 */
+                <Box animation={`${rise} .3s ease-out both`} style={{ animationDelay: "200ms" }}>
+                    <Rubric colour={accentInk}>Recently played</Rubric>
+                    <FriendHistoryFeed
+                        userId={profileId}
+                        fetchHistory={(userId, page, forceRefresh) => user.getFriendProfileListenershipHistory(userId, page, forceRefresh)}
+                        refreshSignal={`${nowPlaying?.songId ?? ""}:${historyRefreshTick}`}
+                    />
+                </Box>
+            )}
         </Stack>
     </>);
 }

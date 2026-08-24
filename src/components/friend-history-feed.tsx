@@ -1,4 +1,4 @@
-import { VStack, Spinner, Box, Divider } from "@chakra-ui/react";
+import { VStack, Spinner, Box } from "@chakra-ui/react";
 import { useEffect, useState, useRef } from "react";
 import { PlaybackHistoryItem } from "@/components/playback-history-item";
 import { FriendListenershipItem } from "@/lib/usrlib";
@@ -131,14 +131,22 @@ export default function FriendListenershipHistory({
     }, [loading, preloadedPage, reachedEnd]);
 
     return (
-        <VStack spacing={2} align="stretch" w="100%">
-            {items.map((item, idx) => (<>
-                {idx > 0 && <Divider key={idx} />}
-                <PlaybackHistoryItem key={item.item.track.id + idx} data={item} />
-            </>))}
+        // The key belongs on the outer element of each entry. It used to sit on
+        // an inner Divider inside an unkeyed fragment, so React had nothing to
+        // identify a row by and rebuilt the whole feed on every page appended.
+        <VStack spacing={0} align="stretch" w="100%">
+            {items.map((item, idx) => (
+                <Box
+                    key={item.item.track.id + ":" + item.timestamp}
+                    paddingY="10px"
+                    borderTop={idx > 0 ? "1px solid rgba(255,255,255,0.06)" : undefined}
+                >
+                    <PlaybackHistoryItem data={item} />
+                </Box>
+            ))}
             {!reachedEnd && (
                 <Box ref={loaderRef} display="flex" justifyContent="center" alignItems="center" py={6}>
-                    <Spinner size="lg" />
+                    <Spinner size="md" />
                 </Box>
             )}
         </VStack>
