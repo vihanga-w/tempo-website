@@ -533,6 +533,37 @@ export default class User extends EventEmitter {
         return;
     }
 
+    /**
+     * People you are not friends with, who your friends are friends with.
+     *
+     * Needs no query — this is what the add-friends page can show somebody
+     * before they have typed anything, and it is ordered by how many friends
+     * you already have in common.
+     */
+    public async getFriendSuggestions(limit = 20) {
+        const req = await fetch(API_URL + `/users/suggestions?limit=${limit}`, {
+            headers: { ...(this.getAuthHeaders()) },
+            credentials: "include",
+        });
+
+        if (req.status === 429)
+            window.location.reload();
+
+        if (!req.ok)
+            return [];
+
+        const res = await req.json() as {
+            error: boolean;
+            data: {
+                user: ClientUserAccount;
+                mutualFriends: UserFriendship[];
+                friendState: UserFriendship["state"] | "incoming" | "none";
+            }[];
+        };
+
+        return (res.error ? [] : res.data);
+    }
+
     public async searchUsers(query: string, limit?: number) {
         const req = await fetch(API_URL + "/users/query", {
             method: "POST",

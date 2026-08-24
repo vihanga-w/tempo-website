@@ -6,7 +6,7 @@ import { ChakraStylesConfig, Select } from "chakra-react-select";
 import { StyledBtn } from "./button";
 import { InteractiveButtonBox } from "./interactive-btn-box";
 import { UserLookupResult, UserLookupResultType } from "@/components/user-lookup-result";
-import User from "@/lib/usrlib";
+import User, { ClientUserAccount } from "@/lib/usrlib";
 import { findBestSCDNImageSize } from "@/lib/utils";
 
 export default function AddFriendsPage({
@@ -17,10 +17,50 @@ export default function AddFriendsPage({
     const [lookupTimeout, setLookupTimeout] = useState<NodeJS.Timeout | undefined>();
     const [lookupResults, setLookupResults] = useState<UserLookupResultType[]>([]);
 
+    /*
+     * Friends of your friends, shown when the field is empty.
+     *
+     * Held apart from the search results rather than mixed into them: these are
+     * an answer to a question nobody asked, so they belong under their own
+     * heading and have to disappear the moment somebody does ask one.
+     */
+    const [suggested, setSuggested] = useState<UserLookupResultType[]>([]);
+    const [searching, setSearching] = useState(false);
+
+    const toRow = (v: {
+        user: ClientUserAccount;
+        mutualFriends: UserLookupResultType["mutual"];
+        friendState: UserLookupResultType["frState"];
+        friendshipId?: string;
+    }): UserLookupResultType => {
+        // Spotify's own CDN has the sizes worth asking for; anything else is
+        // taken as it comes
+        const ideal = v.user.images.filter(image => image.url.startsWith("https://i.scdn."));
+
+        const source = (ideal.length > 0 ? ideal : v.user.images);
+
+        return {
+            id: v.user.id,
+            pfpUrl: (source.length > 0 ? findBestSCDNImageSize(source, 56, 56) ?? undefined : undefined),
+            username: v.user.displayName,
+            mutual: v.mutualFriends,
+            frState: v.friendState,
+            frId: v.friendshipId,
+        };
+    };
+
     const handler = async (e: ChangeEvent<HTMLInputElement>) => {
         if (e.target.value.trim() == "") {
-            // setLookupResults([]);
-            const incoming = await user.getFriends(["incoming"]);
+            setSearching(false);
+
+            // Both at once: neither is waiting on the other, and the page is
+            // empty until whichever is slower arrives
+            const [incoming, suggestions] = await Promise.all([
+                user.getFriends(["incoming"]),
+                user.getFriendSuggestions(20),
+            ]);
+
+            setSuggested(suggestions.map(toRow));
 
             if (incoming.length == 0) {
                 setLookupResults([]);
@@ -48,25 +88,13 @@ export default function AddFriendsPage({
             return;
         }
 
-        console.log("Querying server for users with query:", e.target.value);
+        setSearching(true);
+        setSuggested([]);
 
         try {
             const results = await user.searchUsers(e.target.value, 25);
 
-            const processed: UserLookupResultType[] = results.map(v => {
-                const idealImage = v.user.images.filter(v => v.url.startsWith("https://i.scdn."));
-                
-                return {
-                    id: v.user.id,
-                    pfpUrl: idealImage.length > 0 ? findBestSCDNImageSize(idealImage, 56, 56) ?? undefined : v.user.images.length > 0 ? findBestSCDNImageSize(v.user.images, 56, 56) ?? undefined : undefined,
-                    username: v.user.displayName,
-                    mutual: v.mutualFriends,
-                    frState: v.friendState,
-                    frId: v.friendshipId,
-                };
-            });
-
-            setLookupResults(processed);
+            setLookupResults(results.map(toRow));
         } catch (ex) {
             console.warn("User lookup query failed, error:", ex);
         }
@@ -104,7 +132,19 @@ export default function AddFriendsPage({
                         onChange={onSearchFieldChange}
                     />
                     <Box height="calc(100vh - 275px)" overflowY="auto" position="relative">
-                        {lookupResults.filter(v => v.id !== user.object?.id).map((v, i) => {
+                        {/*
+                          * Deduped here as well as on the server.
+                          *
+                          * The key below used to carry the array index to stay
+                          * unique, which is what a list does when the same
+                          * person can appear in it twice — and an index in a key
+                          * costs you the identity React needs to keep a row's
+                          * state across a re-render.
+                          */}
+                        {lookupResults
+                            .filter(v => v.id !== user.object?.id)
+                            .filter((v, i, all) => all.findIndex(other => other.id === v.id) === i)
+                            .map((v, i) => {
                             return (
                                 <UserLookupResult
                                     userId={v.id}
@@ -116,10 +156,44 @@ export default function AddFriendsPage({
                                     friendshipId={v.frId}
                                     // onClick={onCommit}
                                     user={user}
-                                    key={v.id + v.username + i}
+                                    key={v.id}
                                 />
                             );
                         })}
+
+                        {/*
+                          * Under their own heading, and only while the field is
+                          * empty. These were not asked for, so they must not be
+                          * mistaken for an answer — and the moment somebody does
+                          * ask, they go.
+                          */}
+                        {!searching && suggested.length > 0 && (<>
+                            <Text
+                                fontFamily="Inter"
+                                fontWeight="bold"
+                                fontSize="16px"
+                                opacity="0.75"
+                                marginTop={lookupResults.length > 0 ? "26px" : "6px"}
+                                marginBottom="6px"
+                                userSelect="none"
+                            >
+                                People you may know
+                            </Text>
+
+                            {suggested.map((v, i) => (
+                                <UserLookupResult
+                                    userId={v.id}
+                                    username={v.username}
+                                    pfpUrl={v.pfpUrl}
+                                    firstItem={i === 0}
+                                    mutualFriends={v.mutual}
+                                    friendState={v.frState}
+                                    friendshipId={v.frId}
+                                    user={user}
+                                    key={v.id}
+                                />
+                            ))}
+                        </>)}
                     </Box>
                 </Stack>
             </Box>
