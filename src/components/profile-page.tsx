@@ -4,9 +4,15 @@ import { Box, Center, Grid, GridItem, HStack, Skeleton, Spinner, Stack, Text } f
 import { keyframes } from "@emotion/react";
 import { ReactNode, useEffect, useRef, useState } from "react";
 import { getSpotifyDeeplink, SkeletonImage } from "./playback-state";
-import { FastAverageColor } from "fast-average-color";
-import { apcach, crToBg } from "apcach";
-import { oklch, formatHex } from "culori";
+import {
+    extractArtworkColour,
+    FALLBACK_ACCENT,
+    PAGE_BG,
+    panelFill,
+    readableAccent,
+    rgbToHex,
+    type Rgb,
+} from "@/lib/artwork-colour";
 import { MdExplicit } from "react-icons/md";
 import { getSizedImageUrl } from "@/lib/sized-img";
 import { findBestSCDNImageSize, formatListening } from "@/lib/utils";
@@ -19,13 +25,18 @@ import { InitialAvatar } from "./initial-avatar";
 /**
  * The page reads as a record sleeve and a printed week card rather than as a
  * dashboard, because that is the voice the rest of the app already speaks in —
- * the frame sets every page title in Libre Franklin Black Italic, and the
- * leaderboard draws its own medals rather than borrowing three emoji.
+ * the leaderboard draws its own medals rather than borrowing three emoji.
  *
- * So: no surface is outlined, no two radii match by accident, and the figures
- * are set in the same italic the app titles are. Panels are told apart by fill
- * and by the space around them, which is what stops a page of stacked cards from
- * reading as a settings screen.
+ * Everything is set in Inter, which is what the rest of the app is set in.
+ * Libre Franklin Black Italic appears in exactly one place across the whole
+ * codebase — the page title in the frame — and borrowing it down here for the
+ * figures made the profile read as a different app bolted onto this one. The
+ * weight range does the work instead: 800 with tight tracking for anything that
+ * has to carry, regular for everything else.
+ *
+ * Surfaces are flat and unoutlined, and no two radii match by accident. Panels
+ * are told apart by fill and by the space around them, which is what stops a
+ * page of stacked cards from reading as a settings screen.
  */
 const INK = "#f6f5f8";
 const INK_DIM = "#9d9aa6";
@@ -35,19 +46,9 @@ const INK_FAINT = "#65626e";
 const SURFACE = "#151517";
 const SURFACE_HI = "#1c1b20";
 
-/** The app's own accent, for when there is no artwork to take a colour from. */
-const ACCENT = "#A480FF";
-const PAGE_BG = "#0D0D0E";
-
 /** Shape carries meaning here, so the radii are deliberately unalike. */
 const SLEEVE_RADIUS = "6px";
 const TILE_RADIUS = "22px";
-
-interface Rgb {
-    r: number;
-    g: number;
-    b: number;
-}
 
 interface TopSong {
     id: string;
@@ -81,75 +82,6 @@ const spin = keyframes`
     to   { transform: translateY(-50%) rotate(360deg); }
 `;
 
-/** "rgb(12, 34, 56)", as FastAverageColor hands it over. */
-function parseRgb(value: string): Rgb | null {
-    const parts = value.match(/\d+/g);
-
-    if (!parts || parts.length < 3)
-        return null;
-
-    return { r: Number(parts[0]), g: Number(parts[1]), b: Number(parts[2]) };
-}
-
-function componentToHex(c: number) {
-    const hex = Math.ceil(Math.min(Math.max(c, 0), 255)).toString(16);
-
-    return (hex.length === 1 ? "0" + hex : hex);
-}
-
-function rgbToHex({ r, g, b }: Rgb) {
-    return "#" + componentToHex(r) + componentToHex(g) + componentToHex(b);
-}
-
-function hexToRgb(hex: string): Rgb | null {
-    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-
-    return (result
-        ? { r: parseInt(result[1], 16), g: parseInt(result[2], 16), b: parseInt(result[3], 16) }
-        : null);
-}
-
-/**
- * A colour off the artwork that text can actually sit on.
- *
- * The average colour of a cover is whatever it is — often a mid grey, sometimes
- * near black — so it is pushed to a lightness that clears APCA 60 against the
- * page before being used for anything a reader has to read.
- */
-function readableAccent(rgb: Rgb): string {
-    const { r, g, b } = rgb;
-    const hex = rgbToHex(rgb);
-
-    // A grey cover has no hue worth keeping; tinting off it produces an
-    // off-white that reads as a rendering fault rather than as a colour
-    const isGrey = Math.abs(r - g) < 15 && Math.abs(g - b) < 15 && Math.abs(r - b) < 15 && r > 100 && g > 100 && b > 100;
-
-    if (isGrey)
-        return "#ffffff";
-
-    let multiplier = 1;
-
-    if (r > 175 && g > 175 && b > 175)
-        multiplier = 2.75;
-    else if (r < 80 && g < 80 && b < 80)
-        multiplier = 1.25;
-
-    const h = oklch(hex);
-    const ideal = apcach(crToBg(hex, 60), h?.c ?? 0, h?.h ?? 0);
-
-    const lifted = hexToRgb(formatHex(oklch({
-        mode: "oklch",
-        l: Math.max(ideal.lightness, 0.865),
-        c: ideal.chroma,
-        h: ideal.hue,
-    })));
-
-    if (!lifted)
-        return "#ffffff";
-
-    return rgbToHex({ r: lifted.r * multiplier, g: lifted.g * multiplier, b: lifted.b * multiplier });
-}
-
 function formatClock(ms: number) {
     if (ms < 0)
         ms = 0;
@@ -160,7 +92,7 @@ function formatClock(ms: number) {
 }
 
 /**
- * A rubric, in the app's own italic, with a rule running out to the edge.
+ * A section heading, with a rule running out to the edge.
  *
  * Not a small-caps label in grey. Every page built out of grey letterspaced
  * captions reads as the same page, and none of them read as this app.
@@ -177,11 +109,10 @@ function Rubric({
     return (
         <HStack gap="12px" alignItems="center" minHeight="32px" marginBottom="12px">
             <Text
-                fontFamily="Libre Franklin"
-                fontWeight="black"
-                fontStyle="italic"
+                fontFamily="Inter"
+                fontWeight="800"
                 fontSize="19px"
-                letterSpacing="-0.01em"
+                letterSpacing="-0.02em"
                 color={colour}
                 whiteSpace="nowrap"
                 transition="color .45s"
@@ -216,12 +147,12 @@ function Figure({
 
     return (
         <Text
-            fontFamily="Libre Franklin"
-            fontWeight="black"
-            fontStyle="italic"
+            fontFamily="Inter"
+            fontWeight="800"
             fontSize={size}
-            lineHeight="0.92"
-            letterSpacing="-0.035em"
+            lineHeight="1"
+            letterSpacing="-0.04em"
+            sx={{ fontVariantNumeric: "tabular-nums" }}
             color={colour}
             whiteSpace="nowrap"
             transition="color .45s"
@@ -289,9 +220,6 @@ function Record({ size, offset, playing, label }: Readonly<{ size: number; offse
                     // exactly how much of a label you see on a record in its sleeve
                     "radial-gradient(circle at 50% 50%, #08080a 0 3.5%, transparent 3.8%)",
                     `radial-gradient(circle at 50% 50%, ${label} 3.8% 30%, transparent 30.3%)`,
-                    // A lit edge, so the disc has a rim rather than fading into
-                    // the panel behind it
-                    "radial-gradient(circle at 50% 50%, transparent 0 92%, rgba(255,255,255,0.14) 93%, transparent 100%)",
                     // The grooves. Fine and low contrast — at this size a coarse
                     // ring pattern reads as a target rather than as vinyl
                     "repeating-radial-gradient(circle at 50% 50%, #26262f 0 1px, #0d0d11 1px 2.5px)",
@@ -330,9 +258,7 @@ function NowSpinning({
             padding="18px"
             overflow="hidden"
             position="relative"
-            background={tint
-                ? `linear-gradient(145deg, rgba(${tint.r},${tint.g},${tint.b},0.92) 0%, rgba(${tint.r},${tint.g},${tint.b},0.34) 62%, ${SURFACE} 100%)`
-                : SURFACE_HI}
+            background={tint ? panelFill(tint) : SURFACE_HI}
             transition="background .6s"
         >
             <HStack gap="0" alignItems="center" marginBottom="18px">
@@ -434,10 +360,10 @@ function TopSongHero({ song, accent }: Readonly<{ song: TopSong; accent: string 
                     transition="background .45s"
                 >
                     <Text
-                        fontFamily="Libre Franklin"
-                        fontWeight="black"
-                        fontStyle="italic"
-                        fontSize="18px"
+                        fontFamily="Inter"
+                        fontWeight="800"
+                        fontSize="17px"
+                        letterSpacing="-0.03em"
                         color="#101013"
                         lineHeight="1"
                     >
@@ -467,19 +393,20 @@ function TopSongHero({ song, accent }: Readonly<{ song: TopSong; accent: string 
 /**
  * One of the runners-up.
  *
- * The rank is set in the same italic as the figures and left deliberately dim —
+ * The rank is set in the same weight as the figures and left deliberately dim —
  * big enough to scan down, quiet enough that the songs stay the subject.
  */
 function TopSongRow({ song, rank }: Readonly<{ song: TopSong; rank: number }>) {
     return (
         <HStack gap="13px" alignItems="center">
             <Text
-                fontFamily="Libre Franklin"
-                fontWeight="black"
-                fontStyle="italic"
-                fontSize="20px"
-                color="#37353d"
-                minWidth="24px"
+                fontFamily="Inter"
+                fontWeight="800"
+                fontSize="19px"
+                letterSpacing="-0.03em"
+                sx={{ fontVariantNumeric: "tabular-nums" }}
+                color="#3b3944"
+                minWidth="22px"
                 textAlign="center"
                 flexShrink={0}
                 lineHeight="1"
@@ -623,7 +550,7 @@ export default function ProfilePage({
     const [committedAccent, setCommittedAccent] = useState<Rgb | null>(null);
     const [accentVisible, setAccentVisible] = useState<boolean>(false);
     /** The same colour, lifted until text set in it is legible. */
-    const [accentInk, setAccentInk] = useState<string>(ACCENT);
+    const [accentInk, setAccentInk] = useState<string>(FALLBACK_ACCENT);
 
     const [listenershipHistoryAvailable, setListenershipHistoryAvailable] = useState<boolean>(false);
     const [topSongsFilter, setTopSongsFilter] = useState<TopSongsPeriod>("day");
@@ -793,20 +720,18 @@ export default function ProfilePage({
             settle();
         });
 
-        const fac = new FastAverageColor();
-
         let streamerGotMsg = false;
 
         // Until something is playing, the page takes its colour from the profile
         // picture — an idle profile with no colour at all is the same near black
         // rectangle for everybody
         if (user?.object && user.object.images.length > 0) {
-            fac.getColorAsync(user.object.images[0]?.url)
+            extractArtworkColour(user.object.images[0]?.url)
             .then(colour => {
                 if (cancelled || streamerGotMsg)
                     return;
 
-                setAccent(parseRgb(colour.rgb));
+                setAccent(colour);
             })
             .catch(e => {
                 console.error("Failed to read a colour off the profile picture, error:", e);
@@ -829,10 +754,10 @@ export default function ProfilePage({
                 if (data.data.state) {
                     streamerGotMsg = true;
 
-                    new FastAverageColor().getColorAsync(data.data.state.imageUrl)
+                    extractArtworkColour(data.data.state.imageUrl)
                     .then(colour => {
                         if (!cancelled)
-                            setAccent(parseRgb(colour.rgb));
+                            setAccent(colour);
                     })
                     .catch(e => {
                         console.error("Failed to read a colour off the artwork, error:", e);
@@ -911,7 +836,7 @@ export default function ProfilePage({
     useEffect(() => {
         if (!committedAccent) {
             setStatusBarColour(PAGE_BG);
-            setAccentInk(ACCENT);
+            setAccentInk(FALLBACK_ACCENT);
             setComplementaryColour("#e9e7fb");
 
             return;
@@ -1038,10 +963,10 @@ export default function ProfilePage({
             background={committedAccent
                 ? `linear-gradient(to bottom, rgb(${committedAccent.r},${committedAccent.g},${committedAccent.b}) 0%, rgba(0,0,0,0) 100%)`
                 : "transparent"}
-            opacity={accentVisible && committedAccent ? 0.34 : 0}
+            opacity={accentVisible && committedAccent ? 0.2 : 0}
             transform={accentVisible ? "translateY(0)" : "translateY(-24px)"}
             width="100vw"
-            height="320px"
+            height="260px"
             transition=".75s"
         />
 
@@ -1122,10 +1047,10 @@ export default function ProfilePage({
                     <Box alignSelf="flex-start" transform="rotate(-2.2deg)">
                         <Box paddingX="10px" paddingY="4px" borderRadius="full" background={SURFACE_HI}>
                             <Text
-                                fontFamily="Libre Franklin"
-                                fontStyle="italic"
-                                fontWeight="black"
+                                fontFamily="Inter"
+                                fontWeight="700"
                                 fontSize="11.5px"
+                                letterSpacing="-0.005em"
                                 color={accentInk}
                                 noOfLines={1}
                                 transition="color .45s"
@@ -1170,28 +1095,40 @@ export default function ProfilePage({
                       */}
                     <Grid templateColumns="1.32fr 1fr" templateRows="auto auto" gap="9px">
                         <GridItem rowSpan={2}>
+                            {/*
+                              * Anchored top left rather than centred in the tile.
+                              * The figure is the first thing on the page with any
+                              * size to it, and centring it in a tall tile put it
+                              * in the middle of nowhere — off the line the rest of
+                              * the page is set to, and with its own label floating
+                              * away from it. Reading starts at the top left corner,
+                              * so that is where the number is; the space it leaves
+                              * underneath is the tile giving the figure room rather
+                              * than the tile being underfilled.
+                              */}
                             <Stack
                                 height="100%"
                                 borderRadius={TILE_RADIUS}
                                 background={SURFACE}
                                 padding="18px"
-                                justifyContent="center"
-                                gap="9px"
+                                justifyContent="flex-start"
+                                alignItems="flex-start"
+                                gap="7px"
                             >
                                 <Figure
                                     value={pastWeekStats.totalListeningDuration}
                                     format={formatListening}
-                                    size={{ base: "42px", sm: "50px" }}
+                                    size={{ base: "52px", sm: "60px" }}
                                     colour={accentInk}
                                 />
-                                <Text fontSize="13px" color={INK_DIM} lineHeight="1.4">
+                                <Text fontSize="13px" color={INK_DIM} lineHeight="1.35">
                                     spent listening
                                 </Text>
                             </Stack>
                         </GridItem>
 
                         <GridItem>
-                            <Stack borderRadius={TILE_RADIUS} background={SURFACE} padding="14px 16px" gap="4px">
+                            <Stack borderRadius={TILE_RADIUS} background={SURFACE} padding="14px 16px" gap="4px" alignItems="flex-start">
                                 {/*
                                   * The server counts a Set of song ids, so this is
                                   * how many different songs were played rather
@@ -1209,7 +1146,7 @@ export default function ProfilePage({
                         </GridItem>
 
                         <GridItem>
-                            <Stack borderRadius={TILE_RADIUS} background={SURFACE} padding="14px 16px" gap="4px">
+                            <Stack borderRadius={TILE_RADIUS} background={SURFACE} padding="14px 16px" gap="4px" alignItems="flex-start">
                                 <Figure
                                     value={pastWeekStats.longestStreak}
                                     format={formatListening}

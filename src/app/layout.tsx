@@ -1,9 +1,7 @@
 import type { Metadata } from "next";
 import { Providers } from './providers';
-import { ColorModeScript } from "@chakra-ui/react";
 import { Analytics } from "@vercel/analytics/react";
 
-import { theme } from './theme';
 
 export const metadata: Metadata = {
   title: "Tempo.",
@@ -117,7 +115,7 @@ export default function RootLayout({
         paddingTop: "var(--safe-area-inset-top)",
       }}>
         <Analytics />
-        <ColorModeScript initialColorMode={theme.initialColorMode} />
+        
         <Providers>{children}</Providers>
       </body>
     </html>
