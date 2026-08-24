@@ -1147,6 +1147,7 @@ const MusicDiscoveryFeed: React.FC<{
                                                                 height="76px"
                                                                 borderRadius="6px"
                                                                 src={getSizedImageUrl(pfpUrl, 76, 76)}
+                                                                colourBlob={history.pfpColourBlob}
                                                                 onError={() => {}}
                                                             />
                                                         ) : (

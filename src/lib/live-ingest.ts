@@ -29,6 +29,8 @@ interface PlaybackState {
     duration: number;
     imageUrl: string;
     pfpUrl: string;
+    /** Drawn until pfpUrl loads; see lib/colour-blob.ts. */
+    pfpColourBlob?: string;
     username: string;
     explicit: boolean;
     replayCount: number;

@@ -63,6 +63,8 @@ export type ClientUserAccount = {
         total: number
     }
     listenerTypeClassification: string
+    /** The picture reduced to a 4x4 grid of colours; see lib/colour-blob.ts. */
+    profilePictureColourBlob?: string
     href: string
     id: string
     images: Array<{
@@ -103,6 +105,7 @@ export interface FriendListenershipItem {
     userId: string;
     username: string;
     pfpUrl: string;
+    pfpColourBlob?: string;
     item: {
         track: SongData;
         sessionDuration: number;

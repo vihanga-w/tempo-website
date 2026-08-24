@@ -48,7 +48,13 @@ if (typeof window !== "undefined") (window as any).__calls = calls;
 
 function makeUser(variant: string, ART: string): any {
     const empty = variant === "empty";
-    const me = { id: "u1", displayName: "Vihanga Weerasinghe", images: [], listenerTypeClassification: "Nocturnal Explorer" };
+    // A real blob, produced exactly as the server does: sharp resize to 4x4,
+    // removeAlpha, raw, base64. Lets the placeholder be seen without a backend.
+    const BLOB = "NUA5PUhJkmpDmWRFJzExj15F2XdBe0AlRjojxXY2uHkpPS8OMiYqejM1Zi8oJBoc";
+    const me = { id: "u1", displayName: "Vihanga Weerasinghe",
+        images: [{ url: ART, width: 300, height: 300 }],
+        profilePictureColourBlob: BLOB,
+        listenerTypeClassification: "Nocturnal Explorer" };
     return { id: "u1", isLoggedIn: true, object: me,
         getRemoteUser: async () => me,
         getRecaps: async () => ({ daily: { a: 1 }, weekly: null }),

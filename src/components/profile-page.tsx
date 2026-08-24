@@ -1095,6 +1095,7 @@ export default function ProfilePage({
                             height="56px"
                             borderRadius="18px"
                             src={getSizedImageUrl(findBestSCDNImageSize(profileData?.images ?? [], 120, 120) ?? "", 120, 120)}
+                            colourBlob={profileData?.profilePictureColourBlob}
                             onError={() => setPfpLoadFailed(true)}
                         />
                     ) : (
