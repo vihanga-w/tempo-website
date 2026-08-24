@@ -1,10 +1,11 @@
 import { DataStreamer, UpdateEvent } from "@/lib/live-ingest";
 import { Avatar, Box, HStack, Image, Skeleton, SkeletonText, Stack, Text}  from "@chakra-ui/react"
 import { MdAddReaction, MdExplicit } from "react-icons/md";
-import { ReactEventHandler, useEffect, useState } from "react";
+import { ReactEventHandler, useEffect, useRef, useState } from "react";
 import { keyframes } from "@emotion/react";
 import { getSizedImageUrl } from "@/lib/sized-img";
 import { InitialAvatar } from "./initial-avatar";
+import { colourBlobToBackground } from "@/lib/colour-blob";
 
 function formatTime(ms: number) {
     if (ms < 0)
@@ -54,6 +55,7 @@ export const SkeletonImage = ({
     transition,
     border,
     loading,
+    colourBlob,
 }: {
     src: string;
     onError?: ReactEventHandler<HTMLImageElement>;
@@ -63,12 +65,63 @@ export const SkeletonImage = ({
     transition?: string;
     border?: string;
     loading?: "eager" | "lazy" | undefined;
+    /**
+     * The picture's own colours, drawn until it loads. See colour-blob.ts —
+     * given one, the space fills with a blurred version of what is coming
+     * instead of pulsing grey.
+     */
+    colourBlob?: string;
 }) => {
     const [isLoaded, setIsLoaded] = useState<boolean>(false);
 
+    // A plain string, so it is the same on the server and the client and is
+    // there in the first paint rather than a frame later
+    const placeholder = colourBlobToBackground(colourBlob);
+
+    const imageRef = useRef<HTMLImageElement>(null);
+
+    /*
+     * An image that was already in cache never fires onLoad.
+     *
+     * The browser can finish it before React has attached the handler — which is
+     * exactly what happens to every avatar the second time you see it — so the
+     * load event is missed, isLoaded stays false, and the picture sits at zero
+     * opacity over its own placeholder. It looked like the image had failed to
+     * load; it had in fact loaded before anybody was listening.
+     *
+     * Asking the element directly on mount is the only reliable way to know.
+     * naturalWidth as well as complete, because complete is also true for an
+     * image that errored.
+     */
+    useEffect(() => {
+        setIsLoaded(false);
+
+        const element = imageRef.current;
+
+        if (element?.complete && element.naturalWidth > 0)
+            setIsLoaded(true);
+    }, [src]);
+
     return (<Box pos="relative" height={height} minHeight={height} width={width} minWidth={width}>
-        <Skeleton pos="absolute" height={height} width={width} borderRadius={borderRadius} />
+        {placeholder ? (
+            // A 4x4 image stretched over the box. The browser smooths it on the
+            // way up, which is what makes it read as out of focus rather than as
+            // sixteen squares
+            <Box
+                pos="absolute"
+                height={height}
+                width={width}
+                borderRadius={borderRadius}
+                // Inline rather than through the style props: the value is a
+                // data URI, and handing base64 to the style system produced no
+                // background at all
+                style={{ backgroundImage: placeholder }}
+            />
+        ) : (
+            <Skeleton pos="absolute" height={height} width={width} borderRadius={borderRadius} />
+        )}
         <Image
+            ref={imageRef}
             pos="absolute"
             width={width}
             minWidth={width}
@@ -76,7 +129,9 @@ export const SkeletonImage = ({
             minHeight={height}
             objectFit="cover"
             borderRadius={borderRadius}
-            transition={transition}
+            // Crossing from the placeholder is worth a fade; appearing over grey
+            // is not, so the fallback only applies when there is a blob beneath
+            transition={transition ?? (placeholder ? "opacity .25s" : undefined)}
             border={border}
             src={src}
             draggable={false}
@@ -242,6 +297,7 @@ export function PlaybackState({
                                     height="36px"
                                     borderRadius="6px"
                                     src={getSizedImageUrl(data?.state?.pfpUrl ?? "null", 36, 36)}
+                                    colourBlob={data?.state?.pfpColourBlob}
                                     key={data?.state?.pfpUrl ?? "null"}
                                     onError={() => {
                                         setPfpLoadFailed(true);

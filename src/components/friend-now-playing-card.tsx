@@ -2,6 +2,7 @@ import { DataStreamer, UpdateEvent } from "@/lib/live-ingest";
 import { getSizedImageUrl } from "@/lib/sized-img";
 import { Box, HStack, Image, Stack, Text } from "@chakra-ui/react";
 import { InitialAvatar } from "./initial-avatar";
+import { SkeletonImage } from "./playback-state";
 import { useEffect, useMemo, useState } from "react";
 import { formatTimeToMinAndHour, getSpotifyDeeplink } from "./playback-state";
 
@@ -15,12 +16,14 @@ export function FriendNowPlayingCard({
     userId,
     username,
     pfpUrl,
+    pfpColourBlob,
     streamer,
     openPubProfile,
 }: Readonly<{
     userId: string;
     username: string;
     pfpUrl?: string;
+    pfpColourBlob?: string;
     streamer?: DataStreamer | null;
     openPubProfile?: (id: string) => void;
 }>) {
@@ -241,18 +244,24 @@ export function FriendNowPlayingCard({
                 <Stack gap="3px" flex="1" minWidth="0" paddingTop="1px">
                     {/* Name, with the streak balanced against it */}
                     <HStack gap="7px" align="center" minWidth="0">
+                        {/*
+                          * A bare Image here drew nothing at all until it
+                          * loaded, so a strip of friends came up as a row of
+                          * names with holes beside them and then filled in one
+                          * by one. SkeletonImage holds the space, and holds the
+                          * picture's own colours in it when there is a blob.
+                          */}
                         {(pfpUrl && pfpUrl !== "") ? (
-                            <Image
-                                width="15px"
-                                height="15px"
-                                minWidth="15px"
-                                borderRadius="5px"
-                                objectFit="cover"
-                                src={getSizedImageUrl(pfpUrl, 16, 16)}
-                                alt=""
-                                draggable={false}
-                                opacity="0.85"
-                            />
+                            <Box opacity="0.85">
+                                <SkeletonImage
+                                    width="15px"
+                                    height="15px"
+                                    borderRadius="5px"
+                                    src={getSizedImageUrl(pfpUrl, 16, 16)}
+                                    colourBlob={pfpColourBlob}
+                                    loading="lazy"
+                                />
+                            </Box>
                         ) : (
                             <InitialAvatar userId={userId} displayName={username} size="15px" borderRadius="5px" fontSize="9px" />
                         )}

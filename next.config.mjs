@@ -26,7 +26,23 @@ const withPWA = npwa({
   buildExcludes: [/app-build-manifest\.json$/],
 });
 
+/*
+ * The colour and layout benches are development tooling, so they are only
+ * treated as pages while developing.
+ *
+ * They used to build into the export like any other route, which put
+ * /dev-preview, /dev-colour and /dev-blob on the public site — harnesses that
+ * hang test hooks off `window` and exist to be poked at. Naming them
+ * `page.dev.tsx` and only recognising that extension outside a production build
+ * leaves those directories with no page file to compile, so the routes are not
+ * emitted at all rather than shipped and hidden.
+ */
+const isProduction = process.env.NODE_ENV === "production";
+
+const pageExtensions = ["tsx", "ts", "jsx", "js"];
+
 const nextConfig = withPWA({
+  pageExtensions: (isProduction ? pageExtensions : ["dev.tsx", ...pageExtensions]),
   reactStrictMode: true,
   images: {
     unoptimized: true,

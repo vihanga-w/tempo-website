@@ -20,8 +20,8 @@ import {
     HStack,
     Stack,
     Avatar,
-    keyframes,
 } from "@chakra-ui/react";
+import { keyframes } from "@emotion/react";
 import { formatTimeToMinAndHour, SkeletonImage } from "@/components/playback-state";
 import { useEffect, useState } from "react";
 import { findBestSCDNImageSize } from "@/lib/utils";
