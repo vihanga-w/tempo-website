@@ -546,8 +546,12 @@ function HeaderAction({
             _active={{ background: "rgba(255,255,255,0.09)" }}
             onClick={onClick}
             onKeyDown={e => {
-                if (e.key === "Enter" || e.key === " ")
-                    onClick();
+                if (e.key !== "Enter" && e.key !== " ")
+                    return;
+
+                // Space scrolls the page as well as activating the control
+                e.preventDefault();
+                onClick();
             }}
         >
             {children}
@@ -583,7 +587,6 @@ export default function ProfilePage({
     const [profileData, setProfileData] = useState<ClientUserAccount | undefined>(user.object);
     const [pfpLoadFailed, setPfpLoadFailed] = useState(false);
     const [playbackState, setPlaybackState] = useState<UpdateEvent | null>(null);
-    const [streamerReset, setStreamerReset] = useState<boolean>(false);
 
     /** The artwork colour as it arrives, and the copy the page is painted from. */
     const [accent, setAccent] = useState<Rgb | null>(null);
@@ -664,15 +667,23 @@ export default function ProfilePage({
             setHistoryRefreshTick(t => t + 1);
         };
 
+        // visibilitychange fires on the way out as well as the way back, so
+        // without the check every refresh ran twice — once when the reader left
+        // the page, which is the one moment nobody is looking at these figures
+        const onVisibility = () => {
+            if (document.visibilityState === "visible")
+                onReturn();
+        };
+
         const timer = setInterval(onReturn, 60e3);
 
         window.addEventListener("focus", onReturn);
-        document.addEventListener("visibilitychange", onReturn);
+        document.addEventListener("visibilitychange", onVisibility);
 
         return () => {
             clearInterval(timer);
             window.removeEventListener("focus", onReturn);
-            document.removeEventListener("visibilitychange", onReturn);
+            document.removeEventListener("visibilitychange", onVisibility);
         };
     }, []);
 
@@ -685,7 +696,16 @@ export default function ProfilePage({
             console.error("Failed to fetch latest user recaps, error:", ex);
         });
 
-        refreshListeningStats();
+        // Only the week figures. The top songs have an effect of their own keyed
+        // on the period, and it runs on mount too — calling the pair here meant
+        // every open of a profile asked for the same five songs twice
+        user.getRemoteUserPastWeekStats(profileId)
+        .then(d => {
+            setPastWeekStats(d);
+        })
+        .catch(e => {
+            console.error("Failed to fetch past week stats, error:", e);
+        });
 
         user.getFriendProfileListenershipHistory(profileId, 0)
         .then(h => {
@@ -739,6 +759,9 @@ export default function ProfilePage({
     useEffect(() => {
         let cancelled = false;
 
+        // Bumped on every artwork read, so only the newest one may paint
+        let colourRequest = 0;
+
         const settle = () => {
             if (!cancelled)
                 setPageLoaded(true);
@@ -762,13 +785,40 @@ export default function ProfilePage({
 
         let streamerGotMsg = false;
 
+        /**
+         * Reads a colour off an image and paints the page with it, if it is
+         * still the image the page is waiting on.
+         *
+         * Skipping a track twice puts two reads in flight at once, and they do
+         * not necessarily come back in the order they went out — without the
+         * sequence check a slow read of the track you just skipped can land last
+         * and leave the page the colour of a record that is no longer playing.
+         */
+        const readArtworkColour = (url: string) => {
+            const request = ++colourRequest;
+
+            extractArtworkColour(url)
+            .then(colour => {
+                if (cancelled || request !== colourRequest)
+                    return;
+
+                setAccent(colour);
+            })
+            .catch(e => {
+                console.error("Failed to read a colour off the artwork, error:", e);
+            });
+        };
+
         // Until something is playing, the page takes its colour from the profile
         // picture — an idle profile with no colour at all is the same near black
         // rectangle for everybody
-        if (user?.object && user.object.images.length > 0) {
-            extractArtworkColour(user.object.images[0]?.url)
+        if (user?.object && user.object.images.length > 0 && user.object.images[0]?.url) {
+            const request = ++colourRequest;
+
+            extractArtworkColour(user.object.images[0].url)
             .then(colour => {
-                if (cancelled || streamerGotMsg)
+                // Playback wins: once a record is on, its colour is the page's
+                if (cancelled || streamerGotMsg || request !== colourRequest)
                     return;
 
                 setAccent(colour);
@@ -790,28 +840,27 @@ export default function ProfilePage({
             if (data.userId !== profileId)
                 return;
 
-            setPlaybackState(() => {
-                if (data.data.state) {
-                    streamerGotMsg = true;
+            // Nothing is playing any more, so there is no artwork to take a
+            // colour from and no reason to go looking for one
+            if (data.data.action.type == "STOPPED") {
+                setPlaybackState(null);
+                setAccent(null);
 
-                    extractArtworkColour(data.data.state.imageUrl)
-                    .then(colour => {
-                        if (!cancelled)
-                            setAccent(colour);
-                    })
-                    .catch(e => {
-                        console.error("Failed to read a colour off the artwork, error:", e);
-                    });
-                }
+                return;
+            }
 
-                if (data.data.action.type == "STOPPED") {
-                    setAccent(null);
+            // Outside the state updater. React is free to call an updater more
+            // than once for one update, and does exactly that under StrictMode —
+            // with this work inside it, a single track change fired two reads of
+            // the artwork and two writes of the page colour
+            setPlaybackState(data);
 
-                    return null;
-                }
+            if (!data.data.state)
+                return;
 
-                return data;
-            });
+            streamerGotMsg = true;
+
+            readArtworkColour(data.data.state.imageUrl);
         };
 
         const onRemove = (userId: string) => {
@@ -834,7 +883,12 @@ export default function ProfilePage({
             streamer.off?.("update", onUpdate);
             streamer.off?.("remove", onRemove);
         };
-    }, [user.isLoggedIn, profileId]);
+        // `streamer` belongs here. The frame creates it as null and sets it in an
+        // effect, and a child's effects run before its parent's — so on the
+        // render where signing in completes this ran with no streamer, and with
+        // it missing from the list it never ran again. The page then never showed
+        // a note of what was playing, for as long as it stayed open.
+    }, [user.isLoggedIn, profileId, streamer]);
 
     /**
      * Cross-fades the page's colour rather than cutting to it.
@@ -894,28 +948,20 @@ export default function ProfilePage({
         setComplementaryColour(ink);
     }, [committedAccent]);
 
-    useEffect(() => {
-        const handleFocus = () => {
-            if (streamer && !streamer.isReady()) {
-                setPlaybackState(null);
-                setStreamerReset(true);
-            }
-        };
-
-        window.addEventListener("focus", handleFocus);
-
-        return () => {
-            window.removeEventListener("focus", handleFocus);
-        };
-    }, [streamer]);
-
-    useEffect(() => {
-        if (streamerReset && streamer && playbackState) {
-            streamer.cleanup();
-            streamer.init();
-            setStreamerReset(false);
-        }
-    }, [playbackState, streamer, streamerReset]);
+    /*
+     * Reconnecting a dead socket is the app frame's job, not this page's.
+     *
+     * There was a copy of it here, and it could not work: the focus handler set
+     * the playback state to null and then armed the reset, while the effect that
+     * performed the reset would only run if the playback state was truthy. The
+     * one thing that could have cleared the flag was the thing the handler had
+     * just cleared, so the reset sat armed and the socket stayed dead.
+     *
+     * It was also wrong in two ways the frame's version documents: it tore down
+     * a socket that was still negotiating, because it checked isReady() without
+     * isConnecting(), and it called cleanup() before init() when init() already
+     * runs its own cleanup, so every reconnect tore the socket down twice.
+     */
 
     const tint = (accentVisible ? committedAccent : null);
     const nowPlaying = playbackState?.data.state ?? null;
@@ -1040,7 +1086,7 @@ export default function ProfilePage({
                     minWidth="56px"
                     borderRadius="18px"
                     flexShrink={0}
-                    boxShadow={playbackState ? `0 0 0 2.5px ${PAGE_BG}, 0 0 0 5px ${accentInk}` : "none"}
+                    boxShadow={nowPlaying ? `0 0 0 2.5px ${PAGE_BG}, 0 0 0 5px ${accentInk}` : "none"}
                     transition="box-shadow .45s"
                 >
                     {((profileData?.images.length ?? 0) > 0 && !pfpLoadFailed) ? (
@@ -1062,7 +1108,13 @@ export default function ProfilePage({
                 </Box>
 
                 <Stack gap="6px" minWidth="0" flex="1">
-                    {profileData?.displayName ? (
+                    {/*
+                      * Gated on the profile having loaded, not on it having a
+                      * name. A blank display name is falsy, so the previous
+                      * check left an account without one waiting on a skeleton
+                      * that nothing was ever going to replace.
+                      */}
+                    {profileData ? (
                         <Text
                             fontFamily="Inter"
                             fontWeight="bold"
@@ -1246,8 +1298,11 @@ export default function ProfilePage({
                                         color={selected ? "#101013" : INK_FAINT}
                                         onClick={() => setTopSongsFilter(period.id)}
                                         onKeyDown={e => {
-                                            if (e.key === "Enter" || e.key === " ")
-                                                setTopSongsFilter(period.id);
+                                            if (e.key !== "Enter" && e.key !== " ")
+                                                return;
+
+                                            e.preventDefault();
+                                            setTopSongsFilter(period.id);
                                         }}
                                     >
                                         <Text fontSize="12.5px" fontWeight="bold">{period.label}</Text>

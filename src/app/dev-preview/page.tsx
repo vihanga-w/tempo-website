@@ -41,16 +41,21 @@ function makeStreamer(playing: boolean, ART: string): any {
 function song(ART: string, i: number, title: string, artists: string[], playCount: number, explicit = false) {
     return { id: "t" + i, title, artists, index: i, explicit, playCount, imageUrl: ART };
 }
+// Every mocked fetch is logged, so a check on the console can tell whether the
+// page asks for the same thing twice
+const calls: string[] = [];
+if (typeof window !== "undefined") (window as any).__calls = calls;
+
 function makeUser(variant: string, ART: string): any {
     const empty = variant === "empty";
     const me = { id: "u1", displayName: "Vihanga Weerasinghe", images: [], listenerTypeClassification: "Nocturnal Explorer" };
     return { id: "u1", isLoggedIn: true, object: me,
         getRemoteUser: async () => me,
         getRecaps: async () => ({ daily: { a: 1 }, weekly: null }),
-        getRemoteUserPastWeekStats: async () => (empty
+        getRemoteUserPastWeekStats: async () => (calls.push("pastWeekStats"), empty
             ? { totalListeningDuration: 0, uniqueSongsPlayedCount: 0, longestStreak: 0 }
             : { totalListeningDuration: 15_120_000, uniqueSongsPlayedCount: 38, longestStreak: 4_020_000 }),
-        getRemoteUserTopSongs: async () => (empty ? [] : [
+        getRemoteUserTopSongs: async (_u: string, period: string) => (calls.push("topSongs:" + period), empty ? [] : [
             song(ART, 0, "Nights", ["Frank Ocean"], 12, true),
             song(ART, 1, "Weird Fishes / Arpeggi", ["Radiohead"], 9),
             song(ART, 2, "Sunset", ["The Midnight", "Nikki Flores"], 7),
