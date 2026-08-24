@@ -361,8 +361,7 @@ export default function ConnectSpotify() {
                                 textDecoration="underline"
                             >
                                 the new app form
-                            </Link>{" "}
-                            — that goes straight to it. Both open in your browser, so
+                            </Link>. Both open in your browser, so
                             you can switch back here with what you copied.
                         </Text>
 
