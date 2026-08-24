@@ -4,7 +4,7 @@ import { API_URL } from "@/lib/const";
 import { Box, Button, Center, HStack, Input, Link, Stack, Text, useToast } from "@chakra-ui/react";
 import { useEffect, useState } from "react";
 import { Capacitor } from "@capacitor/core";
-import { DefaultSystemBrowserOptions, InAppBrowser } from "@capacitor/inappbrowser";
+import { InAppBrowser } from "@capgo/inappbrowser";
 
 /**
  * Sets an account up against its own Spotify app.
@@ -90,8 +90,8 @@ export default function ConnectSpotify() {
 
         event.preventDefault();
 
-        InAppBrowser.openInSystemBrowser({ url, options: DefaultSystemBrowserOptions })
-            .catch(e => console.warn("Could not open the system browser:", e));
+        InAppBrowser.open({ url })
+            .catch((e: unknown) => console.warn("Could not open the system browser:", e));
     };
 
     /**

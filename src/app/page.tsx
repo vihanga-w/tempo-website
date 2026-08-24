@@ -21,7 +21,8 @@ import {
 import React, { useEffect, useRef, useState } from "react";
 import { Capacitor } from "@capacitor/core";
 import { StatusBar, Style } from '@capacitor/status-bar';
-import { AndroidViewStyle, DefaultAndroidSystemBrowserOptions, DefaultSystemBrowserOptions, DefaultiOSSystemBrowserOptions, DismissStyle, InAppBrowser, iOSViewStyle } from '@capacitor/inappbrowser';
+import { InAppBrowser } from '@capgo/inappbrowser';
+import { probeSpotifyUserId } from "@/lib/native-spotify-id";
 import { Preferences } from '@capacitor/preferences';
 
 import User from "@/lib/usrlib";
@@ -437,6 +438,35 @@ export default function Home() {
 
           window.location.href = routed.url ?? (API_URL + "/auth/ui");
         } else {
+          /*
+           * Native: find out who they are before signing them in.
+           *
+           * A Spotify username is Tempo's account id, and knowing it up front
+           * is what lets sign-in be routed to the person's own Spotify app
+           * rather than Tempo's — which admits almost nobody, so the default
+           * flow is a guaranteed refusal for most people. Spotify's own
+           * account page will tell us, because logging in there is a login we
+           * do not have to run: no password passes through our code, and the
+           * username it shows is the one we need.
+           *
+           * Best-effort by design. Anything other than a username — they
+           * closed it, the page changed shape, the plugin is unavailable —
+           * falls through to the flow below, which still works.
+           */
+          const probe = await probeSpotifyUserId();
+
+          if (probe.username) {
+            try {
+              window.localStorage.setItem(KNOWN_USER_KEY, probe.username);
+            } catch { }
+          } else {
+            console.warn("Could not read a Spotify username before sign-in:", probe.reason, probe.diagnostics);
+          }
+
+          alert(probe.username
+            ? "Spotify user id: " + probe.username
+            : "Could not read your Spotify user id (" + (probe.reason ?? "no match") + ")");
+
           const seshReq = await fetch(API_URL + "/createTokenSwapSession");
           const seshRes = await seshReq.json() as {
             error: boolean;
@@ -521,21 +551,7 @@ export default function Home() {
             }
 
             if (data.flag == "READY") {
-              InAppBrowser.openInSystemBrowser({
-                url: signInUrl,
-                options: {
-                  ...DefaultSystemBrowserOptions,
-                  iOS: {
-                    ...DefaultiOSSystemBrowserOptions,
-                    closeButtonText: DismissStyle.DONE,
-                    viewStyle: iOSViewStyle.PAGE_SHEET,
-                  },
-                  android: {
-                    ...DefaultAndroidSystemBrowserOptions,
-                    viewStyle: AndroidViewStyle.BOTTOM_SHEET,
-                  },
-                }
-              });
+              InAppBrowser.open({ url: signInUrl });
 
               checker = setInterval(async () => {
                 const tok = await loadSwappedToken();
