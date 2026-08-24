@@ -209,11 +209,28 @@ function Band({ maxSpeed = 50, minSpeed = 0, onRest }: BandProps) {
       const deltaY = Math.abs(y - (card.current.prevY || 0));
       const magnitude = Math.sqrt(deltaX ** 2 + deltaY ** 2);
 
-      const threshold = 0.0001;
+      const settled = 0.00032;
 
-      if (magnitude > threshold && magnitude <= 0.00032 && !card.current.atRest) {
+      /*
+       * "Has stopped", not "is moving slowly".
+       *
+       * This used to require the movement to land inside a window — above
+       * 0.0001 and at or below this — which is a frame the card only lands on
+       * if it happens to be sampled while decelerating through it. Settle
+       * faster than a frame, or stop dead at zero, or have the physics paused
+       * because the tab was hidden through the sign-in redirect, and that frame
+       * never arrives. Whoever it happened to sat on the loading screen for as
+       * long as they were willing to.
+       *
+       * Waiting for movement first keeps it from reporting rest before the card
+       * has done anything, which is the only reason there was a lower bound.
+       */
+      if (magnitude > settled)
+        card.current.hasMoved = true;
+
+      if (card.current.hasMoved && magnitude <= settled && !card.current.atRest) {
         onRest();
-        
+
         card.current.atRest = true;
       }
 

@@ -631,6 +631,30 @@ export default class User extends EventEmitter {
         // If we are logged in, load the user details
         if (loggedIn) {
             const details = await this.getDetails();
+
+            /*
+             * Signed in as far as /chkauth is concerned, but there is no account
+             * to load.
+             *
+             * getDetails resolves undefined whenever /me answers with an error,
+             * and the assignments below then read .id off it and throw - inside
+             * the promise the app awaits before it can render anything. The
+             * result was a loading screen that never moved, with the real cause
+             * a TypeError in the console rather than anything about signing in.
+             *
+             * The two answers can disagree legitimately: an account whose
+             * sign-in never completed has no session, so /me has nothing to
+             * return. Treating that as not-signed-in gets the person to the
+             * sign-in prompt, which is the one thing that can actually fix it.
+             */
+            if (!details) {
+                console.warn("Authenticated but no account could be loaded - treating as signed out so sign-in can be offered");
+
+                this.object = undefined;
+                this.isLoggedIn = false;
+
+                return;
+            }
             
             const friendsSessions = (await new DataStreamer(this.storedToken).fetchFriendsStreams(true)).filter(v => v !== details?.id);
 
@@ -641,8 +665,8 @@ export default class User extends EventEmitter {
             // Expose the raw user object
             this.object = details;
 
-            this.id = details!.id;
-            this.email = details!.email;
+            this.id = details.id;
+            this.email = details.email;
             
             if (!this.isLoggedIn)
                 this.isLoggedIn = true;

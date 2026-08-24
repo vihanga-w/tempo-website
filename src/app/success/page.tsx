@@ -10,10 +10,33 @@ import SplitText from "@/TextAnimations/SplitText/SplitText";
 import { API_URL } from "@/lib/const";
 import { ClientUserAccount } from "@/lib/usrlib";
 
+/**
+ * Waits for several things to be ready, and gives up rather than hanging.
+ *
+ * One of the things counted here is a physics simulation coming to rest, and a
+ * simulation can fail to arrive: no WebGL, a canvas that throws, a tab hidden
+ * through the sign-in redirect so nothing ever moves. This screen is the last
+ * step of signing up, so anything that can leave it waiting forever leaves the
+ * person who just signed up staring at a loading screen with nowhere to go.
+ *
+ * The wait therefore has a deadline. Everything it waits for is decoration —
+ * the welcome plays a little flatter without it, which is a great deal better
+ * than not arriving.
+ */
 function ensureReady(readyCount = 1) {
     let ready = 0;
     let readyIds: string[] = [""];
     let cb: (() => void) | undefined;
+    let settled = false;
+
+    const finish = () => {
+        if (settled)
+            return;
+
+        settled = true;
+
+        cb?.();
+    };
 
     return {
         ready: (readyId: string) => {
@@ -23,21 +46,29 @@ function ensureReady(readyCount = 1) {
             ready++;
             readyIds.push(readyId);
 
-            if (cb && ready >= readyCount)
-                cb();
-
-            console.log("ER-Ready:", ready, "/", readyCount);
+            if (ready >= readyCount)
+                finish();
         },
-        wait: () => {
+        wait: (deadlineMs = 6000) => {
             return new Promise<void>((resolve) => {
-                console.log("ER-Waiting:", ready, "/", readyCount);
-                
-                if (ready >= readyCount) {
-                    console.log("ER-Resolved");
+                if (ready >= readyCount || settled) {
+                    settled = true;
+
                     return resolve();
                 }
 
                 cb = resolve;
+
+                setTimeout(() => {
+                    if (settled)
+                        return;
+
+                    console.warn("Welcome screen gave up waiting for", readyCount - ready, "of", readyCount, "things — showing it anyway");
+
+                    settled = true;
+
+                    resolve();
+                }, deadlineMs);
             });
         }
     }
