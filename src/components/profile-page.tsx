@@ -670,7 +670,23 @@ function NowSpinning({
                       */}
                     <Record size={94} offset={45} playing={state.isPlaying !== false} label={accent} palette={palette} songId={state.songId ?? ""} elapsedMs={elapsed} />
 
-                    <Box position="relative" zIndex={1} borderRadius={SLEEVE_RADIUS}>
+                    {/*
+                      * Opaque, and clipped to its own corners.
+                      *
+                      * The sleeve is the only thing hiding the disc, and it was
+                      * only as opaque as whatever the artwork happened to be at
+                      * the time — so in the moment after a track change, while
+                      * the next cover was still loading, the record could be seen
+                      * sliding back out through it. A sleeve is card; nothing
+                      * behind one is visible through it, loaded or not.
+                      */}
+                    <Box
+                        position="relative"
+                        zIndex={1}
+                        borderRadius={SLEEVE_RADIUS}
+                        overflow="hidden"
+                        background={SURFACE_HI}
+                    >
                         <SkeletonImage
                             width="100px"
                             height="100px"
