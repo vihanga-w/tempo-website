@@ -301,7 +301,15 @@ export default function ReactionDrawer({
     return (
         <Drawer placement="bottom" onClose={close} isOpen={isOpen} isFullHeight>
             <DrawerOverlay background="#0D0D0E" />
-            <DrawerContent background="#0D0D0E">
+            {/* Full-height drawers render in a portal, so they are positioned
+                against the viewport and the safe-area padding on body never
+                reaches them - their content ran under the status bar and the
+                notch. Padding rather than margin, so the background still
+                reaches the screen edges. */}
+            <DrawerContent background="#0D0D0E"
+                paddingTop="var(--safe-area-inset-top, 0px)"
+                paddingBottom="var(--safe-area-inset-bottom, 0px)"
+            >
                 <DrawerHeader borderBottomWidth='1px' height="64px">
                     <Box display="flex" justifyContent="space-between" alignItems="center" width="100%">
                         <Text>{(daily && weekly) ? "Your Music Recap" : daily ? "Your Daily Recap" : "Your Weekly Recap"}</Text>

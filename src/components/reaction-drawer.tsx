@@ -38,7 +38,15 @@ export default function ReactionDrawer({
     return (
         <Drawer placement="bottom" onClose={close} isOpen={isOpen} isFullHeight>
             <DrawerOverlay />
-            <DrawerContent background="rgba(0, 0, 0, 0.25)" backdropFilter="blur(5px)">
+            {/* Full-height drawers render in a portal, so they are positioned
+                against the viewport and the safe-area padding on body never
+                reaches them - their content ran under the status bar and the
+                notch. Padding rather than margin, so the background still
+                reaches the screen edges. */}
+            <DrawerContent background="rgba(0, 0, 0, 0.25)" backdropFilter="blur(5px)"
+                paddingTop="var(--safe-area-inset-top, 0px)"
+                paddingBottom="var(--safe-area-inset-bottom, 0px)"
+            >
                 {/* <DrawerHeader borderBottomWidth='1px' height="64px">
                     <Box display="flex" justifyContent="flex-end" marginTop="-4px">
                         <MdClose size="38px" />
