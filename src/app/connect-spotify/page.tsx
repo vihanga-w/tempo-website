@@ -23,7 +23,16 @@ const CLIENT_ID_DRAFT_KEY = "tempo-byo-client-id-draft";
 
 export default function ConnectSpotify() {
     const [redirectUri, setRedirectUri] = useState<string>("");
-    const [dashboardUrl, setDashboardUrl] = useState<string>("https://developer.spotify.com/dashboard");
+    /*
+     * The new-app form, not the dashboard that houses it.
+     *
+     * The dashboard only shows "Create app" to somebody who already has one. On
+     * a phone, an account with no apps yet — which is every account arriving
+     * here — lands on a page with nothing to press, and the instructions read
+     * as wrong. Linking to the form skips the problem entirely and is a shorter
+     * trip on a desktop too.
+     */
+    const [createAppUrl, setCreateAppUrl] = useState<string>("https://developer.spotify.com/dashboard/create");
     const [clientId, setClientId] = useState<string>("");
     const [clientSecret, setClientSecret] = useState<string>("");
     const [submitting, setSubmitting] = useState<boolean>(false);
@@ -31,6 +40,20 @@ export default function ConnectSpotify() {
     const [identifier, setIdentifier] = useState<string>("");
     const [resuming, setResuming] = useState<boolean>(false);
     const [resumeError, setResumeError] = useState<string>("");
+
+    /*
+     * Set when sign-in got all the way through and Spotify then refused the
+     * account, which means the app exists and works and the only thing missing
+     * is the account being listed on it.
+     *
+     * Read off the address bar rather than through useSearchParams, which would
+     * put this whole page behind a Suspense boundary for one flag.
+     */
+    const [needsUserManagement, setNeedsUserManagement] = useState(false);
+
+    useEffect(() => {
+        setNeedsUserManagement(new URLSearchParams(window.location.search).get("issue") === "user-management");
+    }, []);
 
     const toast = useToast();
 
@@ -86,12 +109,12 @@ export default function ConnectSpotify() {
     useEffect(() => {
         fetch(API_URL + "/spotify/byo/info")
             .then(r => r.json())
-            .then((d: { redirectUri?: string; dashboardUrl?: string }) => {
+            .then((d: { redirectUri?: string; createAppUrl?: string }) => {
                 if (d.redirectUri)
                     setRedirectUri(d.redirectUri);
 
-                if (d.dashboardUrl)
-                    setDashboardUrl(d.dashboardUrl);
+                if (d.createAppUrl)
+                    setCreateAppUrl(d.createAppUrl);
             })
             .catch(() => setRedirectUri(""));
     }, []);
@@ -289,12 +312,35 @@ export default function ConnectSpotify() {
                     </Text>
                 </Box>
 
+                {needsUserManagement && (
+                    <Box
+                        p="14px 16px"
+                        mb="7"
+                        borderRadius="12px"
+                        bg="rgba(164,128,255,0.10)"
+                        border="1px solid rgba(164,128,255,0.35)"
+                    >
+                        <Text fontSize="14px" fontFamily="Inter" fontWeight="semibold" color="#f5f5f5" mb="1">
+                            Almost there — add yourself to your app
+                        </Text>
+
+                        <Text fontSize="13px" fontFamily="Inter" color="#bdbdbd" lineHeight="1.6">
+                            Your app signed you in, then Spotify refused it. That means the
+                            app is set up correctly and your account just is not listed on
+                            it yet. Open your app on the Spotify dashboard, go to{" "}
+                            <b>Settings &rsaquo; User Management</b>, and add your name and
+                            the email on your Spotify account — then sign in again. Step 6
+                            below has the detail.
+                        </Text>
+                    </Box>
+                )}
+
                 <Text fontSize="13px" fontFamily="Inter" color="#6b6b6b" mb="7" textAlign="center">
                     or set one up for the first time
                 </Text>
 
                 <Stack gap="22px" mb="9">
-                    {step(1, "Open the Spotify dashboard", (<>
+                    {step(1, "Create a Spotify app", (<>
                         <Text mb="2">
                             Sign in to{" "}
                             <Link
@@ -308,15 +354,15 @@ export default function ConnectSpotify() {
                             </Link>{" "}
                             first, with the same account you use for music. Then open{" "}
                             <Link
-                                href={dashboardUrl}
+                                href={createAppUrl}
                                 isExternal
-                                onClick={handleExternalLink(dashboardUrl)}
+                                onClick={handleExternalLink(createAppUrl)}
                                 color="#c4a8ff"
                                 textDecoration="underline"
                             >
-                                developer.spotify.com/dashboard
+                                the new app form
                             </Link>{" "}
-                            and choose <b>Create app</b>. Both open in your browser, so
+                            — that goes straight to it. Both open in your browser, so
                             you can switch back here with what you copied.
                         </Text>
 
@@ -379,6 +425,29 @@ export default function ConnectSpotify() {
                     {step(4, "Tick Web API, then save", "Under \"Which API/SDKs are you planning to use?\" select Web API and agree to the terms.")}
 
                     {step(5, "Copy your two codes", "Open the app's Settings. Copy the Client ID, then View client secret and copy that too.")}
+
+                    {/*
+                      * The step everything else depends on, and the one nothing
+                      * on Spotify's side asks you to do.
+                      *
+                      * A new app starts in development mode, which refuses every
+                      * Web API call from an account that is not listed on it —
+                      * including the account that made the app. Skipping this
+                      * gets you all the way through sign-in and then a 403, at
+                      * the point where it looks like Tempo is broken.
+                      */}
+                    {step(6, "Add yourself under User Management", (<>
+                        <Text mb="2">
+                            Still in <b>Settings</b>, open <b>User Management</b> and add
+                            your own name and the email address on your Spotify account.
+                        </Text>
+
+                        <Text fontSize="13px" color="#8a8a8a" lineHeight="1.5">
+                            New apps start in development mode, which only lets accounts
+                            listed here use them — including your own. Without this,
+                            sign-in gets all the way to the end and then fails.
+                        </Text>
+                    </>))}
                 </Stack>
 
                 <Stack gap="10px" mb="5">
