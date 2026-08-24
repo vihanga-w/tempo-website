@@ -82,6 +82,33 @@ const spin = keyframes`
     to   { transform: translateY(-50%) rotate(360deg); }
 `;
 
+/**
+ * The name to put at the top of somebody's profile.
+ *
+ * The account name is whatever Spotify holds, which for most people is their
+ * full name, and a full name at the top of your own profile reads as a record of
+ * you rather than as you. The first word of it is the one somebody would
+ * actually be called, and it fits on one line at a size worth setting it at —
+ * "Vihanga Weerasinghe" wrapped to two and had to be set small to do it.
+ *
+ * A name with no space in it is already the short form and is left alone.
+ */
+function shortName(displayName?: string): string {
+    const trimmed = (displayName ?? "").trim();
+
+    if (trimmed === "")
+        return "";
+
+    // Any run of whitespace, so a name typed with two spaces or with a
+    // non-breaking one between the parts still comes back as a single word
+    const words = trimmed.split(/\s+/);
+
+    // Skip a leading decoration. Plenty of music accounts are called things like
+    // "🎧 dj nights", and the first word of that is not a name — it is a
+    // headphone, which is not what anybody wants at the top of their profile
+    return (words.find(word => /[\p{L}\p{N}]/u.test(word)) ?? trimmed);
+}
+
 function formatClock(ms: number) {
     if (ms < 0)
         ms = 0;
@@ -163,33 +190,34 @@ function Figure({
 }
 
 /**
- * Something to say about the week, rather than a caption under a number.
+ * Something to say about the week that the tiles above it do not already say.
  *
- * The leaderboard already talks to the reader like this, and it is the most
- * characterful thing in the app. A profile that only prints totals is a receipt.
+ * Every branch of this used to read back a figure the reader had just looked at
+ * — "mostly in one sitting" restated the longest streak tile word for word, and
+ * the rest restated the song count. A caption that repeats the thing it sits
+ * under is worse than no caption, because it costs a line and a read to learn
+ * nothing.
+ *
+ * So it works out the daily average instead, which is the one thing about the
+ * week none of the three tiles can show, and carries the voice on top of that.
  */
 function weekLine(
     stats: { totalListeningDuration: number; uniqueSongsPlayedCount: number; longestStreak: number },
     isOwnProfile: boolean,
 ): string {
-    const hours = stats.totalListeningDuration / 3600e3;
-
     if (stats.totalListeningDuration <= 0)
         return (isOwnProfile ? "Press play and this starts filling in." : "Nothing played in the past week.");
 
+    const hours = stats.totalListeningDuration / 3600e3;
+    const perDay = formatListening(Math.round(stats.totalListeningDuration / 7));
+
     if (hours >= 20)
-        return `Twenty hours and counting. ${isOwnProfile ? "Your" : "Their"} headphones have earned a rest.`;
+        return `That is about ${perDay} every day. ${isOwnProfile ? "Your" : "Their"} headphones have earned a rest.`;
 
     if (hours >= 10)
-        return `A proper week — ${stats.uniqueSongsPlayedCount} different songs got a turn.`;
+        return `About ${perDay} every day.`;
 
-    if (stats.longestStreak >= 3600e3)
-        return `Mostly in one sitting: ${formatListening(stats.longestStreak)} without stopping.`;
-
-    if (hours >= 3)
-        return `${stats.uniqueSongsPlayedCount} different songs across the week.`;
-
-    return `A quiet week — ${stats.uniqueSongsPlayedCount === 1 ? "one song" : `${stats.uniqueSongsPlayedCount} songs`} so far.`;
+    return `About ${perDay} a day across the week.`;
 }
 
 /**
@@ -359,6 +387,17 @@ function TopSongHero({ song, accent }: Readonly<{ song: TopSong; accent: string 
                     boxShadow="0 4px 14px rgba(0,0,0,0.5)"
                     transition="background .45s"
                 >
+                    {/*
+                      * Nudged off centre on purpose.
+                      *
+                      * A "1" centred by its advance width does not look centred:
+                      * the glyph is a tall stem with a small flag, and its ink
+                      * sits 0.048em right of the middle of the box it is given —
+                      * measured as the centre of mass of the rendered glyph,
+                      * against 0.001em for a "0" and 0.031em for the next worst
+                      * digit. In a circle, where there is a ring of empty space
+                      * to compare it against, that reads as leaning right.
+                      */}
                     <Text
                         fontFamily="Inter"
                         fontWeight="800"
@@ -366,6 +405,7 @@ function TopSongHero({ song, accent }: Readonly<{ song: TopSong; accent: string 
                         letterSpacing="-0.03em"
                         color="#101013"
                         lineHeight="1"
+                        transform="translateX(-0.048em)"
                     >
                         1
                     </Text>
@@ -1026,15 +1066,16 @@ export default function ProfilePage({
                         <Text
                             fontFamily="Inter"
                             fontWeight="bold"
-                            fontSize="21px"
+                            fontSize="24px"
+                            letterSpacing="-0.02em"
                             lineHeight="1.15"
                             color={INK}
-                            noOfLines={2}
+                            noOfLines={1}
                         >
-                            {profileData.displayName}
+                            {shortName(profileData.displayName)}
                         </Text>
                     ) : (
-                        <Skeleton height="20px" width="55%" borderRadius="4px" />
+                        <Skeleton height="22px" width="45%" borderRadius="4px" />
                     )}
 
                     {/*
