@@ -1689,7 +1689,9 @@ export default function ProfilePage({
             gap="30px"
             width="calc(100% - 20px)"
             paddingLeft="20px"
-            paddingTop="calc(env(safe-area-inset-top, 0px) + 44px)"
+            // Clears the fixed page header only. The inset itself comes from
+            // the padding on body, and adding it again here counted it twice
+            paddingTop="44px"
             paddingBottom="36px"
             marginTop="-15px"
             zIndex="1"

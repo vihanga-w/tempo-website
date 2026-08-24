@@ -683,7 +683,7 @@ export default React.memo(function UIApp({
 
                 <Box
                     width="100vw"
-                    height="85px"
+                    height="calc(85px + env(safe-area-inset-top, 0px))"
                     pos="fixed"
                     top="0"
                     left="0"
@@ -691,13 +691,12 @@ export default React.memo(function UIApp({
                     background="linear-gradient(180deg,rgb(13, 13, 14) 15%, rgba(13,13,14,0) 100%)"
                     zIndex="999"
                     pointerEvents="none"
-                    marginTop="env(safe-area-inset-top)"
                     transition=".3s"
                 />
 
                 <Box
                     width="100vw"
-                    height="75px"
+                    height="calc(75px + env(safe-area-inset-top, 0px))"
                     pos="fixed"
                     top="0"
                     left="0"
@@ -707,7 +706,6 @@ export default React.memo(function UIApp({
                     backdropFilter="blur(12px)"
                     zIndex="999"
                     pointerEvents="none"
-                    marginTop="env(safe-area-inset-top)"
                     transition=".3s"
                 />
 
@@ -831,7 +829,7 @@ export default React.memo(function UIApp({
                             hideSpotifyCallout
                         />
                     </Box>
-                    <Box pos="fixed" zIndex="9999999" top="-4px" right="20px" width="100vw" pointerEvents={prevPage || !ADD_NEW_ITEM_POSSIBLE_PAGES.includes(currentPage) ? "none" : "all"}>
+                    <Box pos="fixed" zIndex="9999999" top="-4px" marginTop="env(safe-area-inset-top)" right="20px" width="100vw" pointerEvents={prevPage || !ADD_NEW_ITEM_POSSIBLE_PAGES.includes(currentPage) ? "none" : "all"}>
                         <SmallAddButton
                             onClick={() => {
                                 if (pageSwitcherActive) return;
