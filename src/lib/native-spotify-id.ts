@@ -22,6 +22,21 @@ const PROFILE_URL = "https://www.spotify.com/account/profile/";
 /** How long to wait for a login before giving up, so this cannot hang forever. */
 const DEADLINE_MS = 5 * 60 * 1000;
 
+export interface ProbeOptions {
+    /**
+     * Leave the webview open when a username is found.
+     *
+     * The webview holds the Spotify session the person just logged into, so
+     * sending it on to the authorise URL means Spotify already knows them and
+     * goes straight to consent. Closing it and opening a fresh one would throw
+     * that away and ask them to log in a second time.
+     *
+     * The caller owns the webview from that point and must either continue it
+     * or close it — see continueInWebView and closeWebView.
+     */
+    keepOpenOnSuccess?: boolean;
+}
+
 export interface SpotifyIdResult {
     /** The username, which is the account's Spotify id — present on success. */
     username?: string;
@@ -121,7 +136,7 @@ function buildProbeScript(): string {
  *          rejects — every exit resolves, so a caller can rely on being told
  *          what happened rather than having to catch.
  */
-export async function probeSpotifyUserId(): Promise<SpotifyIdResult> {
+export async function probeSpotifyUserId(options: ProbeOptions = {}): Promise<SpotifyIdResult> {
     let latestUrl = PROFILE_URL;
     let probed = false;
     let settled = false;
@@ -141,7 +156,10 @@ export async function probeSpotifyUserId(): Promise<SpotifyIdResult> {
                 try { await l.remove(); } catch { }
             }
 
-            try { await InAppBrowser.close(); } catch { }
+            // Handed to the caller rather than closed; anything that did not
+            // find a username is closed here, since nobody is going to use it
+            if (!(options.keepOpenOnSuccess && result.username))
+                try { await InAppBrowser.close(); } catch { }
 
             resolve(result);
         };
@@ -206,4 +224,21 @@ export async function probeSpotifyUserId(): Promise<SpotifyIdResult> {
             await finish({ reason: "unavailable" });
         }
     });
+}
+
+/**
+ * Sends a webview kept open by probeSpotifyUserId on to the next URL.
+ *
+ * Used to join the ordinary sign-in without a second login: the session is
+ * already in this webview, so Spotify goes straight to the consent screen.
+ */
+export async function continueInWebView(url: string): Promise<void> {
+    await InAppBrowser.setUrl({ url });
+}
+
+/** Closes a webview kept open by probeSpotifyUserId. Never throws. */
+export async function closeWebView(): Promise<void> {
+    try {
+        await InAppBrowser.close();
+    } catch { }
 }

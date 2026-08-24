@@ -22,7 +22,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Capacitor } from "@capacitor/core";
 import { StatusBar, Style } from '@capacitor/status-bar';
 import { InAppBrowser } from '@capgo/inappbrowser';
-import { probeSpotifyUserId } from "@/lib/native-spotify-id";
+import { closeWebView, continueInWebView, probeSpotifyUserId } from "@/lib/native-spotify-id";
 import { Preferences } from '@capacitor/preferences';
 
 import User from "@/lib/usrlib";
@@ -390,12 +390,14 @@ export default function Home() {
        * sign-in URL would fail, so the caller must go to the setup page, which
        * explains what to re-enter.
        */
-      const routedSignIn = async (swapToken?: string): Promise<{ url?: string; staleCreds?: boolean }> => {
-        let identifier: string | null = null;
+      const routedSignIn = async (swapToken?: string, knownIdentifier?: string): Promise<{ url?: string; staleCreds?: boolean; unmatched?: boolean }> => {
+        let identifier: string | null = knownIdentifier ?? null;
 
-        try {
-          identifier = window.localStorage.getItem(KNOWN_USER_KEY);
-        } catch { }
+        if (!identifier) {
+          try {
+            identifier = window.localStorage.getItem(KNOWN_USER_KEY);
+          } catch { }
+        }
 
         if (!identifier)
           return {};
@@ -417,6 +419,9 @@ export default function Home() {
 
           if (res.error)
             return (res.reason === "app-credentials" ? { staleCreds: true } : {});
+
+          if (!res.matched)
+            return { unmatched: true };
 
           return { url: res.url };
         } catch (ex) {
@@ -453,20 +458,6 @@ export default function Home() {
            * closed it, the page changed shape, the plugin is unavailable —
            * falls through to the flow below, which still works.
            */
-          const probe = await probeSpotifyUserId();
-
-          if (probe.username) {
-            try {
-              window.localStorage.setItem(KNOWN_USER_KEY, probe.username);
-            } catch { }
-          } else {
-            console.warn("Could not read a Spotify username before sign-in:", probe.reason, probe.diagnostics);
-          }
-
-          alert(probe.username
-            ? "Spotify user id: " + probe.username
-            : "Could not read your Spotify user id (" + (probe.reason ?? "no match") + ")");
-
           const seshReq = await fetch(API_URL + "/createTokenSwapSession");
           const seshRes = await seshReq.json() as {
             error: boolean;
@@ -480,21 +471,9 @@ export default function Home() {
 
           console.log(seshRes)
 
-          /*
-           * Resolved before the socket opens so the URL is ready the moment
-           * READY arrives. Passing the swap token ties the routed enrolment to
-           * this session, so the socket and poller below hear about it exactly
-           * as they would the default flow's.
-           */
-          const routed = await routedSignIn(seshRes.token);
-
-          if (routed.staleCreds) {
-            window.location.href = "/connect-spotify?issue=app-credentials";
-
-            return;
-          }
-
-          const signInUrl = routed.url ?? (API_URL + "/auth/app/" + seshRes.token);
+          // Where sign-in goes when we never learn who they are: Tempo's own
+          // app, which is the flow that has always run
+          const defaultSignInUrl = API_URL + "/auth/app/" + seshRes.token;
 
           const loadSwappedToken = async () => {
             const req = await fetch(API_URL + "/swapToken/" + seshRes.token);
@@ -551,7 +530,55 @@ export default function Home() {
             }
 
             if (data.flag == "READY") {
-              InAppBrowser.open({ url: signInUrl });
+              /*
+               * Learn who they are, then sign them in as that person.
+               *
+               * The probe opens Spotify's own account page and reads the
+               * username off it once they have logged in there - a username is
+               * Tempo's account id, so this is the identity the server needs to
+               * look up which Spotify app they enrolled with. Asking Spotify
+               * beats asking the person: no password passes through our code,
+               * and nobody has to remember a username to sign in.
+               *
+               * The webview is kept open on success and sent on to the
+               * authorise URL, so the session they just established is reused
+               * and Spotify goes straight to consent rather than asking them to
+               * log in all over again.
+               */
+              const probe = await probeSpotifyUserId({ keepOpenOnSuccess: true });
+
+              // Deliberately no format check beyond emptiness: a username is
+              // whatever the person chose, and Spotify lets them change it
+              const username = (probe.username ?? "").trim();
+
+              if (username === "") {
+                console.warn("Could not read a Spotify username, falling back to the default sign-in:", probe.reason, probe.diagnostics);
+
+                await InAppBrowser.open({ url: defaultSignInUrl });
+              } else {
+                // Remembered so later sign-ins on this device can route without
+                // asking Spotify again
+                try {
+                  window.localStorage.setItem(KNOWN_USER_KEY, username);
+                } catch { }
+
+                // Does the server hold an app for this person, and does Spotify
+                // still accept its keys? /auth/start answers both, and hands
+                // back a sign-in URL routed to that app when it does.
+                const routed = await routedSignIn(seshRes.token, username);
+
+                if (routed.url) {
+                  await continueInWebView(routed.url);
+                } else {
+                  console.warn("No usable Spotify app on record for", username, routed.staleCreds ? "(keys rejected)" : "(no record)");
+
+                  await closeWebView();
+
+                  alert("User not configured");
+
+                  return;
+                }
+              }
 
               checker = setInterval(async () => {
                 const tok = await loadSwappedToken();
@@ -571,6 +598,13 @@ export default function Home() {
               try {
                 InAppBrowser.close();
               } catch { }
+
+              // The poller and this message race to the same swap token, and
+              // whichever loses finds it already spent. Only the poller cleared
+              // itself, so arriving this way left it running for the life of
+              // the page - asking the server every 2.5s for a token that had
+              // been consumed, and logging "Invalid swap token" forever.
+              clearInterval(checker);
 
               const tok = await loadSwappedToken();
 
