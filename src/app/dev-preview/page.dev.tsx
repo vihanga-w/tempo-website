@@ -32,6 +32,24 @@ function makeStreamer(playing: boolean, ART: string): any {
         playSessionStart: Date.now() - 74 * 60e3, replayCount: 0, displaySeed: 0.2,
         todayStats: { completeListenCount: 7, totalSessionDuration: 6 } } } };
     const handlers: Record<string, Function[]> = {};
+    // Lets the spin-up and spin-down be driven from the console while the page
+    // is open: __setPlaying(false) pauses the track, __setPlaying(true) resumes
+    // __setSong("tpab") changes the record: new artwork, new colour, new track id,
+    // which is everything a real track change carries
+    if (typeof window !== "undefined") (window as any).__setSong = (art: string) => {
+        const cover = COVERS[art] ?? COVERS.inrainbows;
+        state.data.state.imageUrl = cover;
+        state.data.state.songId = "s-" + art;
+        state.data.state.name = art;
+        const emitted = { ...state, data: { ...state.data, state: { ...state.data.state } } };
+        Object.keys(handlers).forEach(ev => (handlers[ev] ?? []).forEach(h => h(emitted)));
+    };
+    if (typeof window !== "undefined") (window as any).__setPlaying = (on: boolean) => {
+        state.data.state.isPlaying = on;
+        state.data.action.type = (on ? "PLAYING" : "PAUSED");
+        const emitted = { ...state, data: { ...state.data, state: { ...state.data.state } } };
+        Object.keys(handlers).forEach(ev => (handlers[ev] ?? []).forEach(h => h(emitted)));
+    };
     return { isOpen: true, isReady: () => true, init: () => {}, cleanup: () => {},
         getPrevState: () => (playing ? state : undefined),
         detachedListeningStateQuery: () => { if (playing) setTimeout(() => (handlers["update"] ?? []).forEach(h => h(state)), 60); return playing; },
@@ -46,12 +64,12 @@ function song(ART: string, i: number, title: string, artists: string[], playCoun
 const calls: string[] = [];
 if (typeof window !== "undefined") (window as any).__calls = calls;
 
-function makeUser(variant: string, ART: string): any {
+function makeUser(variant: string, ART: string, durMs: number, streakMs: number, displayName: string): any {
     const empty = variant === "empty";
     // A real blob, produced exactly as the server does: sharp resize to 4x4,
     // removeAlpha, raw, base64. Lets the placeholder be seen without a backend.
     const BLOB = "NUA5PUhJkmpDmWRFJzExj15F2XdBe0AlRjojxXY2uHkpPS8OMiYqejM1Zi8oJBoc";
-    const me = { id: "u1", displayName: "Vihanga Weerasinghe",
+    const me = { id: "u1", displayName,
         images: [{ url: ART, width: 300, height: 300 }],
         profilePictureColourBlob: BLOB,
         listenerTypeClassification: "Nocturnal Explorer" };
@@ -60,7 +78,7 @@ function makeUser(variant: string, ART: string): any {
         getRecaps: async () => ({ daily: { a: 1 }, weekly: null }),
         getRemoteUserPastWeekStats: async () => (calls.push("pastWeekStats"), empty
             ? { totalListeningDuration: 0, uniqueSongsPlayedCount: 0, longestStreak: 0 }
-            : { totalListeningDuration: 15_120_000, uniqueSongsPlayedCount: 38, longestStreak: 4_020_000 }),
+            : { totalListeningDuration: durMs, uniqueSongsPlayedCount: 38, longestStreak: streakMs }),
         getRemoteUserTopSongs: async (_u: string, period: string) => (calls.push("topSongs:" + period), empty ? [] : [
             song(ART, 0, "Nights", ["Frank Ocean"], 12, true),
             song(ART, 1, "Weird Fishes / Arpeggi", ["Radiohead"], 9),
@@ -80,9 +98,14 @@ function Preview() {
     const params = useSearchParams();
     const variant = params.get("v") ?? "playing";
     const ART = COVERS[params.get("art") ?? "inrainbows"] ?? COVERS.inrainbows;
+    // Minutes, so a long week ("?dur=6000" -> 100h) can be checked against the tile
+    const durMs = Number(params.get("dur") ?? 252) * 60e3;
+    const streakMs = Number(params.get("streak") ?? 67) * 60e3;
+    // "?name=..." to see what an unbreakable display name does to the header
+    const displayName = params.get("name") ?? "Vihanga Weerasinghe";
     return (<ChakraProvider theme={theme}><DarkMode>
-        <div style={{ background: "#0D0D0E", minHeight: "100vh", overflow: "auto", color: "#ffffff" }} data-profile-scroll-container>
-            <ProfilePage key={variant + ART} user={makeUser(variant, ART) as any} pageChanger={() => {}}
+        <div style={{ background: "#0D0D0E", height: "100vh", overflow: "auto", WebkitOverflowScrolling: "touch", touchAction: "pan-y", color: "#ffffff" }} data-profile-scroll-container>
+            <ProfilePage key={variant + ART + durMs + displayName} user={makeUser(variant, ART, durMs, streakMs, displayName) as any} pageChanger={() => {}}
                 hideTopGradientCb={() => {}} setComplementaryColour={() => {}} setRecaps={() => {}}
                 openRecapDrawer={() => {}} streamer={makeStreamer(variant === "playing", ART) as any} />
         </div>

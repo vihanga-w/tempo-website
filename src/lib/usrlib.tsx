@@ -20,6 +20,15 @@ export interface FeedItemHistory {
     userId: string;
     username: string;
     pfpUrl?: string;
+    /**
+     * See the server's profile-blob — drawn until pfpUrl loads, so there is no
+     * gap where an avatar will be.
+     *
+     * The feed has always sent this; the type simply never said so, and the one
+     * place that reads it was enough to fail the production build while `next
+     * dev` went on serving the page quite happily.
+     */
+    pfpColourBlob?: string;
     previewUrl?: string;
     item: {
         track: SongData;
