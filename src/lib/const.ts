@@ -37,3 +37,18 @@ export const NOTIF_PROCESSED_KEY = "tempo-notif-processed";
 // overwrites the same server-side record instead of piling up a new one per app
 // start. The server stores subscriptions as `<userId>-<deviceId>`.
 export const NOTIF_SUB_ID_KEY = "tempo-notif-subid";
+/**
+ * Which account last signed in on this device, by Spotify ID.
+ *
+ * Sign-in has to name a Spotify app before the redirect, and an account that
+ * enrolled with its own app can only be routed there if we know who is asking.
+ * The default flow does not: it enrols against Tempo's app, whose development
+ * mode admits almost nobody, so a returning bring-your-own-app user consented
+ * against the wrong app, was refused, and landed on the setup page as though
+ * they had never enrolled. Remembering the ID lets every later sign-in start
+ * at /auth/start, which looks up their app server-side.
+ *
+ * The canonical ID rather than the display name: names are not unique, and the
+ * server refuses to guess between two accounts sharing one.
+ */
+export const KNOWN_USER_KEY = "tempo.known-user";

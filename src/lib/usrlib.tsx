@@ -1,5 +1,5 @@
 import EventEmitter from "events";
-import { API_URL, ME_CACHE_KEY, ME_FRIENDS_CACHE_KEY, PROFILE_STATS_CACHE_MS } from "./const";
+import { API_URL, ME_CACHE_KEY, ME_FRIENDS_CACHE_KEY, PROFILE_STATS_CACHE_MS, KNOWN_USER_KEY } from "./const";
 import { Recap } from "@/components/recap-drawer";
 import { FaF } from "react-icons/fa6";
 import { DataStreamer } from "./live-ingest";
@@ -667,6 +667,14 @@ export default class User extends EventEmitter {
 
             this.id = details.id;
             this.email = details.email;
+
+            // Remember who signs in here, so the next sign-in on this device
+            // can be routed to this account's own Spotify app - see
+            // KNOWN_USER_KEY. Written on every load rather than once, so a
+            // device that changes hands between accounts follows the account.
+            try {
+                window.localStorage.setItem(KNOWN_USER_KEY, details.id);
+            } catch { }
             
             if (!this.isLoggedIn)
                 this.isLoggedIn = true;

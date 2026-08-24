@@ -25,7 +25,7 @@ import { AndroidViewStyle, DefaultAndroidSystemBrowserOptions, DefaultSystemBrow
 import { Preferences } from '@capacitor/preferences';
 
 import User from "@/lib/usrlib";
-import { API_URL, API_URL_SOCK, NOTIF_PROCESSED_KEY } from "@/lib/const";
+import { API_URL, API_URL_SOCK, NOTIF_PROCESSED_KEY, KNOWN_USER_KEY } from "@/lib/const";
 import { registerServiceWorker, registerSubscription, removeSubscription, resetStaleSubscription, useSubscribe, waitForServiceWorker } from "@/lib/notify";
 import { Modal } from "@/components/modal";
 import { SafeArea, initialize } from "@capacitor-community/safe-area";
@@ -372,9 +372,70 @@ export default function Home() {
       // TODO: Re-enable this when singup flow has been made
       // prouter.setPage(user.isLoggedIn ? "app" : "signup");
 
+      /**
+       * Where this sign-in should start, given who last signed in here.
+       *
+       * The default flow enrols against Tempo's own Spotify app, whose
+       * development mode admits almost nobody - so for anyone using an app of
+       * their own it was a guaranteed refusal: consent against the wrong app,
+       * a 403, and the setup page as though they were new. If this device
+       * remembers who they are, /auth/start looks up their app server-side and
+       * routes the whole sign-in there instead.
+       *
+       * Returns nothing when there is no memory of an account or the server
+       * cannot be asked - the caller falls back to the default flow, which is
+       * exactly right for a genuinely new person. staleCreds means the server
+       * checked the stored app and Spotify no longer accepts it: following any
+       * sign-in URL would fail, so the caller must go to the setup page, which
+       * explains what to re-enter.
+       */
+      const routedSignIn = async (swapToken?: string): Promise<{ url?: string; staleCreds?: boolean }> => {
+        let identifier: string | null = null;
+
+        try {
+          identifier = window.localStorage.getItem(KNOWN_USER_KEY);
+        } catch { }
+
+        if (!identifier)
+          return {};
+
+        try {
+          const req = await fetch(API_URL + "/auth/start", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ identifier, ...(swapToken ? { swapToken } : {}) }),
+          });
+
+          const res = await req.json() as {
+            error: boolean;
+            reason?: string;
+            url?: string;
+            matched?: boolean;
+          };
+
+          if (res.error)
+            return (res.reason === "app-credentials" ? { staleCreds: true } : {});
+
+          return { url: res.url };
+        } catch (ex) {
+          console.warn("Could not route sign-in through the remembered account, falling back to the default flow:", ex);
+
+          return {};
+        }
+      };
+
       if (!user.isLoggedIn && !user.authError) {
         if (!Capacitor.isNativePlatform()) {
-          window.location.href = API_URL + "/auth/ui";
+          const routed = await routedSignIn();
+
+          if (routed.staleCreds) {
+            window.location.href = "/connect-spotify?issue=app-credentials";
+
+            return;
+          }
+
+          window.location.href = routed.url ?? (API_URL + "/auth/ui");
         } else {
           const seshReq = await fetch(API_URL + "/createTokenSwapSession");
           const seshRes = await seshReq.json() as {
@@ -388,6 +449,22 @@ export default function Home() {
           }
 
           console.log(seshRes)
+
+          /*
+           * Resolved before the socket opens so the URL is ready the moment
+           * READY arrives. Passing the swap token ties the routed enrolment to
+           * this session, so the socket and poller below hear about it exactly
+           * as they would the default flow's.
+           */
+          const routed = await routedSignIn(seshRes.token);
+
+          if (routed.staleCreds) {
+            window.location.href = "/connect-spotify?issue=app-credentials";
+
+            return;
+          }
+
+          const signInUrl = routed.url ?? (API_URL + "/auth/app/" + seshRes.token);
 
           const loadSwappedToken = async () => {
             const req = await fetch(API_URL + "/swapToken/" + seshRes.token);
@@ -445,7 +522,7 @@ export default function Home() {
 
             if (data.flag == "READY") {
               InAppBrowser.openInSystemBrowser({
-                url: API_URL + "/auth/app/" + seshRes.token,
+                url: signInUrl,
                 options: {
                   ...DefaultSystemBrowserOptions,
                   iOS: {
