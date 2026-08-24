@@ -1,6 +1,7 @@
 import { FastAverageColor } from "fast-average-color";
 import { apcach, crToBg } from "apcach";
 import { oklch, formatHex } from "culori";
+import { getSizedImageUrl } from "./sized-img";
 
 /**
  * Taking a colour off a piece of album art, and making it usable.
@@ -81,7 +82,29 @@ function nearness(value: number, target: number, spread: number): number {
     return Math.exp(-Math.pow(value - target, 2) / (2 * spread * spread));
 }
 
-const SAMPLE_SIZE = 84;
+/**
+ * How big a sample to take, and — because it is passed to the image endpoint —
+ * how big an image to ask for.
+ *
+ * 96 is a size the endpoint already serves elsewhere on this page, so it is
+ * known to be one of the allowed ones, and it means the sample is drawn at 1:1
+ * with no resampling on the way in. The bins are 32 levels a channel; more
+ * pixels than this only slows the read down without moving the answer.
+ */
+const SAMPLE_SIZE = 96;
+
+function loadImage(src: string): Promise<HTMLImageElement | null> {
+    return new Promise(resolve => {
+        const img = new Image();
+
+        // Set before src, or the request goes out without the CORS mode and the
+        // canvas is tainted by the time anything can be read back off it
+        img.crossOrigin = "anonymous";
+        img.onload = () => resolve(img);
+        img.onerror = () => resolve(null);
+        img.src = src;
+    });
+}
 
 /**
  * The colour a cover should paint the page.
@@ -111,20 +134,27 @@ const SAMPLE_SIZE = 84;
  * grey it will turn into white.
  */
 export async function extractArtworkColour(src: string): Promise<Rgb | null> {
-    const image = await new Promise<HTMLImageElement | null>(resolve => {
-        const img = new Image();
+    /*
+     * Read the small variant, not the original.
+     *
+     * A cover on Spotify's CDN is 640 pixels square and around 40KB, and this
+     * was fetching that in full to look at 96 pixels of it — on every track
+     * change, on top of the copy the page was already showing. The endpoint
+     * serves the same image at 96 for about 3KB, and it sends
+     * access-control-allow-origin, so the canvas can still be read back.
+     *
+     * getSizedImageUrl leaves anything that is not a Spotify CDN URL alone, so
+     * the /dev-colour bench and its local files go through here unchanged.
+     */
+    const sized = getSizedImageUrl(src, SAMPLE_SIZE, SAMPLE_SIZE);
 
-        img.crossOrigin = "anonymous";
-        img.onload = () => resolve(img);
-        img.onerror = () => resolve(null);
-        img.src = src;
-    });
+    // Falling back to the original covers the endpoint refusing the size or
+    // being unreachable: a page that keeps its colour beats one that loses it
+    const image = (await loadImage(sized)) ?? (sized === src ? null : await loadImage(src));
 
     if (!image)
         return null;
 
-    // Small on purpose: the bins are 32 levels a channel, so more pixels than
-    // this only slows the read down without moving the answer
     const canvas = document.createElement("canvas");
 
     canvas.width = SAMPLE_SIZE;
