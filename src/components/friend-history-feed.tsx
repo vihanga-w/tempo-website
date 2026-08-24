@@ -21,6 +21,7 @@ export default function FriendListenershipHistory({
     const [loading, setLoading] = useState(false);
     const [preloadedPage, setPreloadedPage] = useState<FriendListenershipItem[]>([]);
     const [reachedEnd, setReachedEnd] = useState(false);
+    const [preloadFinal, setPreloadFinal] = useState(false);
 
     const loaderRef = useRef<HTMLDivElement>(null);
 
@@ -93,9 +94,20 @@ export default function FriendListenershipHistory({
 
             setPreloadedPage(res.data);
 
-            if (res.isFinalPage) {
+            /*
+             * Remembered, not acted on. Marking the end here is what made the
+             * last page of somebody's history unreachable: the rows were held in
+             * preloadedPage waiting to be appended, but reachedEnd unmounted the
+             * sentinel that does the appending, so they were fetched and thrown
+             * away. The end is reached once these rows are on screen, not once
+             * they have arrived.
+             */
+            setPreloadFinal(res.isFinalPage);
+
+            // Unless there are none — nothing is coming to append, so there is
+            // nothing left to notice the end.
+            if (res.isFinalPage && res.data.length === 0)
                 setReachedEnd(true);
-            }
         } catch { }
     };
 
@@ -105,9 +117,13 @@ export default function FriendListenershipHistory({
         setItems(prev => [...prev, ...preloadedPage]);
         setCurrentPage(prev => prev + 1);
         setPreloadedPage([]);
-        if (!reachedEnd) {
-            preloadPage(currentPage + 2); // preload the page after the new one
+
+        if (preloadFinal) {
+            setReachedEnd(true);
+            return;
         }
+
+        preloadPage(currentPage + 2); // preload the page after the new one
     };
 
     useEffect(() => {
@@ -123,12 +139,11 @@ export default function FriendListenershipHistory({
             observer.observe(loaderRef.current);
         }
 
-        return () => {
-            if (loaderRef.current) {
-                observer.disconnect();
-            }
-        };
-    }, [loading, preloadedPage, reachedEnd]);
+        // Unconditionally: the sentinel is unmounted the moment the last page
+        // lands, so by the time this runs loaderRef is often already null — and
+        // guarding on it left an observer attached for the life of the page.
+        return () => observer.disconnect();
+    }, [loading, preloadedPage, preloadFinal, reachedEnd]);
 
     return (
         // The key belongs on the outer element of each entry. It used to sit on

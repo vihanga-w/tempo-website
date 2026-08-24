@@ -57,8 +57,49 @@ export function formatListening(ms: number): string {
     if (minutes < 60)
         return `${minutes}m`;
 
+    const hours = Math.floor(minutes / 60);
+    const remainder = minutes % 60;
+
+    // "2h" is how somebody would say a round two hours. "2h 0m" is a stopwatch
+    // reading of one, and puts a zero on the largest figure on the profile.
+    if (remainder === 0)
+        return `${hours}h`;
+
     // Padding the minutes lines a column up, but "1h 08m" is a stopwatch reading
     // rather than an amount of listening to anyone who has not spent their life
     // looking at zero padded numbers.
-    return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
+    return `${hours}h ${remainder}m`;
+}
+
+/**
+ * The same length of listening, written out in full.
+ *
+ * "4h 12m" is right on a tile, where it sits under a label and next to other
+ * figures and every character is doing work. In a sentence it reads as
+ * shorthand — the caption is prose, so it gets prose.
+ *
+ * Units are singular when there is one of them: "1 hour and 1 minute", not
+ * "1 hours and 1 minutes".
+ */
+export function formatListeningLong(ms: number): string {
+    const minutes = Math.round(ms / 60e3);
+
+    if (ms <= 0)
+        return "no time at all";
+
+    if (minutes < 1)
+        return "under a minute";
+
+    const unit = (count: number, word: string) => `${count} ${word}${count === 1 ? "" : "s"}`;
+
+    if (minutes < 60)
+        return unit(minutes, "minute");
+
+    const hours = Math.floor(minutes / 60);
+    const remainder = minutes % 60;
+
+    if (remainder === 0)
+        return unit(hours, "hour");
+
+    return `${unit(hours, "hour")} and ${unit(remainder, "minute")}`;
 }

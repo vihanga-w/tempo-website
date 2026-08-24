@@ -1,11 +1,18 @@
 import { DataStreamer, UpdateEvent } from "@/lib/live-ingest";
 import User, { ClientUserAccount } from "@/lib/usrlib";
-import { Box, Center, Grid, GridItem, HStack, Skeleton, Spinner, Stack, Text } from "@chakra-ui/react";
+import { Box, Center, chakra, Grid, GridItem, HStack, Skeleton, Spinner, Stack, Text } from "@chakra-ui/react";
 import { keyframes } from "@emotion/react";
-import { ReactNode, useEffect, useRef, useState } from "react";
+import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { useFitText } from "@/lib/use-fit-text";
+import { useFitLines } from "@/lib/use-fit-lines";
+import { useTurntable } from "@/lib/use-turntable";
+import { grooveRingsFor, separationsFor } from "@/lib/record-grooves";
+import { useScrollFade } from "@/lib/use-scroll-fade";
 import { getSpotifyDeeplink, SkeletonImage } from "./playback-state";
 import {
+    chipFill,
     extractArtworkColour,
+    extractArtworkPalette,
     FALLBACK_ACCENT,
     PAGE_BG,
     panelFill,
@@ -15,13 +22,15 @@ import {
 } from "@/lib/artwork-colour";
 import { MdExplicit } from "react-icons/md";
 import { getSizedImageUrl } from "@/lib/sized-img";
-import { findBestSCDNImageSize } from "@/lib/utils";
+import { findBestSCDNImageSize, formatListening } from "@/lib/utils";
 import { shortName, weekLine } from "@/lib/profile-copy";
+import { useListeningFact } from "@/lib/listening-facts";
 import { useCountUp } from "@/lib/use-count-up";
 import { FaCog, FaHistory } from "react-icons/fa";
 import { Recap } from "./recap-drawer";
 import FriendHistoryFeed from "./friend-history-feed";
 import { InitialAvatar } from "./initial-avatar";
+import { ArtworkWash } from "./artwork-wash";
 
 /**
  * The page reads as a record sleeve and a printed week card rather than as a
@@ -78,11 +87,6 @@ const rise = keyframes`
 `;
 
 /** The record turning behind the sleeve. Slow enough to notice only if you look. */
-const spin = keyframes`
-    from { transform: translateY(-50%) rotate(0deg); }
-    to   { transform: translateY(-50%) rotate(360deg); }
-`;
-
 
 function formatClock(ms: number) {
     if (ms < 0)
@@ -134,21 +138,72 @@ function Rubric({
  * every frame, so a duration climbs as a duration ("2h 41m") rather than
  * arriving as a bare minute count the reader has to divide in their head.
  */
+/** Points along a count-up to measure, about one per frame it will draw. */
+const SAMPLES = 60;
+
 function Figure({
     value,
     format,
     size,
     colour,
+    floor = 0,
 }: Readonly<{
     value: number;
     format: (value: number) => string;
     size: string | Record<string, string>;
     colour: string;
+    /**
+     * Value to start the count at, in whatever units this figure is counting.
+     *
+     * Only for figures whose formatter has a wording it falls back to below
+     * some threshold — a length of listening reads as "under a minute" before
+     * it reads as a number. A plain tally has no such floor and counts from
+     * zero, which is the default; setting one here would pin it to its own
+     * total and it would never appear to count at all.
+     */
+    floor?: number;
 }>) {
     const counted = useCountUp(value);
+    const ref = useRef<HTMLParagraphElement>(null);
+    const probeRef = useRef<HTMLSpanElement>(null);
+
+    /*
+     * Fitted against the widest reading the count will pass through, which is
+     * not always the one it lands on: a total of seventy hours settles at
+     * "70h 0m" but climbs there through "69h 59m", a digit wider. Sizing to the
+     * destination alone leaves those frames clipped on the way past.
+     *
+     * Sampled rather than reasoned about, so this holds for any formatter it is
+     * given rather than for the one it happens to be used with today.
+     */
+    const widest = useMemo(() => {
+        const from = Math.min(value, floor);
+
+        let longest = format(value);
+
+        for (let step = 0; step <= SAMPLES; step++) {
+            const at = format(from + ((value - from) * step) / SAMPLES);
+
+            if (at.length > longest.length)
+                longest = at;
+        }
+
+        return longest;
+    }, [format, value, floor]);
+
+    useFitText(ref, probeRef, widest);
+
+    /*
+     * A length of listening climbing from zero passes through "—" and "under a
+     * minute" before it reaches a figure. Both are far wider than the number
+     * they precede, so the first frames of the page were the widest thing on
+     * it. Starting at the floor skips them.
+     */
+    const shown = Math.max(counted, Math.min(value, floor));
 
     return (
         <Text
+            ref={ref}
             fontFamily="Inter"
             fontWeight="800"
             fontSize={size}
@@ -157,23 +212,239 @@ function Figure({
             sx={{ fontVariantNumeric: "tabular-nums" }}
             color={colour}
             whiteSpace="nowrap"
+            maxWidth="100%"
+            overflow="hidden"
+            position="relative"
+            /*
+              * Colour only. Transitioning font-size makes the computed value
+              * mid-animation rather than settled, so the fit measures against a
+              * size the text is only passing through and never converges.
+              */
             transition="color .45s"
         >
-            {format(counted)}
+            {format(shown)}
+
+            {/*
+              * Inherits the figure's font, so it measures as the real thing
+              * while never being seen or read aloud.
+              */}
+            <chakra.span
+                ref={probeRef}
+                aria-hidden="true"
+                position="absolute"
+                visibility="hidden"
+                whiteSpace="nowrap"
+                pointerEvents="none"
+                left="0"
+                top="0"
+            >
+                {widest}
+            </chakra.span>
         </Text>
     );
 }
 
 
-/**
- * The record, showing from behind the sleeve.
+/*
+ * A 12" LP, in proportion.
  *
- * Drawn rather than fetched: it is a stack of radial gradients, so it costs
- * nothing to load and stays sharp at any size. It turns only while something is
- * actually playing — a disc spinning under a paused track is the sort of detail
- * that makes an interface feel like it is not paying attention.
+ * Every radius below is the real one, written as a fraction of the record's own
+ * radius — 151mm on a 302mm disc — so what is drawn is a specific object rather
+ * than a dark circle with rings on it:
+ *
+ *     spindle hole    7.24mm across            2.4%
+ *     label            100mm across           33.1%
+ *     dead wax        out to 120mm            39.7%   smooth, silent
+ *     music           120mm to 292mm     39.7–96.7%
+ *     lead-in         292mm to the edge       96.7%   smooth, silent
+ *
+ * The one thing not to scale is the groove pitch. Microgroove is cut at 300 to
+ * 400 grooves per inch, which across that music band is upwards of three
+ * thousand turns of a single continuous spiral — about a thirtieth of a pixel
+ * each at the size this is drawn. Rendered honestly they average out to a flat
+ * grey ring, so the pitch is exaggerated until it reads as grooves. Concentric
+ * circles stand in for the spiral, which at any visible scale is the same
+ * picture.
  */
-function Record({ size, offset, playing, label }: Readonly<{ size: number; offset: number; playing: boolean; label: string }>) {
+const SPINDLE = 2.4;
+const LABEL = 37.7;
+const MUSIC_INNER = 39.7;
+const MUSIC_OUTER = 96.7;
+
+/*
+ * The wax.
+ *
+ * PVC is clear; a record is black because of carbon black, and only about 0.2%
+ * of it by weight. Carbon black reflects 5–10% of the light that hits it — but
+ * that is its *diffuse* reflectance, and a record is glossy, so nearly all of
+ * what you see coming off one is specular: the room, reflected. The material
+ * underneath that is very close to black.
+ *
+ * This was too light because the wax was doing the job the sheen should be
+ * doing. Darker here, with the highlight left to lift it.
+ */
+const VINYL = "#08080b";
+
+/**
+ * How much of the light the grooves are throwing back, around the disc.
+ *
+ * Used as a mask on the ring pattern rather than painted over the vinyl, so it
+ * modulates the grooves instead of washing the whole face. Never reaches zero —
+ * the banding is always there, it just catches more at two points than it does
+ * between them.
+ *
+ * Two lobes, opposed, because that is what a single light source does to a
+ * circular groove: one bright arc either side of the centre. Four of them came
+ * round twice as often and read as a flicker rather than as a surface turning.
+ */
+const GROOVE_GLINT = `conic-gradient(from 0deg at 50% 50%, ${[0, 180]
+    .map(at => `rgba(0,0,0,0.66) ${at}deg, rgba(0,0,0,1) ${at + 48}deg, rgba(0,0,0,0.66) ${at + 96}deg`)
+    .join(", ")}, rgba(0,0,0,0.66) 360deg)`;
+
+
+
+/** The mottle in the vinyl. Coarser than the wash's grain, so it survives being
+ * seen through a 39px crescent, and drawn once at module scope. */
+const PRESSING_GRAIN = `url("data:image/svg+xml,${encodeURIComponent(
+    `<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'>` +
+    `<filter id='v'>` +
+    `<feTurbulence type='fractalNoise' baseFrequency='0.55' numOctaves='1' stitchTiles='stitch'/>` +
+    `<feColorMatrix type='saturate' values='0'/>` +
+    `</filter>` +
+    `<rect width='100%' height='100%' filter='url(#v)'/>` +
+    `</svg>`,
+)}")`;
+
+/**
+ * Sizes a song title may be set at, largest first.
+ *
+ * Steps rather than a free scale, so a long title still looks like it belongs to
+ * the same panel as a short one. Module scope because the fitting hook keys off
+ * this array, and a fresh one on every render would re-measure forever.
+ */
+const TITLE_SIZES = [19, 17.5, 16] as const;
+
+/** Same colour, not merely the same object. */
+function sameRgb(a: Rgb | null, b: Rgb | null): boolean {
+    if (a === b)
+        return true;
+
+    return (!!a && !!b && a.r === b.r && a.g === b.g && a.b === b.b);
+}
+
+/*
+ * The page's colour change, in two halves.
+ *
+ * A gradient cannot be transitioned — background-image does not interpolate —
+ * so the wash is faded out on its opacity, swapped while it cannot be seen, and
+ * faded back in. Which means these two numbers and the timers that swap the
+ * colour have to agree: the swap has to land after the fade out has finished.
+ *
+ * They did not. The fade ran for 750ms and the swap happened at 230ms, so the
+ * gradient was still better than half visible when it changed underneath — the
+ * cross-fade was hiding a cut rather than avoiding one.
+ *
+ * Out is quicker than in: leaving is not the part worth watching.
+ */
+const ACCENT_FADE_OUT = 200;
+const ACCENT_FADE_IN = 420;
+
+function Record({ size, offset, playing, label, palette, songId, elapsedMs }: Readonly<{ size: number; offset: number; playing: boolean; label: string; palette: string[]; songId: string; elapsedMs: number }>) {
+    const platter = useTurntable(playing, elapsedMs);
+
+    /*
+     * Which record is currently out of the sleeve.
+     *
+     * Held separately from the track that is playing, because the two are not
+     * the same thing for the third of a second it takes to change them over: the
+     * new track is already playing while the old record is still sliding away.
+     */
+    const [sleeved, setSleeved] = useState(songId);
+    const [changing, setChanging] = useState(false);
+
+    useEffect(() => {
+        if (songId === sleeved)
+            return;
+
+        setChanging(true);
+
+        // Swapped at the far end of the slide, while the disc is behind the
+        // sleeve — the grooves and the label change where they cannot be seen to
+        const swap = setTimeout(() => {
+            setSleeved(songId);
+            setChanging(false);
+        }, 280);
+
+        return () => clearTimeout(swap);
+    }, [songId, sleeved]);
+
+    // Keyed on the record that is out, not the one that is playing, so the
+    // grooves do not rearrange themselves mid-slide
+    const separations = useMemo(
+        () => separationsFor(sleeved, MUSIC_INNER, MUSIC_OUTER),
+        [sleeved],
+    );
+
+    /*
+     * The groove banding, as one gradient of unevenly spaced rings.
+     *
+     * Built rather than repeated: each ring is a thin light line with the wax
+     * between, and the gaps are all slightly different widths.
+     */
+    /*
+     * The printed face of the label, with the spindle hole punched through it.
+     *
+     * Listed hole-first because CSS paints the first background layer on top.
+     * A single accent when the sleeve gave up no palette — a black and white
+     * cover gets a plain label rather than invented colours, same as the wash.
+     */
+    const labelFill = useMemo(() => {
+        const hole = (SPINDLE / LABEL) * 100;
+
+        const punch = `radial-gradient(circle closest-side at 50% 50%, #08080a 0 ${hole.toFixed(1)}%, transparent ${(hole + 1.2).toFixed(1)}%)`;
+
+        const face = (palette.length > 1
+            ? `linear-gradient(118deg, ${palette.join(", ")})`
+            : `linear-gradient(118deg, ${palette[0] ?? label}, ${palette[0] ?? label})`);
+
+        return `${punch}, ${face}`;
+    }, [palette, label]);
+
+    const grooves = useMemo(() => {
+        const rings = grooveRingsFor(sleeved, MUSIC_INNER, MUSIC_OUTER);
+
+        // Half the thickness of a groove line, as a share of the radius. At
+        // 0.34 the lines came out under half a pixel and read as a haze
+        const HALF = 1.0;
+
+        const stops = rings.flatMap(at => [
+            `transparent ${(at - HALF).toFixed(2)}%`,
+            `rgba(255,255,255,0.085) ${(at - HALF).toFixed(2)}%`,
+            `rgba(255,255,255,0.085) ${(at + HALF).toFixed(2)}%`,
+            `transparent ${(at + HALF).toFixed(2)}%`,
+        ]);
+
+        return `transparent 0%, ${stops.join(", ")}, transparent 100%`;
+    }, [sleeved]);
+
+    const circle = (stops: string) => `radial-gradient(circle closest-side at 50% 50%, ${stops})`;
+
+    // Listed top down, which is the order CSS paints them: the label covers the
+    // grooves rather than the grooves being carefully drawn around it
+    // Every boundary is carried across a sliver of a percent rather than cut
+    // dead. A hard stop on a circle steps down the pixel grid, and the label
+    // edge — the longest curve on the disc — showed it worst
+    const EDGE = 0.5;
+
+    const disc = [
+        // Dead wax inside the music and the lead-in outside it, both smooth
+        circle(`transparent 0 ${LABEL}%, ${VINYL} ${LABEL + EDGE}% ${MUSIC_INNER}%, transparent ${MUSIC_INNER + EDGE}% ${MUSIC_OUTER}%, ${VINYL} ${MUSIC_OUTER + EDGE}%`),
+
+        ...separations.map(at => circle(
+            `transparent 0 ${at - 0.7}%, rgba(0,0,0,0.62) ${at - 0.7}% ${at + 0.7}%, transparent ${at + 0.7}%`,
+        )),
+    ].join(", ");
+
     return (
         <Box
             pos="absolute"
@@ -181,26 +452,151 @@ function Record({ size, offset, playing, label }: Readonly<{ size: number; offse
             left={`${offset}px`}
             width={`${size}px`}
             height={`${size}px`}
+            /*
+              * Put away and taken back out, rather than cross-faded.
+              *
+              * The disc sits behind the sleeve, so sliding it left by its own
+              * offset tucks it fully out of sight and the next one comes back
+              * from the same place. Changing the record is the physical thing
+              * that happens when a track changes, and it costs one transform.
+              */
+            transform={changing ? `translate(-${offset}px, -50%)` : "translate(0, -50%)"}
+            transition={changing
+                ? "transform .28s cubic-bezier(.4, 0, 1, 1)"
+                : "transform .34s cubic-bezier(0, 0, .2, 1)"}
             borderRadius="full"
+            overflow="hidden"
             zIndex={0}
             aria-hidden
-            boxShadow="0 12px 28px rgba(0,0,0,0.6)"
-            sx={{
-                background: [
-                    // Spindle hole, then the centre label in the colour of
-                    // whatever is playing — the sleeve covers most of it, so only
-                    // a sliver of the colour comes out past the edge, which is
-                    // exactly how much of a label you see on a record in its sleeve
-                    "radial-gradient(circle at 50% 50%, #08080a 0 3.5%, transparent 3.8%)",
-                    `radial-gradient(circle at 50% 50%, ${label} 3.8% 30%, transparent 30.3%)`,
-                    // The grooves. Fine and low contrast — at this size a coarse
-                    // ring pattern reads as a target rather than as vinyl
-                    "repeating-radial-gradient(circle at 50% 50%, #26262f 0 1px, #0d0d11 1px 2.5px)",
-                ].join(", "),
-                animation: `${spin} 9s linear infinite`,
-                animationPlayState: (playing ? "running" : "paused"),
-            }}
-        />
+        >
+            {/*
+              * Turned frame by frame rather than by a CSS animation, so that
+              * pausing the track spins the record down from wherever it is and
+              * playing again picks it back up — a disc that stops dead, or that
+              * carries on under a paused track, is the sort of detail that makes
+              * an interface feel like it is not paying attention.
+              */}
+            <Box
+                ref={platter}
+                position="absolute"
+                inset="0"
+                borderRadius="full"
+                // The wax itself. Everything else is stacked over it as its own
+                // layer, so the grooves can be lit without lighting the disc
+                sx={{ background: circle("#101016 0 55%, #050507 100%") }}
+            >
+                {/*
+                  * The grooves, and the shimmer, as one thing.
+                  *
+                  * The glint used to be its own layer laid across the whole disc,
+                  * which is a reflection of the disc — and a disc-wide reflection
+                  * has no business turning, because the lamp does not move. Here
+                  * it is a mask on the ring pattern instead, so what brightens
+                  * and dims is the banding itself: the grooves catching the light
+                  * and letting it go as they come round, which is the thing that
+                  * actually happens. The fixed sheen above stays exactly where it
+                  * is, being the lamp.
+                  */}
+                <Box
+                    position="absolute"
+                    inset="0"
+                    borderRadius="full"
+                    pointerEvents="none"
+                    sx={{
+                        background: circle(grooves),
+                        maskImage: GROOVE_GLINT,
+                        WebkitMaskImage: GROOVE_GLINT,
+                    }}
+                />
+
+                <Box
+                    position="absolute"
+                    inset="0"
+                    borderRadius="full"
+                    pointerEvents="none"
+                    sx={{ background: disc }}
+                />
+
+                {/*
+                  * The label, and the reason the record can be read as turning.
+                  *
+                  * Everything else on the disc is concentric and therefore the
+                  * same at every angle. A label is printed, so it is not — and on
+                  * a real record it is exactly what your eye locks onto to see
+                  * one spin. The sleeve covers all but a few millimetres of it,
+                  * and that sliver cycling through the artwork's colours is
+                  * enough to make the movement obvious.
+                  *
+                  * Built from the same palette as the page's wash, so the record
+                  * and the background it sits on are coloured from one reading of
+                  * the same sleeve.
+                  */}
+                <Box
+                    position="absolute"
+                    left="50%"
+                    top="50%"
+                    /*
+                     * LABEL is a share of the radius; width is a share of the
+                     * width, which is the diameter. The two are the same number
+                     * — doubling it made the label twice the size it should be.
+                     */
+                    width={`${LABEL}%`}
+                    height={`${LABEL}%`}
+                    borderRadius="full"
+                    transform="translate(-50%, -50%)"
+                    style={{ background: labelFill }}
+                />
+
+                {/*
+                  * The texture of the pressing, and the only reason the record
+                  * can be seen to turn.
+                  *
+                  * Everything else on the disc is concentric, and a concentric
+                  * pattern is identical at every angle. Two attempts at fixing
+                  * that failed for the same reason: a bright sweep read as light
+                  * moving rather than vinyl, and a single seam read as one dark
+                  * mark orbiting the centre. The eye tracks a lone feature — it
+                  * only reads *rotation* when a whole surface of features moves
+                  * together.
+                  *
+                  * So this is noise, not a mark: the fine mottling of the vinyl
+                  * itself, thousands of specks turning at once. Subtle enough to
+                  * be surface rather than pattern, and the only cue available,
+                  * since the label — what you actually read rotation from on a
+                  * real record — is behind the sleeve where it belongs.
+                  */}
+                <Box
+                    position="absolute"
+                    inset="0"
+                    borderRadius="full"
+                    pointerEvents="none"
+                    style={{
+                        backgroundImage: PRESSING_GRAIN,
+                        backgroundSize: "90px 90px",
+                        /*
+                         * Screen, not overlay. Overlay keeps blacks black — it
+                         * multiplies wherever the base is dark — so on vinyl this
+                         * near to black it was doing arithmetic that could not
+                         * produce a visible result no matter what the noise said.
+                         * The disc was turning correctly the whole time and there
+                         * was simply nothing on it to see.
+                         */
+                        mixBlendMode: "screen",
+                        opacity: 0.22,
+                    }}
+                />
+            </Box>
+
+
+            {/* Records are moulded with a raised lip, which catches a thin line of light */}
+            <Box
+                position="absolute"
+                inset="0"
+                borderRadius="full"
+                pointerEvents="none"
+                boxShadow="inset 0 0 0 1px rgba(255,255,255,0.07)"
+            />
+        </Box>
     );
 }
 
@@ -216,32 +612,68 @@ function NowSpinning({
     state,
     tint,
     accent,
+    palette,
     progress,
 }: Readonly<{
     state: NonNullable<UpdateEvent["data"]["state"]>;
     tint: Rgb | null;
     accent: string;
+    palette: string[];
     progress: number;
 }>) {
+    const titleRef = useRef<HTMLParagraphElement>(null);
+    const titleProbe = useRef<HTMLParagraphElement>(null);
+
+    useFitLines(titleRef, titleProbe, state.name ?? "", 2, TITLE_SIZES);
+
     const elapsed = (state.duration ?? 0) * Math.min(progress, 1);
 
     return (
         <Box
             borderRadius={TILE_RADIUS}
-            padding="18px"
+            // Trimmed from 18: on a 375px phone the panel's own padding is taken
+            // off both ends of the one line that has the least room to give
+            padding="14px"
             overflow="hidden"
             position="relative"
             background={tint ? panelFill(tint) : SURFACE_HI}
             transition="background .6s"
         >
             <HStack gap="0" alignItems="center" marginBottom="18px">
-                <Box position="relative" width="112px" height="112px" flexShrink={0}>
-                    <Record size={116} offset={44} playing={state.isPlaying !== false} label={accent} />
+                <Box
+                    position="relative"
+                    width="100px"
+                    height="100px"
+                    flexShrink={0}
+                    /*
+                     * One shadow, cast by the sleeve and the disc together.
+                     *
+                     * They used to carry a box-shadow each, and box-shadows add:
+                     * everywhere the two silhouettes overlapped the panel took
+                     * both, so a darker band appeared below the seam where the
+                     * cover ends and the record starts. Fading one of them only
+                     * hid it while the record was moving.
+                     *
+                     * drop-shadow works off the painted alpha of the whole
+                     * subtree, so a record sitting in its sleeve casts the shadow
+                     * of a record sitting in its sleeve — one silhouette, one
+                     * shadow — and it shrinks to just the sleeve on its own as
+                     * the disc slides back in behind it.
+                     */
+                    sx={{ filter: "drop-shadow(0 10px 16px rgba(0, 0, 0, 0.5))" }}
+                >
+                    {/*
+                      * Narrower than the sleeve in front of it. A disc wider than
+                      * the artwork shows above and below the sleeve as well as
+                      * beside it, which reads as a badly centred circle rather
+                      * than as a record sitting inside its cover.
+                      */}
+                    <Record size={94} offset={45} playing={state.isPlaying !== false} label={accent} palette={palette} songId={state.songId ?? ""} elapsedMs={elapsed} />
 
-                    <Box position="relative" zIndex={1} boxShadow="0 8px 24px rgba(0,0,0,0.45)" borderRadius={SLEEVE_RADIUS}>
+                    <Box position="relative" zIndex={1} borderRadius={SLEEVE_RADIUS}>
                         <SkeletonImage
-                            width="112px"
-                            height="112px"
+                            width="100px"
+                            height="100px"
                             borderRadius={SLEEVE_RADIUS}
                             src={getSizedImageUrl(state.imageUrl ?? "", 300, 300)}
                         />
@@ -251,13 +683,74 @@ function NowSpinning({
                 {/*
                   * Pushed clear of the record's edge rather than set against the
                   * sleeve, or the first letter of every title lands on the grooves.
+                  *
+                  * Measured, not guessed: the disc sits 45 into a 100 sleeve and
+                  * is 94 across, so it ends 39 past the sleeve. This is that plus
+                  * a 16px margin — enough that the title reads as being beside
+                  * the record rather than resting against it.
+                  *
+                  * The sleeve and disc came down a tenth, from 112 and 104, to
+                  * buy that margin back for the title — the scarcest thing on
+                  * this panel on a narrow phone. What the artwork gives up here
+                  * goes straight to the words.
                   */}
-                <Stack gap="3px" minWidth="0" flex="1" paddingLeft="64px">
-                    <HStack gap="4px" minWidth="0">
-                        <Text fontSize="19px" fontWeight="bold" color="#ffffff" noOfLines={2} lineHeight="1.15">
+                <Stack gap="3px" minWidth="0" flex="1" paddingLeft="55px">
+                    <HStack gap="4px" minWidth="0" alignItems="flex-start">
+                        <Text
+                            ref={titleRef}
+                            fontSize={`${TITLE_SIZES[0]}px`}
+                            fontWeight="bold"
+                            color="#ffffff"
+                            noOfLines={2}
+                            lineHeight="1.15"
+                            // Or the title refuses to shrink below its longest
+                            // word and pushes the badge off the panel
+                            minWidth="0"
+                        >
                             {state.name}
                         </Text>
-                        {state.explicit && <Box color="rgba(255,255,255,0.5)" flexShrink={0}><MdExplicit /></Box>}
+
+                        {/*
+                          * Unclamped, so it can report how tall the title really
+                          * wants to be — the clamped one above always reports
+                          * exactly two lines, whatever it is holding
+                          */}
+                        <chakra.p
+                            ref={titleProbe}
+                            aria-hidden="true"
+                            position="absolute"
+                            visibility="hidden"
+                            pointerEvents="none"
+                            left="0"
+                            top="0"
+                            fontWeight="bold"
+                            lineHeight="1.15"
+                        >
+                            {state.name}
+                        </chakra.p>
+                        {state.explicit && (
+                            /*
+                              * A box exactly one line tall, with the mark centred
+                              * inside it, rather than the mark nudged down by a
+                              * hand-picked margin.
+                              *
+                              * The row aligns to the start, which lines the mark
+                              * up with the top of the text *box* — not with the
+                              * middle of the first line, which is where the eye
+                              * expects it. Matching the line height means it
+                              * stays centred if the title's type ever changes.
+                              */
+                            <Box
+                                color="rgba(255,255,255,0.5)"
+                                flexShrink={0}
+                                fontSize="19px"
+                                height="1.15em"
+                                display="flex"
+                                alignItems="center"
+                            >
+                                <MdExplicit />
+                            </Box>
+                        )}
                     </HStack>
                     <Text fontSize="14px" color="rgba(255,255,255,0.72)" noOfLines={1}>
                         {state.artists?.map(v => v.name).join(", ")}
@@ -482,8 +975,8 @@ function HeaderAction({
             role="button"
             aria-label={label}
             tabIndex={0}
-            width="44px"
-            height="44px"
+            width="38px"
+            height="38px"
             borderRadius="full"
             color={colour}
             transition="color .45s, background .15s"
@@ -536,15 +1029,40 @@ export default function ProfilePage({
     /** The artwork colour as it arrives, and the copy the page is painted from. */
     const [accent, setAccent] = useState<Rgb | null>(null);
     const [committedAccent, setCommittedAccent] = useState<Rgb | null>(null);
+
+    /*
+     * The cover the wash is currently built from.
+     *
+     * Committed on the same schedule as the colour, and for the same reason: the
+     * artwork and the colour it was read from have to change together or the
+     * page spends a fifth of a second wearing one record's colour over another
+     * record's cover.
+     */
+    const [committedArtwork, setCommittedArtwork] = useState<string | null>(null);
+    const [committedPalette, setCommittedPalette] = useState<string[]>([]);
+
+    // Written where the colour is read, so the commit below can pick it up
+    // without the cross-fade having to depend on it
+    const latestArtwork = useRef<string | null>(null);
+    const latestPalette = useRef<string[]>([]);
     const [accentVisible, setAccentVisible] = useState<boolean>(false);
     /** The same colour, lifted until text set in it is legible. */
-    const [accentInk, setAccentInk] = useState<string>(FALLBACK_ACCENT);
+    /*
+     * Worked out while rendering rather than set from an effect.
+     *
+     * As state it was always one paint behind the colour it comes from: the page
+     * committed the artwork colour, drew a frame with the ink still on the
+     * fallback purple, and only then caught up. Everything the accent touches
+     * flickered through purple on the way in.
+     */
 
     const [listenershipHistoryAvailable, setListenershipHistoryAvailable] = useState<boolean>(false);
     const [topSongsFilter, setTopSongsFilter] = useState<TopSongsPeriod>("day");
     const [userTopSongs, setUserTopSongs] = useState<TopSong[]>([]);
     const [topSongsLoading, setTopSongsLoading] = useState<boolean>(true);
     const [pageLoaded, setPageLoaded] = useState<boolean>(false);
+    const [profileReady, setProfileReady] = useState<boolean>(false);
+    const [colourResolved, setColourResolved] = useState<boolean>(false);
     const [pastWeekStats, setPastWeekStats] = useState<{
         totalListeningDuration: number;
         uniqueSongsPlayedCount: number;
@@ -696,10 +1214,18 @@ export default function ProfilePage({
     /**
      * The profile itself, and the live playback behind the page's colour.
      *
-     * Nothing here gates the page beyond the profile: the artwork colour only
-     * arrives when the person happens to be playing something, so waiting on it
-     * left an idle profile sitting on a spinner until a timeout expired. It
-     * fades in whenever it resolves instead.
+     * The page waits on two things: the profile, and a first colour.
+     *
+     * It used to wait only on the profile, and the colour faded in whenever it
+     * turned up — which meant every load arrived painted in the fallback purple
+     * and then slid across to the record's own colour a moment later. Waiting on
+     * the colour outright is what that was avoiding: a profile with nothing
+     * playing and no picture to read may never produce one, and the page would
+     * sit on a spinner until the failsafe fired.
+     *
+     * So the colour gate is satisfied by a read *finishing* rather than by it
+     * finding something, and by there being nothing to read in the first place.
+     * The failsafe still covers the case where neither ever comes back.
      */
     useEffect(() => {
         let cancelled = false;
@@ -707,13 +1233,14 @@ export default function ProfilePage({
         // Bumped on every artwork read, so only the newest one may paint
         let colourRequest = 0;
 
-        const settle = () => {
-            if (!cancelled)
-                setPageLoaded(true);
-        };
+        const settleProfile = () => { if (!cancelled) setProfileReady(true); };
+        const settleColour = () => { if (!cancelled) setColourResolved(true); };
 
         // A profile that will not load is still a page worth showing the rest of
-        const failsafe = setTimeout(settle, 4000);
+        const failsafe = setTimeout(() => {
+            settleProfile();
+            settleColour();
+        }, 4000);
 
         user.getRemoteUser(profileId)
         .then(r => {
@@ -723,10 +1250,7 @@ export default function ProfilePage({
         .catch(e => {
             console.error("Failed to get remote user for", profileId, "error:", e);
         })
-        .finally(() => {
-            clearTimeout(failsafe);
-            settle();
-        });
+        .finally(settleProfile);
 
         let streamerGotMsg = false;
 
@@ -740,16 +1264,56 @@ export default function ProfilePage({
          * and leave the page the colour of a record that is no longer playing.
          */
         const readArtworkColour = (url: string) => {
+            /*
+             * The same sleeve is not news.
+             *
+             * This runs on every playback update, not only on a track change —
+             * progress ticks included — and it used to re-read the cover each
+             * time. Every read produced a new colour object, which was a new
+             * value as far as the cross-fade was concerned, so the page faded
+             * its colour out and back in every few seconds for the whole of a
+             * song. That is the flashing.
+             */
+            if (url === latestArtwork.current) {
+                settleColour();
+
+                return;
+            }
+
             const request = ++colourRequest;
 
-            extractArtworkColour(url)
-            .then(colour => {
+            /*
+             * Read together, and taken together or not at all.
+             *
+             * The accent, the palette and the cover are three descriptions of
+             * one record, and they were being stored the moment each arrived.
+             * Skip two tracks quickly and they came from three different ones:
+             * the cover of what is playing now, the colour of what was playing a
+             * second ago, and whichever palette happened to resolve last. This
+             * way a track that has already been skipped past cannot write
+             * anything at all.
+             */
+            Promise.all([extractArtworkColour(url), extractArtworkPalette(url)])
+            .then(([colour, colours]) => {
+                // Released before the sequence check, not after it: a read that
+                // has been overtaken has still answered the question of whether
+                // the page may be shown
+                settleColour();
+
                 if (cancelled || request !== colourRequest)
                     return;
 
-                setAccent(colour);
+                latestArtwork.current = url;
+                latestPalette.current = colours;
+
+                // Compared by value: two sleeves can share a colour, and
+                // re-committing one the page is already wearing restarts the
+                // cross-fade for no visible reason
+                setAccent(current => (sameRgb(current, colour) ? current : colour));
             })
             .catch(e => {
+                settleColour();
+
                 console.error("Failed to read a colour off the artwork, error:", e);
             });
         };
@@ -757,26 +1321,87 @@ export default function ProfilePage({
         // Until something is playing, the page takes its colour from the profile
         // picture — an idle profile with no colour at all is the same near black
         // rectangle for everybody
-        if (user?.object && user.object.images.length > 0 && user.object.images[0]?.url) {
+        const picture = user?.object?.images?.[0]?.url;
+
+        /**
+         * The colour to fall back to when nothing is playing.
+         *
+         * `waitForPlayback` is only true on the first pass, where a record that
+         * is already on should win the race. When this is called because
+         * playback stopped there is nothing to defer to.
+         */
+        const readPictureColour = (waitForPlayback: boolean) => {
+            if (!picture || picture === latestArtwork.current) {
+                settleColour();
+
+                return;
+            }
+
             const request = ++colourRequest;
 
-            extractArtworkColour(user.object.images[0].url)
-            .then(colour => {
+            Promise.all([extractArtworkColour(picture), extractArtworkPalette(picture)])
+            .then(([colour, colours]) => {
+                settleColour();
+
                 // Playback wins: once a record is on, its colour is the page's
-                if (cancelled || streamerGotMsg || request !== colourRequest)
+                if (cancelled || (waitForPlayback && streamerGotMsg) || request !== colourRequest)
                     return;
 
-                setAccent(colour);
+                latestArtwork.current = picture;
+                latestPalette.current = colours;
+
+                setAccent(current => (sameRgb(current, colour) ? current : colour));
             })
             .catch(e => {
+                settleColour();
+
                 console.error("Failed to read a colour off the profile picture, error:", e);
             });
+        };
+
+        /*
+         * Stopping is not the same as having stopped.
+         *
+         * A gap between tracks, a skip, or a moment of buffering all arrive as a
+         * stop, and dropping the page's colour the instant one lands means the
+         * whole page blinks back to grey and then recolours a second later. The
+         * colour is held for a beat, and if nothing has started by then the page
+         * settles onto the profile picture rather than onto nothing.
+         */
+        let stopping: ReturnType<typeof setTimeout> | undefined;
+
+        const clearStopping = () => {
+            if (stopping === undefined)
+                return;
+
+            clearTimeout(stopping);
+            stopping = undefined;
+        };
+
+        const playbackStopped = () => {
+            setPlaybackState(null);
+            clearStopping();
+
+            stopping = setTimeout(() => {
+                stopping = undefined;
+
+                readPictureColour(false);
+            }, 1500);
+        };
+
+        if (picture) {
+            readPictureColour(true);
+        } else {
+            // No picture and nothing playing yet. There is no colour coming that
+            // is worth holding the page for
+            settleColour();
         }
 
         if (!streamer)
             return () => {
                 cancelled = true;
                 clearTimeout(failsafe);
+                clearStopping();
             };
 
         streamer.detachedListeningStateQuery([profileId]);
@@ -785,11 +1410,8 @@ export default function ProfilePage({
             if (data.userId !== profileId)
                 return;
 
-            // Nothing is playing any more, so there is no artwork to take a
-            // colour from and no reason to go looking for one
             if (data.data.action.type == "STOPPED") {
-                setPlaybackState(null);
-                setAccent(null);
+                playbackStopped();
 
                 return;
             }
@@ -805,6 +1427,9 @@ export default function ProfilePage({
 
             streamerGotMsg = true;
 
+            // Whatever this is, it is not stopped
+            clearStopping();
+
             readArtworkColour(data.data.state.imageUrl);
         };
 
@@ -812,8 +1437,7 @@ export default function ProfilePage({
             if (userId !== profileId)
                 return;
 
-            setPlaybackState(null);
-            setAccent(null);
+            playbackStopped();
         };
 
         streamer.on("update", onUpdate);
@@ -822,6 +1446,12 @@ export default function ProfilePage({
         return () => {
             cancelled = true;
             clearTimeout(failsafe);
+
+            // The hold before a stop takes effect can outlive the page that
+            // armed it: leaving a profile within a second and a half of the
+            // music stopping left a timer to wake up and read a colour off a
+            // picture belonging to a profile nobody is looking at any more
+            clearStopping();
 
             // Without this the listeners outlive the component, so every visit to
             // a profile stacks another pair and each event fires N setStates
@@ -844,26 +1474,73 @@ export default function ProfilePage({
     useEffect(() => {
         if (!accent) {
             setCommittedAccent(null);
+            setCommittedArtwork(null);
+            setCommittedPalette([]);
 
             const timer = setTimeout(() => setAccentVisible(true), 20);
 
             return () => clearTimeout(timer);
         }
 
+        /*
+         * Straight on if the page has no colour yet.
+         *
+         * The wait below is the old colour fading out, and on the first read
+         * there is no old colour — so this used to hold the page on the fallback
+         * purple for 230ms before painting it, which is most of what the flash
+         * on load actually was.
+         */
+        if (!committedAccent) {
+            setCommittedAccent(accent);
+            setCommittedArtwork(latestArtwork.current);
+            setCommittedPalette(latestPalette.current);
+
+            const first = setTimeout(() => setAccentVisible(true), 20);
+
+            return () => clearTimeout(first);
+        }
+
         setAccentVisible(false);
 
-        const commit = setTimeout(() => setCommittedAccent(accent), 230);
-        const show = setTimeout(() => setAccentVisible(true), 250);
+        // Just past the fade, so the swap happens against an invisible layer
+        const commit = setTimeout(() => {
+            setCommittedAccent(accent);
+            setCommittedArtwork(latestArtwork.current);
+            setCommittedPalette(latestPalette.current);
+        }, ACCENT_FADE_OUT + 10);
+        const show = setTimeout(() => setAccentVisible(true), ACCENT_FADE_OUT + 30);
 
         return () => {
             clearTimeout(commit);
             clearTimeout(show);
         };
-    }, [accent]);
+    }, [accent, committedAccent]);
 
     useEffect(() => {
         hideTopGradientCb(accent !== null);
     }, [accent]);
+
+    /**
+     * When the page is allowed to appear.
+     *
+     * Gated on the colour being *committed*, not on it having been read — the
+     * two are a couple of frames and a cross-fade apart, and revealing on the
+     * read is what put the fallback purple on screen before the artwork colour
+     * replaced it.
+     *
+     * A read that came back with nothing has nothing to wait for, so an idle
+     * profile with no picture still opens straight away rather than sitting on
+     * the spinner until the failsafe fires.
+     */
+    useEffect(() => {
+        if (!profileReady || !colourResolved)
+            return;
+
+        if (accent !== null && !committedAccent)
+            return;
+
+        setPageLoaded(true);
+    }, [profileReady, colourResolved, accent, committedAccent]);
 
     /**
      * The status bar, and the colour the app frame draws its title in.
@@ -872,10 +1549,14 @@ export default function ProfilePage({
      * bar reads as the top of the page rather than as a band of album cover above
      * it. The title takes the lifted, legible version.
      */
+    const accentInk = useMemo(
+        () => (committedAccent ? readableAccent(committedAccent) : FALLBACK_ACCENT),
+        [committedAccent],
+    );
+
     useEffect(() => {
         if (!committedAccent) {
             setStatusBarColour(PAGE_BG);
-            setAccentInk(FALLBACK_ACCENT);
             setComplementaryColour("#e9e7fb");
 
             return;
@@ -887,11 +1568,8 @@ export default function ProfilePage({
             b: 0.5 * committedAccent.b + 0.5 * 14,
         }));
 
-        const ink = readableAccent(committedAccent);
-
-        setAccentInk(ink);
-        setComplementaryColour(ink);
-    }, [committedAccent]);
+        setComplementaryColour(accentInk);
+    }, [committedAccent, accentInk]);
 
     /*
      * Reconnecting a dead socket is the app frame's job, not this page's.
@@ -912,6 +1590,15 @@ export default function ProfilePage({
     const nowPlaying = playbackState?.data.state ?? null;
     const hasListened = (pastWeekStats?.totalListeningDuration ?? 0) > 0 || (pastWeekStats?.uniqueSongsPlayedCount ?? 0) > 0;
 
+    // Unconditional: the tile it belongs to is not always drawn, but a hook
+    // cannot come and go with it
+    const washFade = useRef<HTMLDivElement>(null);
+
+    // Gone by the time the header it belongs to is
+    useScrollFade(washFade, 300);
+
+    const listeningFact = useListeningFact(pastWeekStats?.totalListeningDuration ?? 0);
+
     /**
      * What the live panel is called.
      *
@@ -929,38 +1616,6 @@ export default function ProfilePage({
         : "Now spinning");
 
     return (<>
-        {isOwnProfile && (
-            <HStack
-                pos="fixed"
-                top="0"
-                right="12px"
-                marginTop="env(safe-area-inset-top)"
-                height="48px"
-                zIndex="99999"
-                alignItems="center"
-                gap="0"
-            >
-                {(recapState.daily || recapState.weekly) && (
-                    <HeaderAction
-                        label="Your recaps"
-                        colour={accentInk}
-                        onClick={() => {
-                            setRecaps(recapState);
-                            openRecapDrawer();
-                        }}
-                    >
-                        <FaHistory size="22px" />
-                    </HeaderAction>
-                )}
-                <HeaderAction
-                    label="Settings"
-                    colour={accentInk}
-                    onClick={() => pageChanger("preferences", "settings")}
-                >
-                    <FaCog size="22px" />
-                </HeaderAction>
-            </HStack>
-        )}
 
         <Box
             display={pageLoaded ? "none" : "block"}
@@ -991,21 +1646,34 @@ export default function ProfilePage({
             top="0"
             zIndex="0"
             pointerEvents="none"
-            background={committedAccent
+            background={committedAccent && !committedArtwork
                 ? `linear-gradient(to bottom, rgb(${committedAccent.r},${committedAccent.g},${committedAccent.b}) 0%, rgba(0,0,0,0) 100%)`
                 : "transparent"}
-            opacity={accentVisible && committedAccent ? 0.2 : 0}
+            opacity={accentVisible && committedAccent ? (committedArtwork ? 0.5 : 0.2) : 0}
             transform={accentVisible ? "translateY(0)" : "translateY(-24px)"}
             width="100vw"
-            height="260px"
-            transition=".75s"
-        />
+            // Taller than the flat gradient it replaces. A wash built out of a
+            // cover needs room for the shapes in it to be shapes; squeezed into
+            // a header band the blur averages the whole thing to one colour and
+            // there was no point building it out of the artwork at all
+            height="420px"
+            transition={`opacity ${accentVisible ? ACCENT_FADE_IN : ACCENT_FADE_OUT}ms, transform ${accentVisible ? ACCENT_FADE_IN : ACCENT_FADE_OUT}ms`}
+        >
+            {/*
+              * The scroll fade sits on its own layer, because the box above is
+              * already using opacity for the colour cross-fade and the two have
+              * nothing to do with each other
+              */}
+            <Box ref={washFade} position="absolute" inset="0">
+                {committedArtwork && <ArtworkWash src={committedArtwork} palette={committedPalette} still={!nowPlaying} />}
+            </Box>
+        </Box>
 
         <Stack
             gap="30px"
             width="calc(100% - 20px)"
             paddingLeft="20px"
-            paddingTop="20px"
+            paddingTop="calc(env(safe-area-inset-top, 0px) + 44px)"
             paddingBottom="36px"
             marginTop="-15px"
             zIndex="1"
@@ -1022,7 +1690,11 @@ export default function ProfilePage({
             <HStack
                 gap="12px"
                 alignItems="center"
-                paddingRight={isOwnProfile ? "78px" : "20px"}
+                // None: the row already sits inside the page gutter, and the
+                // action's own box gives the cog the space it needs. Anything
+                // here is added on top of both and pushes it off the margin the
+                // rest of the page is set to
+                paddingRight="0"
                 animation={`${rise} .3s ease-out both`}
             >
                 <Box
@@ -1084,7 +1756,13 @@ export default function ProfilePage({
                       * a caption nobody had bothered to write.
                       */}
                     <Box alignSelf="flex-start" transform="rotate(-2.2deg)">
-                        <Box paddingX="10px" paddingY="4px" borderRadius="full" background={SURFACE_HI}>
+                        <Box
+                            paddingX="10px"
+                            paddingY="4px"
+                            borderRadius="full"
+                            background={tint ? chipFill(tint) : SURFACE_HI}
+                            transition="background .45s"
+                        >
                             <Text
                                 fontFamily="Inter"
                                 fontWeight="700"
@@ -1099,6 +1777,39 @@ export default function ProfilePage({
                         </Box>
                     </Box>
                 </Stack>
+                {/*
+                  * In the header rather than pinned over the page.
+                  *
+                  * Fixed to the viewport these spent most of a session floating
+                  * over the song list, where they needed a scrim behind them to
+                  * stay readable — a control that has to defend itself from the
+                  * content behind it is in the wrong place. They belong to the
+                  * header, so they leave with it.
+                  */}
+                {isOwnProfile && (
+                    <HStack alignSelf="flex-start" alignItems="center" gap="8px" flexShrink={0}>
+                        {(recapState.daily || recapState.weekly) && (
+                            <HeaderAction
+                                label="Your recaps"
+                                colour={accentInk}
+                                onClick={() => {
+                                    setRecaps(recapState);
+                                    openRecapDrawer();
+                                }}
+                            >
+                                <FaHistory size="22px" />
+                            </HeaderAction>
+                        )}
+
+                        <HeaderAction
+                            label="Settings"
+                            colour={accentInk}
+                            onClick={() => pageChanger("preferences", "settings")}
+                        >
+                            <FaCog size="22px" />
+                        </HeaderAction>
+                    </HStack>
+                )}
             </HStack>
 
             {nowPlaying && (
@@ -1108,6 +1819,7 @@ export default function ProfilePage({
                         state={nowPlaying}
                         tint={tint}
                         accent={accentInk}
+                        palette={committedPalette}
                         progress={playbackState?.data.interpolatedProgress ?? nowPlaying.progressNormal ?? 0}
                     />
                 </Box>
@@ -1132,7 +1844,7 @@ export default function ProfilePage({
                       * explanation, and people look at the largest element on a
                       * screen first and longest.
                       */}
-                    <Grid templateColumns="1.32fr 1fr" templateRows="auto auto" gap="9px">
+                    <Grid templateColumns="minmax(0, 1.32fr) minmax(0, 1fr)" templateRows="auto auto" gap="9px">
                         <GridItem rowSpan={2}>
                             {/*
                               * Anchored top left rather than centred in the tile.
@@ -1157,12 +1869,57 @@ export default function ProfilePage({
                                 <Figure
                                     value={pastWeekStats.totalListeningDuration}
                                     format={formatListening}
+                                    floor={60e3}
                                     size={{ base: "52px", sm: "60px" }}
                                     colour={accentInk}
                                 />
                                 <Text fontSize="13px" color={INK_DIM} lineHeight="1.35">
                                     spent listening
                                 </Text>
+
+                                {/*
+                                  * Sat on the floor of the tile rather than under
+                                  * the label. The figure is anchored to the top
+                                  * corner and the tile is taller than it needs to
+                                  * be, so the space between them is the tile's
+                                  * shape — filling it from the bottom keeps that
+                                  * shape instead of stacking everything at once.
+                                  */}
+                                {listeningFact && (
+                                    <Box
+                                        marginTop="auto"
+                                        paddingTop="10px"
+                                        width="100%"
+                                        fontSize="12px"
+                                        /*
+                                         * Four lines, reserved whether they are
+                                         * used or not. The longest fact runs to
+                                         * four and the shortest to two, and
+                                         * without a floor the tile — and the
+                                         * whole bento row with it — changed
+                                         * height depending on which one came up.
+                                         */
+                                        minHeight="5.6em"
+                                        display="flex"
+                                        // Sat on the floor of the reserved block,
+                                        // so a two line fact and a four line one
+                                        // both end on the same baseline
+                                        alignItems="flex-end"
+                                    >
+                                        <Text
+                                            fontSize="12px"
+                                            color={INK_FAINT}
+                                            lineHeight="1.4"
+                                            // Cut rather than quietly taking the
+                                            // layout back, if a longer one is
+                                            // added later
+                                            noOfLines={4}
+                                        >
+                                            About as long as {listeningFact.label}.
+                                        </Text>
+                                    </Box>
+                                )}
+
                             </Stack>
                         </GridItem>
 
@@ -1189,6 +1946,7 @@ export default function ProfilePage({
                                 <Figure
                                     value={pastWeekStats.longestStreak}
                                     format={formatListening}
+                                    floor={60e3}
                                     size="28px"
                                     colour={INK}
                                 />

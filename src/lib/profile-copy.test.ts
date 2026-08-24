@@ -70,7 +70,7 @@ describe("weekLine", () => {
 
     it("says the daily average, which is the one figure the tiles cannot show", () => {
         // 7h across seven days is an hour a day
-        expect(weekLine(stats(7, 30, 1), true)).toContain("1h 0m");
+        expect(weekLine(stats(7, 30, 1), true)).toContain("1 hour");
     });
 
     it("rounds the average from the total rather than from anything else", () => {
@@ -80,7 +80,7 @@ describe("weekLine", () => {
             true,
         );
 
-        expect(line).toContain("36m");
+        expect(line).toContain("36 minutes");
     });
 
     /*

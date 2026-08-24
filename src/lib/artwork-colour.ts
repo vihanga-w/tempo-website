@@ -133,7 +133,16 @@ function loadImage(src: string): Promise<HTMLImageElement | null> {
  * here, and falls through to the most populous bin so the caller still gets the
  * grey it will turn into white.
  */
-export async function extractArtworkColour(src: string): Promise<Rgb | null> {
+/**
+ * The colours actually present on a cover, binned and counted.
+ *
+ * Shared by the single accent and the palette below, so the two can never
+ * disagree about what is on the sleeve — they are reading the same numbers,
+ * and only choosing from them differently.
+ */
+type Bin = { r: number; g: number; b: number; n: number };
+
+async function sampleBins(src: string): Promise<Map<number, Bin> | null> {
     /*
      * Read the small variant, not the original.
      *
@@ -207,7 +216,13 @@ export async function extractArtworkColour(src: string): Promise<Rgb | null> {
         }
     }
 
-    if (bins.size === 0)
+    return (bins.size === 0 ? null : bins);
+}
+
+export async function extractArtworkColour(src: string): Promise<Rgb | null> {
+    const bins = await sampleBins(src);
+
+    if (!bins)
         return null;
 
     let mostPopulous: Rgb | null = null;
@@ -275,6 +290,112 @@ export async function dominantArtworkColour(src: string): Promise<Rgb | null> {
     return parseRgb(colour.rgb);
 }
 
+/** Shortest way round the wheel between two hues. */
+function hueGap(a: number, b: number): number {
+    const raw = Math.abs(a - b) % 360;
+
+    return (raw > 180 ? 360 - raw : raw);
+}
+
+/**
+ * Several colours off a cover, chosen to be worth looking at.
+ *
+ * The single accent is picked to be typical of a sleeve. A wash wants the
+ * opposite: the colours that make the record look like itself, not the muddy
+ * average of all of them. So this reads the same bins and selects differently —
+ * saturation is weighted above population, and anything grey, nearly black or
+ * blown out is dropped outright rather than scored down. A wash built from the
+ * three greys that happen to cover most of a sleeve is a wash nobody would have
+ * asked for.
+ *
+ * Hues have to be far enough apart to be separate colours. Four shades of the
+ * same orange is one colour shown four times, and blurred together it comes back
+ * as exactly that one colour.
+ *
+ * A sleeve that cannot fill the set has it completed from the wheel — the
+ * complement first, then the two thirds — carrying the lightness and saturation
+ * of what was actually found so the additions belong with it. A sleeve with no
+ * colour on it at all returns nothing rather than being given some: inventing a
+ * hue for a black and white cover is how Nevermind ends up green.
+ */
+export async function extractArtworkPalette(src: string, count = 4): Promise<string[]> {
+    const bins = await sampleBins(src);
+
+    if (!bins)
+        return [];
+
+    let largest = 0;
+
+    for (const bin of bins.values())
+        largest = Math.max(largest, bin.n);
+
+    const candidates: { h: number; s: number; l: number; score: number }[] = [];
+
+    for (const bin of bins.values()) {
+        const mean: Rgb = { r: bin.r / bin.n, g: bin.g / bin.n, b: bin.b / bin.n };
+        const { h, s, l } = rgbToHsl(mean);
+
+        // Grey is not a colour to build a wash out of, and a hue carried at this
+        // little light or this much of it does not survive being blurred
+        if (s < 0.26 || l < 0.16 || l > 0.9)
+            continue;
+
+        candidates.push({
+            h,
+            s,
+            l,
+            score:
+                nearness(l, 0.58, 0.3) * 0.4 +
+                nearness(s, 1, 0.5) * 0.42 +
+                (bin.n / largest) * 0.18,
+        });
+    }
+
+    candidates.sort((a, b) => b.score - a.score);
+
+    const MIN_HUE_GAP = 26;
+    const chosen: { h: number; s: number; l: number }[] = [];
+
+    for (const candidate of candidates) {
+        if (chosen.some(picked => hueGap(picked.h, candidate.h) < MIN_HUE_GAP))
+            continue;
+
+        chosen.push(candidate);
+
+        if (chosen.length === count)
+            break;
+    }
+
+    if (chosen.length === 0)
+        return [];
+
+    // Lifted towards something worth looking at: a wash is going to be blurred
+    // and masked, and both of those take colour out
+    const vivid = (h: number, s: number, l: number) => formatHex({
+        mode: "hsl",
+        h: ((h % 360) + 360) % 360,
+        s: Math.min(1, Math.max(s, 0.55)),
+        l: Math.min(0.72, Math.max(l, 0.42)),
+    }) ?? "#ffffff";
+
+    const out = chosen.map(picked => vivid(picked.h, picked.s, picked.l));
+
+    // The wheel, in the order the additions stop being obviously invented
+    const TURNS = [180, 120, 240, 60, 300];
+    const lead = chosen[0];
+
+    for (let turn = 0; out.length < count && turn < TURNS.length; turn++) {
+        const h = lead.h + TURNS[turn];
+
+        if (chosen.some(picked => hueGap(picked.h, h) < MIN_HUE_GAP))
+            continue;
+
+        out.push(vivid(h, lead.s, lead.l));
+    }
+
+    return out;
+}
+
 /**
  * A colour off the artwork that text can actually sit on.
  *
@@ -309,35 +430,93 @@ export function readableAccent(rgb: Rgb): string {
 }
 
 /**
+ * How much colour a surface is allowed to carry, and how light it sits.
+ *
+ * Chroma is clamped rather than pinned: a vivid sleeve is brought down to the
+ * ceiling, and a muted one is left where it is rather than being pushed up to
+ * meet it. Lightness is pinned, because it is what the white text on this panel
+ * has to read against and it should not depend on the record.
+ *
+ * The ceiling is low on purpose. Material 3 builds surfaces at chroma 8 and
+ * accents at chroma 48 — roughly 0.03 and 0.15 here — and the reason for that
+ * gap is the area effect: the same colour over a large field reads as more
+ * saturated than it does in a small swatch, which is why a paint chip never
+ * looks like the wall. This panel is the largest area of colour on the page, so
+ * it needs materially less chroma than the accent taken off the same sleeve, not
+ * the same amount.
+ */
+const PANEL_LIGHTNESS = 0.31;
+const PANEL_CHROMA = 0.038;
+
+/**
  * A flat panel colour from the artwork.
  *
- * Mixed down into the page rather than faded across the panel. The panel used to
- * be a three stop gradient, which is a great deal of ceremony for "make this
- * darker towards the bottom", and it still left the fill lighter at the top than
- * white text could safely sit on when the cover was a pale one. Mixing to a
- * fixed ratio and then capping the result's luminance gives one colour that is
- * always dark enough to read on, and a solid block of a record's own colour is
- * bolder than a wash of it.
+ * Worked out in OKLCH rather than mixed in sRGB. Mixing a cover's colour towards
+ * the page in gamma space is what made this panel muddy: sRGB midpoints are
+ * perceptually wrong, so a vivid orange blended toward near black arrives as a
+ * dirty rust rather than as a dark orange. Capping the result's luminance
+ * afterwards made it worse, because scaling the channels evenly drops the
+ * lightness while keeping the saturation — which is the recipe for mud.
+ *
+ * Setting lightness and chroma directly, and leaving the hue exactly where the
+ * record put it, gives a surface that is unmistakably the colour of what is
+ * playing without being a block of it.
  */
 export function panelFill(rgb: Rgb): string {
-    const mix = (channel: number, page: number) => channel * 0.58 + page * 0.42;
+    const source = oklch(rgbToHex(rgb));
 
-    let r = mix(rgb.r, 13);
-    let g = mix(rgb.g, 13);
-    let b = mix(rgb.b, 14);
+    return formatHex({
+        mode: "oklch",
+        l: PANEL_LIGHTNESS,
+        // A sleeve with no colour on it gets a neutral panel rather than a faint
+        // arbitrary cast picked up off the noise in a greyscale image
+        c: Math.min(source?.c ?? 0, PANEL_CHROMA),
+        h: source?.h ?? 0,
+    }) ?? "#1c1b20";
+}
 
-    // Rec. 709 luminance on the raw channels. It does not need to be exact — it
-    // only has to keep a white sleeve from producing a panel the size of the
-    // screen that white text then sits on
+/**
+ * A small tinted surface, for a chip sitting on the accent gradient.
+ *
+ * The listener tag is pinned to the top of the page, which is exactly where the
+ * accent wash is strongest, so a flat grey pill reads as a piece of some other
+ * interface that has been dropped on top of this one.
+ *
+ * Unlike panelFill this does not cap the luminance, it pins it: whatever the
+ * record is, the chip lands at the same lightness and only the hue moves. The
+ * chip carries 11.5px text in the accent colour, and a fill that wandered with
+ * the artwork would take the contrast of that text with it — a pale cover would
+ * wash it out and a dark one would leave the chip invisible.
+ *
+ * Pinned brighter than the flat grey it replaces, though, rather than level with
+ * it. That grey read as a chip because it was cool against a warm page; once the
+ * fill shares the accent's hue there is no separation left but lightness, and
+ * matched luminance made the pill disappear into the wash it sits on.
+ */
+export function chipFill(rgb: Rgb): string {
+    // Mixed towards the surface it replaces rather than towards the page, so an
+    // account with no artwork to read and one with a grey cover land together
+    const mix = (channel: number, surface: number) => channel * 0.34 + surface * 0.66;
+
+    let r = mix(rgb.r, 28);
+    let g = mix(rgb.g, 27);
+    let b = mix(rgb.b, 32);
+
+    // Rec. 709, matching panelFill. The flat surface this stands in for sits at
+    // 0.108; this is deliberately clear of it, and still leaves the accent text
+    // above APCA 70 against the chip — comfortably past the 60 readableAccent
+    // is built to clear.
+    const TARGET = 0.2;
     const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
-    const CEILING = 0.22;
 
-    if (luminance > CEILING) {
-        const scale = CEILING / luminance;
+    if (luminance > 0) {
+        const scale = TARGET / luminance;
 
-        r *= scale;
-        g *= scale;
-        b *= scale;
+        // A fully saturated accent can want more of one channel than there is,
+        // and clamping without re-checking would quietly lighten the chip
+        r = Math.min(255, r * scale);
+        g = Math.min(255, g * scale);
+        b = Math.min(255, b * scale);
     }
 
     return rgbToHex({ r, g, b });

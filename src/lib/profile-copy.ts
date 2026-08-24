@@ -7,7 +7,7 @@
  * tests rather than re-reading every time the page changes.
  */
 
-import { formatListening } from "@/lib/utils";
+import { formatListeningLong } from "@/lib/utils";
 
 /**
  * The name to put at the top of somebody's profile.
@@ -56,7 +56,7 @@ export function weekLine(
         return (isOwnProfile ? "Press play and this starts filling in." : "Nothing played in the past week.");
 
     const hours = stats.totalListeningDuration / 3600e3;
-    const perDay = formatListening(Math.round(stats.totalListeningDuration / 7));
+    const perDay = formatListeningLong(Math.round(stats.totalListeningDuration / 7));
 
     if (hours >= 20)
         return `That is about ${perDay} every day. ${isOwnProfile ? "Your" : "Their"} headphones have earned a rest.`;
