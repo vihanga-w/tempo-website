@@ -51,8 +51,18 @@ export default function ConnectSpotify() {
      */
     const [needsUserManagement, setNeedsUserManagement] = useState(false);
 
+    /*
+     * Set when Spotify would not authenticate the app itself, which means the
+     * saved client ID and secret no longer belong to a live app — almost always
+     * a regenerated secret.
+     */
+    const [staleCredentials, setStaleCredentials] = useState(false);
+
     useEffect(() => {
-        setNeedsUserManagement(new URLSearchParams(window.location.search).get("issue") === "user-management");
+        const issue = new URLSearchParams(window.location.search).get("issue");
+
+        setNeedsUserManagement(issue === "user-management");
+        setStaleCredentials(issue === "app-credentials");
     }, []);
 
     const toast = useToast();
@@ -311,6 +321,28 @@ export default function ConnectSpotify() {
                         paste a link to your profile.
                     </Text>
                 </Box>
+
+                {staleCredentials && (
+                    <Box
+                        p="14px 16px"
+                        mb="7"
+                        borderRadius="12px"
+                        bg="rgba(164,128,255,0.10)"
+                        border="1px solid rgba(164,128,255,0.35)"
+                    >
+                        <Text fontSize="14px" fontFamily="Inter" fontWeight="semibold" color="#f5f5f5" mb="1">
+                            Your saved app needs its codes again
+                        </Text>
+
+                        <Text fontSize="13px" fontFamily="Inter" color="#bdbdbd" lineHeight="1.6">
+                            Spotify would not accept the app saved for your account. That
+                            normally means its client secret was regenerated, or the app was
+                            replaced — the ones on file cannot sign you in any more. Open
+                            your app&apos;s <b>Settings</b> on the Spotify dashboard, copy the
+                            client ID and secret as they are now, and enter them below.
+                        </Text>
+                    </Box>
+                )}
 
                 {needsUserManagement && (
                     <Box
