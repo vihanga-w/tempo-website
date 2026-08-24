@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Providers } from './providers';
 import { Analytics } from "@vercel/analytics/react";
 
+import { InitialColorMode } from './color-mode-script';
 
 export const metadata: Metadata = {
   title: "Tempo.",
@@ -115,7 +116,7 @@ export default function RootLayout({
         paddingTop: "var(--safe-area-inset-top)",
       }}>
         <Analytics />
-        
+        <InitialColorMode />
         <Providers>{children}</Providers>
       </body>
     </html>
