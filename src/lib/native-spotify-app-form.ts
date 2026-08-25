@@ -35,7 +35,7 @@ export interface AppFormOptions {
 
 export interface AppFormResult {
     value?: AppFormFill;
-    reason?: "unavailable" | "timeout" | "closed" | "premiumRequired";
+    reason?: "unavailable" | "timeout" | "closed" | "premiumRequired" | "stalled";
     diagnostics?: Record<string, unknown>;
 }
 
@@ -46,6 +46,15 @@ const DEADLINE_MS = 3 * 60 * 1000;
 
 /** How often to look, since the page renders well after it loads. */
 const POLL_MS = 1000;
+
+/**
+ * How long to accept silence from the page before calling it stuck.
+ *
+ * Every step asks the page a question about once a second and gets an answer,
+ * so silence means the webview is not running our script at all - and because
+ * it is hidden, nobody would ever see that happen.
+ */
+const STALL_MS = 5000;
 
 /**
  * Returns a value rather than posting one: Cordova wraps this in an eval and
@@ -527,10 +536,17 @@ export function startSpotifyAppForm(options: AppFormOptions & { hidden?: boolean
     }
 
     let offPage = 0;
+    let answeredAtFill = Date.now();
 
     const attempt = () => {
         if (settled || !ref)
             return;
+
+        if (Date.now() - answeredAtFill > STALL_MS) {
+            finish({ reason: "stalled" });
+
+            return;
+        }
 
         try {
             ref.executeScript({ code }, (results) => {
@@ -540,6 +556,7 @@ export function startSpotifyAppForm(options: AppFormOptions & { hidden?: boolean
                     return;
 
                 last = value;
+                answeredAtFill = Date.now();
 
                 /*
                  * Somewhere other than the form, which on this dashboard means
@@ -584,22 +601,28 @@ export function startSpotifyAppForm(options: AppFormOptions & { hidden?: boolean
             return;
         }
 
-        // Shown before submitting: from here the person is looking at their own
-        // app being made, and whatever Spotify says next is for them to see
-        reveal();
-
         const createCode = buildCreateScript();
 
         let tries = 0;
+        let answeredAt = Date.now();
 
         const tick = () => {
             tries++;
+
+            if (Date.now() - answeredAt > STALL_MS) {
+                clearInterval(timer);
+                resolve({ ok: false, status: "stalled" });
+
+                return;
+            }
 
             ref!.executeScript({ code: createCode }, (results) => {
                 const value = (Array.isArray(results) ? results[0] : undefined) as { status?: string } | undefined;
 
                 if (!value)
                     return;
+
+                answeredAt = Date.now();
 
                 if (value.status === "submitted") {
                     clearInterval(timer);
@@ -632,9 +655,17 @@ export function startSpotifyAppForm(options: AppFormOptions & { hidden?: boolean
         const credentialsCode = buildCredentialsScript();
 
         let tries = 0;
+        let answeredAt = Date.now();
 
         const tick = () => {
             tries++;
+
+            if (Date.now() - answeredAt > STALL_MS) {
+                clearInterval(timer);
+                resolve({ status: "stalled" });
+
+                return;
+            }
 
             ref!.executeScript({ code: credentialsCode }, (results) => {
                 const value = (Array.isArray(results) ? results[0] : undefined) as {
@@ -643,6 +674,8 @@ export function startSpotifyAppForm(options: AppFormOptions & { hidden?: boolean
 
                 if (!value)
                     return;
+
+                answeredAt = Date.now();
 
                 if (value.status === "ok") {
                     clearInterval(timer);

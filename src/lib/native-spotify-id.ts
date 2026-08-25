@@ -142,14 +142,26 @@ export function probeSpotifyUserId(options: ProbeOptions = {}): Promise<SpotifyI
 
         try {
             /*
-             * Hidden to begin with.
+             * Opened on screen, and put away as soon as it is not needed.
              *
-             * Most of the time the session is already saved and this whole trip
-             * - account page, read the username, done - happens without anybody
-             * needing to see it. It is only shown if Spotify actually asks for
-             * a login, and only once that has finished rendering.
+             * Opening it hidden would be better - most of the time the session
+             * is saved and nobody needs to see any of this - but a hidden
+             * webview never loads: the plugin asks for the page, and WebKit
+             * does not drive the load while the view is outside any window, so
+             * it sits on about:blank indefinitely and the whole flow stalls
+             * behind it.
              */
-            ref = iab.open(ACCOUNT_URL, "_blank", "location=yes,hidden=yes");
+            /*
+             * On screen while it loads, and put away the moment it is not
+             * needed.
+             *
+             * It cannot load out of sight: WebKit drives a load only for a view
+             * inside a window, so a webview that is hidden - at open, or hidden
+             * again straight after - stops at about:blank and the flow stalls
+             * behind it. Both were tried; this is the cost of the plugin.
+             */
+            ref = iab.open(ACCOUNT_URL, "_blank", "location=yes");
+
         } catch (ex) {
             resolve({ reason: "unavailable", diagnostics: { error: String(ex) } });
 
@@ -161,7 +173,7 @@ export function probeSpotifyUserId(options: ProbeOptions = {}): Promise<SpotifyI
         const code = buildProbeScript();
 
         let settled = false;
-        let shown = false;
+        let shown = true;
         let last: Record<string, unknown> | undefined;
 
         const finish = (result: SpotifyIdResult) => {
@@ -201,7 +213,7 @@ export function probeSpotifyUserId(options: ProbeOptions = {}): Promise<SpotifyI
                      * away; if Spotify sends them back to log in - a session
                      * that expired, a wrong password - it returns.
                      */
-                    if (value.page === "login" && value.rendered === true && !shown) {
+                    if (value.page === "login" && !shown) {
                         shown = true;
 
                         try { ref.show(); } catch { }

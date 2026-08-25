@@ -47,6 +47,17 @@ export function SpotifyAppSetup({ redirectUri, onCreated, onCancel }: {
     const [captured, setCaptured] = useState<{ clientId: string; clientSecret: string } | undefined>();
     /** Spotify will not let accounts without Premium create an app at all. */
     const [premiumRequired, setPremiumRequired] = useState(false);
+    /**
+     * Put off for now.
+     *
+     * Kept on this screen rather than handed back to the app: an account with
+     * no Spotify app of its own cannot sign in at all, so unmounting left
+     * people on a loading screen that would never finish. Saying so, with a way
+     * back, is the honest version of the same answer.
+     */
+    const [declined, setDeclined] = useState(false);
+    /** Bumped to start a fresh attempt after one was put off. */
+    const [attempt, setAttempt] = useState(0);
     const [error, setError] = useState("");
 
     useEffect(() => {
@@ -80,11 +91,33 @@ export function SpotifyAppSetup({ redirectUri, onCreated, onCancel }: {
 
             setError(result.reason === "closed"
                 ? "Set-up was closed before it finished."
-                : "Could not reach Spotify's app form. Please try again.");
+                : result.reason === "stalled"
+                    ? "Spotify stopped responding. Please check your connection and try again."
+                    : "Could not reach Spotify's app form. Please try again.");
+
+            if (result.reason === "stalled")
+                started.close();
         });
 
         return () => started.close();
-    }, [redirectUri]);
+    }, [redirectUri, attempt]);
+
+    /**
+     * Gives up, kindly.
+     *
+     * Closes the webview before saying anything: it is presented in a window
+     * above the app, so a message raised while it is up appears behind it and
+     * is never seen - which is exactly how a hidden failure stays hidden.
+     */
+    const giveUp = (message: string) => {
+        session?.close();
+
+        setWorking(false);
+        setStatus("");
+        setError(message);
+
+        alert(message);
+    };
 
     const onContinue = async () => {
         // Both conditions, checked here rather than trusted to the disabled
@@ -161,37 +194,36 @@ export function SpotifyAppSetup({ redirectUri, onCreated, onCancel }: {
                     console.warn("Could not enrol the new app:", ex);
                 }
             } else {
-                // Temporary: says what the page looked like, so a miss can be
-                // read off the screen rather than guessed at
-                alert("Could not read the app's details.\n\nstatus: " + (creds.status ?? "?")
-                    + "\nclientId: " + (creds.clientId ?? "-")
-                    + "\n" + JSON.stringify(creds.diagnostics ?? {}).slice(0, 300));
+                console.warn("Could not read the new app's credentials:", creds.status, creds.diagnostics);
+
+                giveUp("Your Spotify app was created, but Tempo could not read its details. You can finish connecting it from Spotify's dashboard.");
+
+                return;
             }
 
-            // The app is made either way, so leave them on it rather than
-            // pretending nothing happened
-            setWorking(false);
-            setStatus("");
-            setError("Your app was created, but Tempo could not read its details. It is on screen now.");
-
-            session.reveal();
+            giveUp("Your Spotify app was created, but Tempo could not connect it. Please try again in a moment.");
 
             return;
         }
 
         console.warn("Could not create the Spotify app:", result.status);
 
-        setWorking(false);
-        setError("Spotify would not accept the form. It is on screen now if you would like to finish it there.");
-
-        session.reveal();
+        giveUp(result.status === "stalled"
+            ? "Spotify stopped responding while setting your app up. Please check your connection and try again."
+            : "Spotify would not accept the set-up form. Please try again in a moment.");
     };
 
     return (
         <Center background="#0D0D0E" pos="fixed" top="0" left="0" width="100vw" height="100vh" padding="24px" zIndex="10000">
             <Stack gap="22px" maxWidth="440px" width="100%">
                 <Text fontFamily="Inter" fontSize="26px" fontWeight="bold">
-                    {premiumRequired ? "Spotify Premium required" : captured ? "Your app is ready" : "One quick set-up step"}
+                    {premiumRequired
+                        ? "Spotify Premium required"
+                        : declined
+                            ? "Whenever you're ready"
+                            : captured
+                                ? "Your app is ready"
+                                : "One quick set-up step"}
                 </Text>
 
                 {premiumRequired && (
@@ -201,7 +233,22 @@ export function SpotifyAppSetup({ redirectUri, onCreated, onCancel }: {
                             so this cannot be set up on a free account. If you upgrade, come back
                             and Tempo will pick up from here.
                         </Text>
-                        <Button onClick={onCancel}>Close</Button>
+                        <Button onClick={() => { setPremiumRequired(false); setAttempt((a) => a + 1); }}>
+                            I&apos;ve upgraded — try again
+                        </Button>
+                    </Stack>
+                )}
+
+                {declined && (
+                    <Stack gap="18px">
+                        <Text fontFamily="Inter" fontSize="15px" lineHeight="1.5" opacity="0.75">
+                            No problem. Tempo needs this one-off set-up before it can read your
+                            listening, so there is not much to see until it is done — it only takes
+                            a moment whenever you are ready.
+                        </Text>
+                        <Button onClick={() => { setDeclined(false); setError(""); setAttempt((a) => a + 1); }}>
+                            Set it up now
+                        </Button>
                     </Stack>
                 )}
 
@@ -215,13 +262,13 @@ export function SpotifyAppSetup({ redirectUri, onCreated, onCancel }: {
                     </Stack>
                 )}
 
-                {!captured && !premiumRequired && (<Text fontFamily="Inter" fontSize="15px" lineHeight="1.5" opacity="0.75">
+                {!captured && !premiumRequired && !declined && (<Text fontFamily="Inter" fontSize="15px" lineHeight="1.5" opacity="0.75">
                     Spotify only lets a handful of people use each app, so Tempo sets up one
                     that belongs to you. We fill in the details for you — you just need to
                     agree to Spotify&apos;s terms below.
                 </Text>)}
 
-                {!captured && !premiumRequired && (<Box background="rgba(255,255,255,0.05)" borderRadius="12px" padding="16px">
+                {!captured && !premiumRequired && !declined && (<Box background="rgba(255,255,255,0.05)" borderRadius="12px" padding="16px">
                     <Checkbox
                         isChecked={agreed}
                         onChange={(e) => setAgreed(e.target.checked)}
@@ -240,7 +287,7 @@ export function SpotifyAppSetup({ redirectUri, onCreated, onCancel }: {
                     <Text fontFamily="Inter" fontSize="13px" color="#ff8a8a">{error}</Text>
                 )}
 
-                {!captured && !premiumRequired && (<Button
+                {!captured && !premiumRequired && !declined && (<Button
                     onClick={onContinue}
                     isDisabled={!agreed || !prepared || working}
                     isLoading={working}
@@ -249,9 +296,20 @@ export function SpotifyAppSetup({ redirectUri, onCreated, onCancel }: {
                     {prepared ? "Continue" : "Preparing…"}
                 </Button>)}
 
-                <Button variant="ghost" size="sm" onClick={onCancel} isDisabled={working}>
-                    Not now
-                </Button>
+                {!captured && !premiumRequired && !declined && (
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        isDisabled={working}
+                        onClick={() => {
+                            session?.close();
+
+                            setDeclined(true);
+                        }}
+                    >
+                        Not now
+                    </Button>
+                )}
             </Stack>
         </Center>
     );
