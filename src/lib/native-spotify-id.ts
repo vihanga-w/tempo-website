@@ -69,8 +69,24 @@ function buildProbeScript(): string {
     return `(function () {
         var href = location.href;
 
-        if (/${LOGIN_PATTERN}/i.test(href))
-            return { page: "login", href: href };
+        if (/${LOGIN_PATTERN}/i.test(href)) {
+            /*
+             * Only worth showing once it is actually drawn.
+             *
+             * Spotify's login renders client-side, so revealing on the URL
+             * alone puts a blank white page in front of somebody - and if the
+             * session turns out to be saved, that page is replaced a moment
+             * later by a redirect they never needed to see.
+             */
+            var form = document.querySelector('input[type="password"], input[type="email"], input[type="text"]');
+            var action = document.querySelector("button, [type=submit]");
+
+            return {
+                page: "login",
+                href: href,
+                rendered: document.readyState === "complete" && !!form && !!action,
+            };
+        }
 
         if (!/${ACCOUNT_PATTERN}/i.test(href))
             return { page: "other", href: href };
@@ -125,9 +141,15 @@ export function probeSpotifyUserId(options: ProbeOptions = {}): Promise<SpotifyI
         let ref: CordovaBrowserRef;
 
         try {
-            // Visible to begin with: Spotify asks them to log in, and they
-            // cannot answer a window they cannot see
-            ref = iab.open(ACCOUNT_URL, "_blank", "location=yes");
+            /*
+             * Hidden to begin with.
+             *
+             * Most of the time the session is already saved and this whole trip
+             * - account page, read the username, done - happens without anybody
+             * needing to see it. It is only shown if Spotify actually asks for
+             * a login, and only once that has finished rendering.
+             */
+            ref = iab.open(ACCOUNT_URL, "_blank", "location=yes,hidden=yes");
         } catch (ex) {
             resolve({ reason: "unavailable", diagnostics: { error: String(ex) } });
 
@@ -139,7 +161,7 @@ export function probeSpotifyUserId(options: ProbeOptions = {}): Promise<SpotifyI
         const code = buildProbeScript();
 
         let settled = false;
-        let shown = true;
+        let shown = false;
         let last: Record<string, unknown> | undefined;
 
         const finish = (result: SpotifyIdResult) => {
@@ -179,7 +201,7 @@ export function probeSpotifyUserId(options: ProbeOptions = {}): Promise<SpotifyI
                      * away; if Spotify sends them back to log in - a session
                      * that expired, a wrong password - it returns.
                      */
-                    if (value.page === "login" && !shown) {
+                    if (value.page === "login" && value.rendered === true && !shown) {
                         shown = true;
 
                         try { ref.show(); } catch { }
