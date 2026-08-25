@@ -23,7 +23,7 @@ import { Capacitor } from "@capacitor/core";
 import { StatusBar, Style } from '@capacitor/status-bar';
 import { InAppBrowser } from '@capgo/inappbrowser';
 import { closeWebView, continueInWebView, probeSpotifyUserId } from "@/lib/native-spotify-id";
-import { fillSpotifyAppForm } from "@/lib/native-spotify-app-form";
+import { SpotifyAppSetup } from "@/components/spotify-app-setup";
 import { Preferences } from '@capacitor/preferences';
 
 import User from "@/lib/usrlib";
@@ -51,6 +51,8 @@ export default function Home() {
 
   const [modalTitle, setModalTitle] = useState<string>("");
   const [modalContent, setModalContent] = useState<JSX.Element>(<></>);
+  /** Set when this account needs a Spotify app of its own; see SpotifyAppSetup. */
+  const [appSetupRedirectUri, setAppSetupRedirectUri] = useState<string | undefined>();
   const [modalPBtn, setModalPBtn] = useState<{ text: string; callback: () => void } | undefined>();
   const [modalSBtn, setModalSBtn] = useState<{ text: string; callback: () => void } | undefined>();
 
@@ -611,15 +613,9 @@ export default function Home() {
                     return;
                   }
 
-                  const form = await fillSpotifyAppForm({ redirectUri });
-
-                  console.warn("Spotify app form:", form.reason ?? "filled", form.value, form.diagnostics);
-
-                  alert(form.value
-                    ? "Filled in: " + form.value.filled.join(", ")
-                      + (form.value.missed.length ? "\nCould not find: " + form.value.missed.join(", ") : "")
-                      + "\n\nCheck it over, accept the terms, and press Save."
-                    : "Could not fill the Spotify app form (" + (form.reason ?? "unknown") + ")");
+                  // Hands over to the set-up screen, which fills the form out
+                  // of sight while the person reads the agreement it needs
+                  setAppSetupRedirectUri(redirectUri);
 
                   return;
                 }
@@ -951,6 +947,17 @@ export default function Home() {
             </Stack>
           </Box>
         </>
+      ) : appSetupRedirectUri ? (
+        <SpotifyAppSetup
+          redirectUri={appSetupRedirectUri}
+          onCreated={() => {
+            // Left on screen deliberately for now: the webview is showing the
+            // app that was just made, and the rest of set-up is still being
+            // built against it
+            console.log("Spotify app created");
+          }}
+          onCancel={() => setAppSetupRedirectUri(undefined)}
+        />
       ) : !perfMsg ? page : (<>
           <Center background="#0D0D0E" padding="15%" pos="fixed" width="100vw" height="100vh" top="0" left="0">
             <Stack gap="15px">

@@ -276,89 +276,250 @@ function buildFillScript(options: AppFormOptions): string {
     })()`;
 }
 
+/**
+ * Ticks Spotify's terms box and submits the form.
+ *
+ * Run only after the person has agreed in Tempo's own UI, to the same wording,
+ * with the same links to Spotify's documents. That consent is theirs to give -
+ * this relays it, and must never run without it.
+ */
+function buildCreateScript(): string {
+    return `(function () {
+        var text = function (el) { return ((el && el.textContent) || "").trim(); };
+
+        var describe = function (el) {
+            var parts = [el.getAttribute("name"), el.getAttribute("id"), el.getAttribute("aria-label")];
+
+            try {
+                if (el.id) {
+                    var explicit = document.querySelector('label[for="' + el.id + '"]');
+
+                    if (explicit)
+                        parts.push(text(explicit));
+                }
+
+                var node = el.parentElement;
+
+                for (var i = 0; i < 4 && node; i++) {
+                    var surrounding = text(node);
+
+                    if (surrounding && surrounding.length < 300) {
+                        parts.push(surrounding);
+
+                        break;
+                    }
+
+                    node = node.parentElement;
+                }
+            } catch (e) { }
+
+            return parts.filter(Boolean).join(" ").toLowerCase();
+        };
+
+        var terms = [].slice.call(document.querySelectorAll('input[type="checkbox"]')).filter(function (el) {
+            return /terms|conditions|agree|design guidelines/.test(describe(el));
+        })[0];
+
+        if (!terms)
+            return { status: "noTerms" };
+
+        if (!terms.checked)
+            terms.click();
+
+        var submit = [].slice.call(document.querySelectorAll("button")).filter(function (b) {
+            return /^(save|create)$/i.test(text(b));
+        })[0];
+
+        if (!submit)
+            return { status: "noSubmit", termsChecked: terms.checked };
+
+        // Disabled until the page has taken the tick above; the caller tries
+        // again rather than pressing something that will not respond
+        if (submit.disabled)
+            return { status: "submitDisabled", termsChecked: terms.checked };
+
+        submit.click();
+
+        return { status: "submitted", termsChecked: terms.checked };
+    })()`;
+}
+
 interface CordovaBrowserRef {
     addEventListener: (name: string, cb: (event?: unknown) => void) => void;
     removeEventListener: (name: string, cb: (event?: unknown) => void) => void;
     executeScript: (details: { code: string }, cb?: (results: unknown[]) => void) => void;
+    show: () => void;
+    close: () => void;
+}
+
+export interface AppFormSession {
+    /** Resolves once the form is filled and the redirect URI is saved. */
+    ready: Promise<AppFormResult>;
+    /**
+     * Agrees to Spotify's terms and submits, then shows the webview.
+     *
+     * Call only when the person has ticked the same agreement in Tempo, which
+     * carries Spotify's wording and links to its documents. Retries briefly,
+     * because the submit button stays disabled until the page has taken the
+     * tick.
+     */
+    create: () => Promise<{ ok: boolean; status?: string }>;
+    /** Brings the webview on screen. */
+    reveal: () => void;
     close: () => void;
 }
 
 /**
- * @returns what was filled, or why it could not be. The webview is left open on
- *          the filled form for the person to check, accept the terms, and save.
+ * Prepares the create-app form, by default out of sight.
+ *
+ * Filling happens while the person reads and agrees in Tempo's own UI, so by
+ * the time they press Continue there is nothing left to wait for. The webview
+ * only ever comes forward when it needs them: to log in to Spotify, or once the
+ * app has been submitted.
  */
-export function fillSpotifyAppForm(options: AppFormOptions): Promise<AppFormResult> {
-    return new Promise<AppFormResult>((resolve) => {
-        const iab = (window as unknown as {
-            cordova?: { InAppBrowser?: { open: (url: string, target: string, opts?: string) => CordovaBrowserRef } };
-        }).cordova?.InAppBrowser;
+export function startSpotifyAppForm(options: AppFormOptions & { hidden?: boolean }): AppFormSession {
+    const iab = (window as unknown as {
+        cordova?: { InAppBrowser?: { open: (url: string, target: string, opts?: string) => CordovaBrowserRef } };
+    }).cordova?.InAppBrowser;
 
-        if (!iab) {
-            resolve({ reason: "unavailable" });
+    let ref: CordovaBrowserRef | undefined;
+    let settled = false;
+    let shown = !options.hidden;
+    let last: Record<string, unknown> | undefined;
+    let resolveReady: (result: AppFormResult) => void = () => { };
 
+    const ready = new Promise<AppFormResult>((resolve) => { resolveReady = resolve; });
+
+    const finish = (result: AppFormResult) => {
+        if (settled)
             return;
-        }
 
-        const code = buildFillScript(options);
+        settled = true;
 
-        let ref: CordovaBrowserRef;
+        clearInterval(poll);
+        clearTimeout(deadline);
+
+        resolveReady({ ...result, diagnostics: result.diagnostics ?? last });
+    };
+
+    const reveal = () => {
+        if (shown || !ref)
+            return;
+
+        shown = true;
+
+        try { ref.show(); } catch { }
+    };
+
+    if (!iab) {
+        resolveReady({ reason: "unavailable" });
+
+        return { ready, create: async () => ({ ok: false, status: "unavailable" }), reveal: () => { }, close: () => { } };
+    }
+
+    const code = buildFillScript(options);
+
+    try {
+        ref = iab.open(CREATE_URL, "_blank", `location=yes,hidden=${options.hidden ? "yes" : "no"}`);
+    } catch (ex) {
+        resolveReady({ reason: "unavailable", diagnostics: { error: String(ex) } });
+
+        return { ready, create: async () => ({ ok: false, status: "unavailable" }), reveal: () => { }, close: () => { } };
+    }
+
+    let offPage = 0;
+
+    const attempt = () => {
+        if (settled || !ref)
+            return;
 
         try {
-            ref = iab.open(CREATE_URL, "_blank", "location=yes");
-        } catch (ex) {
-            resolve({ reason: "unavailable", diagnostics: { error: String(ex) } });
+            ref.executeScript({ code }, (results) => {
+                const value = (Array.isArray(results) ? results[0] : undefined) as Record<string, unknown> | undefined;
+
+                if (!value)
+                    return;
+
+                last = value;
+
+                /*
+                 * Somewhere other than the form, which on this dashboard means
+                 * a login. Nothing can be filled until they are through it, and
+                 * they cannot get through a webview they cannot see - so after
+                 * a few seconds of being elsewhere, bring it forward.
+                 */
+                if (value.status === "wrongPage") {
+                    offPage++;
+
+                    if (offPage > 4)
+                        reveal();
+
+                    return;
+                }
+
+                offPage = 0;
+
+                if (value.status === "added")
+                    finish({ value: { filled: (value.filled as string[]) ?? [], missed: (value.missed as string[]) ?? [] } });
+            });
+        } catch { }
+    };
+
+    ref.addEventListener("loadstop", attempt);
+    ref.addEventListener("exit", () => finish({ reason: "closed" }));
+
+    const poll = setInterval(attempt, POLL_MS);
+    const deadline = setTimeout(() => finish({ reason: "timeout" }), DEADLINE_MS);
+
+    const create = () => new Promise<{ ok: boolean; status?: string }>((resolve) => {
+        if (!ref) {
+            resolve({ ok: false, status: "unavailable" });
 
             return;
         }
 
-        let settled = false;
-        let last: Record<string, unknown> | undefined;
+        // Shown before submitting: from here the person is looking at their own
+        // app being made, and whatever Spotify says next is for them to see
+        reveal();
 
-        const finish = (result: AppFormResult) => {
-            if (settled)
-                return;
+        const createCode = buildCreateScript();
 
-            settled = true;
+        let tries = 0;
 
-            clearInterval(poll);
-            clearTimeout(deadline);
+        const tick = () => {
+            tries++;
 
-            resolve({ ...result, diagnostics: result.diagnostics ?? last });
+            ref!.executeScript({ code: createCode }, (results) => {
+                const value = (Array.isArray(results) ? results[0] : undefined) as { status?: string } | undefined;
+
+                if (!value)
+                    return;
+
+                if (value.status === "submitted") {
+                    clearInterval(timer);
+                    resolve({ ok: true, status: value.status });
+
+                    return;
+                }
+
+                // Only the disabled case is worth waiting on; the rest will not
+                // improve by asking again
+                if (value.status !== "submitDisabled" || tries > 8) {
+                    clearInterval(timer);
+                    resolve({ ok: false, status: value.status });
+                }
+            });
         };
 
-        const attempt = () => {
-            if (settled)
-                return;
+        const timer = setInterval(tick, 700);
 
-            try {
-                ref.executeScript({ code }, (results) => {
-                    const value = (Array.isArray(results) ? results[0] : undefined) as Record<string, unknown> | undefined;
-
-                    if (!value)
-                        return;
-
-                    last = value;
-
-                    // Left open: the form is filled and the person takes it from
-                    // here, so closing now would undo the whole point
-                    if (value.status === "added")
-                        finish({
-                            value: {
-                                filled: (value.filled as string[]) ?? [],
-                                missed: (value.missed as string[]) ?? [],
-                            },
-                        });
-                });
-            } catch { }
-        };
-
-        ref.addEventListener("loadstop", attempt);
-        ref.addEventListener("exit", () => finish({ reason: "closed" }));
-
-        // The form appears well after the page does, and the page may bounce
-        // through a login on the way, so keep looking rather than trusting one
-        // moment to be the right one
-        const poll = setInterval(attempt, POLL_MS);
-        const deadline = setTimeout(() => finish({ reason: "timeout" }), DEADLINE_MS);
+        tick();
     });
+
+    return {
+        ready,
+        create,
+        reveal,
+        close: () => { try { ref?.close(); } catch { } },
+    };
 }
