@@ -59,6 +59,37 @@ async function ttfUrlFor(family) {
     return url[1];
 }
 
+/**
+ * Writes a path out by hand, rather than through opentype's own formatter.
+ *
+ * That formatter emitted a NaN into two of the twelve - one coordinate of one
+ * curve, in fonts whose commands are all perfectly finite when inspected. A
+ * renderer abandons a path at the first token it cannot read, so those two
+ * words drew their first letter and stopped. Formatting the numbers here keeps
+ * that between us and the file, and the check below makes sure it stays fixed.
+ */
+function toPathData(path, decimals = 2) {
+    const n = (value) => {
+        const rounded = Number(Number(value).toFixed(decimals));
+
+        if (!Number.isFinite(rounded))
+            throw new Error(`non-finite coordinate: ${value}`);
+
+        return String(rounded);
+    };
+
+    return path.commands.map((c) => {
+        switch (c.type) {
+            case "M": return `M${n(c.x)} ${n(c.y)}`;
+            case "L": return `L${n(c.x)} ${n(c.y)}`;
+            case "C": return `C${n(c.x1)} ${n(c.y1)} ${n(c.x2)} ${n(c.y2)} ${n(c.x)} ${n(c.y)}`;
+            case "Q": return `Q${n(c.x1)} ${n(c.y1)} ${n(c.x)} ${n(c.y)}`;
+            case "Z": return "Z";
+            default: throw new Error(`unknown path command: ${c.type}`);
+        }
+    }).join("");
+}
+
 async function outlineFor({ family, size }) {
     const response = await fetch(await ttfUrlFor(family));
     const parsed = opentype.parse(Buffer.from(await response.arrayBuffer()).buffer);
@@ -72,7 +103,7 @@ async function outlineFor({ family, size }) {
     return {
         family,
         size,
-        path: path.toPathData(2),
+        path: toPathData(path, 2),
         // A little air, so a descender or a flourish is never clipped
         viewBox: [x1 - 2, y1 - 2, (x2 - x1) + 4, (y2 - y1) + 4].map((v) => Math.round(v * 100) / 100).join(" "),
         width: Math.round((x2 - x1) + 4),
@@ -83,9 +114,21 @@ async function outlineFor({ family, size }) {
 const outlines = [];
 
 for (const font of FONTS) {
-    outlines.push(await outlineFor(font));
+    const outline = await outlineFor(font);
 
-    console.log("outlined", font.family);
+    // Nothing invalid gets written. This is the whole failure mode: a path a
+    // renderer gives up partway through looks like a font that half-loaded,
+    // and says nothing about itself.
+    if (/NaN|undefined|Infinity/.test(outline.path))
+        throw new Error(`${font.family}: path data is not renderable`);
+
+    // "Tempo" is five letters, none of which draw in one stroke
+    if (outline.path.split("M").length - 1 < 5)
+        throw new Error(`${font.family}: only ${outline.path.split("M").length - 1} subpaths - letters are missing`);
+
+    outlines.push(outline);
+
+    console.log("outlined", font.family.padEnd(24), `${outline.width}x${outline.height}`);
 }
 
 const file = `/**
