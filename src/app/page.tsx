@@ -583,11 +583,24 @@ export default function Home() {
                 // back a sign-in URL routed to that app when it does.
                 const routed = await routedSignIn(seshRes.token, username);
 
-                if (routed.url) {
-                  await continueInWebView(routed.url);
-                } else {
-                  console.warn("No usable Spotify app on record for", username, routed.staleCreds ? "(keys rejected)" : "(no record)");
-
+                /*
+                 * Sign in with what the account already has, before deciding it
+                 * needs anything new.
+                 *
+                 * An account can be signable without its own Spotify app - the
+                 * handful of people Tempo's own app admits, which includes
+                 * anyone it was set up by - and it can have credentials on file
+                 * that no longer work while still being one of them. Treating
+                 * "no usable app on record" as "this person is new" sent them to
+                 * set one up while an ordinary sign-in would have let them
+                 * straight in, which is what the browser does for the same
+                 * account today.
+                 *
+                 * Whether it works is only knowable by trying: Spotify decides,
+                 * and says so by refusing. So it is tried, and set-up is what
+                 * happens when the answer comes back no.
+                 */
+                const setUpOwnApp = async () => {
                   await closeWebView();
 
                   /*
@@ -629,8 +642,16 @@ export default function Home() {
                   // Hands over to the set-up screen, which fills the form out
                   // of sight while the person reads the agreement it needs
                   setAppSetupRedirectUri({ redirectUri, swapToken: seshRes.token });
+                };
 
-                  return;
+                if (routed.url) {
+                  await continueInWebView(routed.url, setUpOwnApp);
+                } else {
+                  console.warn("No app of their own on record for", username,
+                    routed.staleCreds ? "(keys rejected)" : "(no record)",
+                    "- trying the ordinary sign-in before setting one up");
+
+                  await continueInWebView(defaultSignInUrl, setUpOwnApp);
                 }
               }
 

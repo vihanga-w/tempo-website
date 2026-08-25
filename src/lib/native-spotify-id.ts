@@ -455,11 +455,36 @@ function readWithLogin(options: ProbeOptions = {}): Promise<SpotifyIdResult> {
  * in, so the ordinary rules take them where they should go. The wait is for the
  * server to finish writing what the restart is about to read.
  */
-function watchForReturn(watch: (onUrl: (url: string) => void) => void): void {
+function watchForReturn(
+    watch: (onUrl: (url: string) => void) => void,
+    onNeedsOwnApp?: () => void,
+): void {
     let atSpotify = false;
     let finishing = false;
 
     watch((url) => {
+        /*
+         * Spotify refused this account on Tempo's own app.
+         *
+         * The server answers that by sending people to set one up of their
+         * own, so arriving there is the answer to a question that could not be
+         * asked any other way: whether the ordinary sign-in would have worked.
+         * Trying it is the only way to find out, and this is what it says when
+         * the answer is no.
+         */
+        if (/\/connect-spotify/.test(url)) {
+            if (finishing)
+                return;
+
+            finishing = true;
+
+            closeWebView();
+
+            onNeedsOwnApp?.();
+
+            return;
+        }
+
         if (/accounts\.spotify\.com/i.test(url)) {
             atSpotify = true;
 
@@ -485,7 +510,7 @@ function watchForReturn(watch: (onUrl: (url: string) => void) => void): void {
     });
 }
 
-export async function continueInWebView(url: string): Promise<void> {
+export async function continueInWebView(url: string, onNeedsOwnApp?: () => void): Promise<void> {
     if (!active)
         return;
 
@@ -503,7 +528,7 @@ export async function continueInWebView(url: string): Promise<void> {
             watchForReturn((onUrl) => {
                 InAppBrowser.addListener("urlChangeEvent", (state) => onUrl(state.url))
                     .catch(() => { });
-            });
+            }, onNeedsOwnApp);
 
             await InAppBrowser.setUrl({ url });
         } catch { }
@@ -515,7 +540,7 @@ export async function continueInWebView(url: string): Promise<void> {
 
     watchForReturn((onUrl) => {
         ref.addEventListener("loadstart", (event) => onUrl(event?.url ?? ""));
-    });
+    }, onNeedsOwnApp);
 
     try { ref.show(); } catch { }
 
