@@ -35,7 +35,7 @@ export interface AppFormOptions {
 
 export interface AppFormResult {
     value?: AppFormFill;
-    reason?: "unavailable" | "timeout" | "closed";
+    reason?: "unavailable" | "timeout" | "closed" | "premiumRequired";
     diagnostics?: Record<string, unknown>;
 }
 
@@ -120,6 +120,22 @@ function buildFillScript(options: AppFormOptions): string {
         // Rendered client-side, so an early look finds an empty document
         if (!nameField)
             return { status: "notReady", href: location.href, fields: fields.length };
+
+        /*
+         * Spotify greys out the Web API choice for accounts without Premium,
+         * and without it the form cannot be submitted at all.
+         *
+         * Checked against every checkbox rather than the enabled ones the fill
+         * works from: a disabled field is filtered out of those, so this would
+         * otherwise look like a missing checkbox rather than a locked one, and
+         * the person would be left filling in a form that was never going to
+         * be accepted.
+         */
+        var webApiAnyState = [].slice.call(document.querySelectorAll('input[type="checkbox"]'))
+            .filter(function (el) { return /web api/.test(describe(el)); })[0];
+
+        if (webApiAnyState && webApiAnyState.disabled)
+            return { status: "premiumRequired" };
 
         /*
          * React keeps an input's value on the node and ignores assignments it
@@ -344,11 +360,85 @@ function buildCreateScript(): string {
     })()`;
 }
 
+/**
+ * Reads the credentials of the app that was just created.
+ *
+ * The client id comes from the address rather than the page: on success Spotify
+ * lands on /dashboard/<clientId>, which identifies the app exactly, where
+ * reading it out of the layout would be guessing at which of several
+ * 32-character codes on screen is the right one.
+ *
+ * The secret is behind a "View client secret" link, so this presses it and
+ * reads what appears. Neither value is ever logged - they go from the page to
+ * the server and nowhere else.
+ */
+function buildCredentialsScript(): string {
+    return `(function () {
+        var HEX32 = /^[0-9a-f]{32}$/i;
+
+        var text = function (el) { return ((el && el.textContent) || "").trim(); };
+
+        var onApp = location.href.match(/\\/dashboard\\/([0-9a-f]{32})/i);
+
+        /*
+         * The address is the reliable source - /dashboard/<clientId> names the
+         * app exactly - but this dashboard changes route client-side, so fall
+         * back to the codes on the page when it does not say.
+         */
+        var codes = [].slice.call(document.querySelectorAll("p, span, div, code, input"))
+            .map(function (el) { return (el.tagName === "INPUT" ? el.value : text(el)) || ""; })
+            .filter(function (v) { return /^[0-9a-f]{32}$/i.test(v); });
+
+        var unique = codes.filter(function (v, i) { return codes.indexOf(v) === i; });
+
+        if (!onApp)
+            return { status: "notOnApp", href: location.href, codesFound: unique.length, title: document.title.slice(0, 60) };
+
+        var clientId = onApp[1];
+
+        // Any 32-character code on the page that is not the client id. The
+        // secret is the only other thing shaped like one.
+        var findSecret = function () {
+            var nodes = [].slice.call(document.querySelectorAll("p, span, div, code, input"));
+
+            for (var i = 0; i < nodes.length; i++) {
+                var el = nodes[i];
+                var value = (el.tagName === "INPUT" ? el.value : text(el)) || "";
+
+                if (HEX32.test(value) && value.toLowerCase() !== clientId.toLowerCase())
+                    return value;
+            }
+
+            return undefined;
+        };
+
+        var secret = findSecret();
+
+        if (secret)
+            return { status: "ok", clientId: clientId, clientSecret: secret };
+
+        // Not revealed yet. Pressing this shows it on the page; it reveals the
+        // person's own secret to them, and nothing leaves the device by it.
+        var reveal = [].slice.call(document.querySelectorAll("a, button")).filter(function (el) {
+            return /view client secret/i.test(text(el));
+        })[0];
+
+        if (reveal) {
+            reveal.click();
+
+            return { status: "revealing", clientId: clientId };
+        }
+
+        return { status: "noSecret", clientId: clientId };
+    })()`;
+}
+
 interface CordovaBrowserRef {
     addEventListener: (name: string, cb: (event?: unknown) => void) => void;
     removeEventListener: (name: string, cb: (event?: unknown) => void) => void;
     executeScript: (details: { code: string }, cb?: (results: unknown[]) => void) => void;
     show: () => void;
+    hide: () => void;
     close: () => void;
 }
 
@@ -364,8 +454,17 @@ export interface AppFormSession {
      * tick.
      */
     create: () => Promise<{ ok: boolean; status?: string }>;
+    /**
+     * The created app's client id and secret, once Spotify has landed on it.
+     *
+     * Identified by the address - /dashboard/<clientId> - rather than by
+     * reading the page, so there is no doubt which app it belongs to.
+     */
+    credentials: () => Promise<{ clientId?: string; clientSecret?: string; status?: string; diagnostics?: Record<string, unknown> }>;
     /** Brings the webview on screen. */
     reveal: () => void;
+    /** Puts it away again without losing the page it is on. */
+    conceal: () => void;
     close: () => void;
 }
 
@@ -414,7 +513,7 @@ export function startSpotifyAppForm(options: AppFormOptions & { hidden?: boolean
     if (!iab) {
         resolveReady({ reason: "unavailable" });
 
-        return { ready, create: async () => ({ ok: false, status: "unavailable" }), reveal: () => { }, close: () => { } };
+        return { ready, create: async () => ({ ok: false, status: "unavailable" }), credentials: async () => ({ status: "unavailable" }), reveal: () => { }, conceal: () => { }, close: () => { } };
     }
 
     const code = buildFillScript(options);
@@ -424,7 +523,7 @@ export function startSpotifyAppForm(options: AppFormOptions & { hidden?: boolean
     } catch (ex) {
         resolveReady({ reason: "unavailable", diagnostics: { error: String(ex) } });
 
-        return { ready, create: async () => ({ ok: false, status: "unavailable" }), reveal: () => { }, close: () => { } };
+        return { ready, create: async () => ({ ok: false, status: "unavailable" }), credentials: async () => ({ status: "unavailable" }), reveal: () => { }, conceal: () => { }, close: () => { } };
     }
 
     let offPage = 0;
@@ -458,6 +557,13 @@ export function startSpotifyAppForm(options: AppFormOptions & { hidden?: boolean
                 }
 
                 offPage = 0;
+
+                // Nothing to wait for: this account cannot create an app
+                if (value.status === "premiumRequired") {
+                    finish({ reason: "premiumRequired" });
+
+                    return;
+                }
 
                 if (value.status === "added")
                     finish({ value: { filled: (value.filled as string[]) ?? [], missed: (value.missed as string[]) ?? [] } });
@@ -516,10 +622,63 @@ export function startSpotifyAppForm(options: AppFormOptions & { hidden?: boolean
         tick();
     });
 
+    const credentials = () => new Promise<{ clientId?: string; clientSecret?: string; status?: string; diagnostics?: Record<string, unknown> }>((resolve) => {
+        if (!ref) {
+            resolve({ status: "unavailable" });
+
+            return;
+        }
+
+        const credentialsCode = buildCredentialsScript();
+
+        let tries = 0;
+
+        const tick = () => {
+            tries++;
+
+            ref!.executeScript({ code: credentialsCode }, (results) => {
+                const value = (Array.isArray(results) ? results[0] : undefined) as {
+                    status?: string; clientId?: string; clientSecret?: string;
+                } | undefined;
+
+                if (!value)
+                    return;
+
+                if (value.status === "ok") {
+                    clearInterval(timer);
+                    resolve(value);
+
+                    return;
+                }
+
+                // "notOnApp" while Spotify is still saving, "revealing" for the
+                // tick it takes the secret to appear - both are worth waiting on
+                if (tries > 15) {
+                    clearInterval(timer);
+                    resolve({
+                        status: value.status ?? "timeout",
+                        clientId: value.clientId,
+                        diagnostics: value as Record<string, unknown>,
+                    });
+                }
+            });
+        };
+
+        const timer = setInterval(tick, 800);
+
+        tick();
+    });
+
     return {
         ready,
         create,
+        credentials,
         reveal,
+        conceal: () => {
+            shown = false;
+
+            try { ref?.hide(); } catch { }
+        },
         close: () => { try { ref?.close(); } catch { } },
     };
 }

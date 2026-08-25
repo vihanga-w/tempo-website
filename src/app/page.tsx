@@ -950,11 +950,14 @@ export default function Home() {
       ) : appSetupRedirectUri ? (
         <SpotifyAppSetup
           redirectUri={appSetupRedirectUri}
-          onCreated={() => {
-            // Left on screen deliberately for now: the webview is showing the
-            // app that was just made, and the rest of set-up is still being
-            // built against it
-            console.log("Spotify app created");
+          onCreated={(authUrl) => {
+            console.log("Spotify app created and enrolled");
+
+            // Signing in against the app they just made. The webview is
+            // already logged in to Spotify, so this is a consent screen
+            // rather than another login.
+            if (authUrl)
+              window.location.href = authUrl;
           }}
           onCancel={() => setAppSetupRedirectUri(undefined)}
         />
