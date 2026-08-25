@@ -110,6 +110,28 @@ export interface SongData {
     }
 }
 
+/** One track in a friend's recent activity, as the server sends it. */
+export interface RecentActivityTrack {
+    songId: string;
+    timestamp: number;
+    replayed: boolean;
+    track: SongData;
+}
+
+/** What one friend was listening to before they stopped. */
+export interface FriendRecentActivity {
+    userId: string;
+    username: string;
+    pfpUrl?: string;
+    pfpColourBlob?: string;
+    /** Newest first, capped by the server. */
+    tracks: RecentActivityTrack[];
+    lastPlayedAt: number;
+    /** How many plays there were, which can exceed tracks.length. */
+    playCount: number;
+    onRepeat: boolean;
+}
+
 export interface FriendListenershipItem {
     userId: string;
     username: string;
@@ -711,6 +733,51 @@ export default class User extends EventEmitter {
             console.error("getMyFYP failed with error:", ex);
 
             return [];
+        }
+    }
+
+    /**
+     * What friends who are not playing anything right now were listening to.
+     *
+     * Cached briefly. The section sits under the live one and is refreshed when
+     * playback changes anyway, so asking on every render would spend a request
+     * to learn that somebody who stopped an hour ago has still stopped.
+     */
+    public async getFriendsRecentActivity(forceRefresh?: boolean): Promise<FriendRecentActivity[]> {
+        const KEY = "tempo-friends-recent-activity";
+
+        const cached = getCachedObject<FriendRecentActivity[]>(KEY, 120e3);
+
+        if (cached && !forceRefresh)
+            return cached;
+
+        try {
+            const req = await fetch(API_URL + "/spotify/friends/recent-activity", {
+                headers: { ...(this.getAuthHeaders()) },
+                credentials: "include",
+            });
+
+            if (!req.ok)
+                throw new Error("Request failed with status " + req.status.toString());
+
+            const res = (await req.json()) as {
+                error: boolean;
+                message?: string;
+                data: FriendRecentActivity[];
+            };
+
+            if (res.error || !res.data)
+                throw new Error(res.message ?? "no data returned");
+
+            setCachedObject(KEY, res.data);
+
+            return res.data;
+        } catch (ex) {
+            // A section that cannot load is left out rather than shown broken -
+            // the friends above it are the part of this page that matters
+            console.warn("Failed to load recent friend activity:", ex);
+
+            return cached ?? [];
         }
     }
 

@@ -1,12 +1,14 @@
 import User, { ClientUserAccount, UserFriendship } from "@/lib/usrlib";
 import { Avatar, Box, HStack, Image, Spinner, Stack, Text } from "@chakra-ui/react";
 import { InitialAvatar } from "./initial-avatar";
-import { use, useEffect, useMemo, useState } from "react";
+import { use, useEffect, useMemo, useRef, useState } from "react";
 import { UserLookupResult } from "./user-lookup-result";
 import { DataStreamer, UpdateEvent } from "@/lib/live-ingest";
 import { findBestSCDNImageSize } from "@/lib/utils";
 import { getSizedImageUrl } from "@/lib/sized-img";
 import { FriendNowPlayingCard } from "./friend-now-playing-card";
+import { FriendRecentActivityRow } from "./friend-recent-activity-row";
+import { FriendRecentActivity } from "@/lib/usrlib";
 
 export default function FriendsPage({
     user,
@@ -183,6 +185,87 @@ export default function FriendsPage({
         });
     }, [friends, streamer, playbackTick, user.id]);
 
+    /**
+     * How many friends can be playing something before the live section starts
+     * crowding everything else off the screen.
+     *
+     * Capped rather than allowed to grow, so recent activity is never pushed
+     * below the fold entirely - the whole point of the section is that it is
+     * visible without scrolling.
+     */
+    const NOW_PLAYING_CAP = 3;
+
+    /** Room a row needs, and what sits above and below the rows. */
+    const ROW_HEIGHT = 52;
+    const SECTION_LABEL_HEIGHT = 27;
+    const SEE_ALL_HEIGHT = 30;
+
+    /** Tab bar and home indicator, which the viewport height does not exclude. */
+    const BOTTOM_RESERVE = 96;
+
+    /** Never worth rendering the section for fewer than this. */
+    const MIN_ROWS = 2;
+
+    const shownListening = listening.slice(0, NOW_PLAYING_CAP);
+    const hiddenListening = listening.length - shownListening.length;
+
+    const [recentActivity, setRecentActivity] = useState<FriendRecentActivity[]>([]);
+    const [showAllActivity, setShowAllActivity] = useState<boolean>(false);
+    const [rowsThatFit, setRowsThatFit] = useState<number>(MIN_ROWS);
+
+    const activityRef = useRef<HTMLDivElement>(null);
+
+    /**
+     * Refreshed when playback changes as well as on mount: a friend who stops
+     * listening leaves the live section and belongs in this one immediately,
+     * and without the tick they would disappear from the page until it was
+     * reopened.
+     */
+    useEffect(() => {
+        let cancelled = false;
+
+        user.getFriendsRecentActivity(playbackTick > 0)
+            .then(data => { if (!cancelled) setRecentActivity(data); })
+            .catch(() => { if (!cancelled) setRecentActivity([]); });
+
+        return () => { cancelled = true; };
+    }, [user, playbackTick]);
+
+    /**
+     * How many rows fit between the top of this section and the bottom of the
+     * screen.
+     *
+     * Measured rather than assumed. The section is last on the page, so what is
+     * left for it depends on how many friends are playing something, how tall
+     * the strip is, and which device this is - none of which can be known from
+     * a constant, and all of which are answered by where the section starts.
+     */
+    useEffect(() => {
+        const measure = () => {
+            const node = activityRef.current;
+
+            if (!node)
+                return;
+
+            const available = window.innerHeight - node.getBoundingClientRect().top - BOTTOM_RESERVE;
+            const forRows = available - SECTION_LABEL_HEIGHT - SEE_ALL_HEIGHT;
+
+            setRowsThatFit(Math.max(MIN_ROWS, Math.floor(forRows / ROW_HEIGHT)));
+        };
+
+        measure();
+
+        window.addEventListener("resize", measure);
+
+        return () => window.removeEventListener("resize", measure);
+    }, [recentActivity.length, shownListening.length, hiddenListening, pendingRequests]);
+
+    // One "now" for every row, so two rows written in the same render cannot
+    // disagree about how long ago the same moment was
+    const activityNow = useMemo(() => Date.now(), [recentActivity]);
+
+    const visibleActivity = showAllActivity ? recentActivity : recentActivity.slice(0, rowsThatFit);
+
     return (<Box width="100%" paddingTop="20px">
         <Box
             pos="fixed"
@@ -324,7 +407,7 @@ export default function FriendsPage({
                     >Listening now</Text>
 
                     <Stack gap="20px">
-                    {listening.map(friend => {
+                    {shownListening.map(friend => {
                         const id = resolveFriendId(friend);
 
                         return (<FriendNowPlayingCard
@@ -338,8 +421,68 @@ export default function FriendsPage({
                         />);
                     })}
                     </Stack>
+
+                    {/* The friends held back by the cap. Named rather than
+                        counted silently, so the section does not quietly lie
+                        about how many people are listening. */}
+                    {hiddenListening > 0 && (
+                        <Text
+                            fontFamily="Inter"
+                            fontSize="12px"
+                            color="secondary.dark"
+                            marginTop="14px"
+                            userSelect="none"
+                        >+{hiddenListening} more listening</Text>
+                    )}
                 </Box>
             )}
+
+            {/*
+              * What friends who are not playing anything were listening to.
+              *
+              * Last on the page and elastic: it renders as many rows as fit in
+              * whatever is left, which is why the live section above it is
+              * capped. The ref is what the measurement reads, so it stays
+              * mounted even while the list is empty.
+              */}
+            <Box ref={activityRef} marginTop="30px">
+                {recentActivity.length > 0 && (<>
+                    <Text
+                        fontFamily="Inter"
+                        fontSize="11px"
+                        fontWeight="semibold"
+                        letterSpacing="0.08em"
+                        textTransform="uppercase"
+                        color="secondary.dark"
+                        marginBottom="10px"
+                        userSelect="none"
+                    >Recent activity</Text>
+
+                    <Stack gap="0px">
+                        {visibleActivity.map(activity => (
+                            <FriendRecentActivityRow
+                                key={activity.userId}
+                                activity={activity}
+                                openPubProfile={openPubProfile}
+                                now={activityNow}
+                            />
+                        ))}
+                    </Stack>
+
+                    {!showAllActivity && recentActivity.length > visibleActivity.length && (
+                        <Text
+                            fontFamily="Inter"
+                            fontSize="12px"
+                            fontWeight="semibold"
+                            color="accent.dark"
+                            marginTop="10px"
+                            cursor="pointer"
+                            userSelect="none"
+                            onClick={() => setShowAllActivity(true)}
+                        >See all {recentActivity.length} &rsaquo;</Text>
+                    )}
+                </>)}
+            </Box>
 
         </>) : (<Box display={isLoading ? "none" : "block"}>
             <Image
