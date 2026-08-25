@@ -19,6 +19,7 @@
     "@capacitor/core": "^7.0.1",
     "@capacitor/ios": "^7.0.1",
     "@capacitor/preferences": "^7.0.0",
+    "@capacitor/push-notifications": "^7.0.7",
     "@capacitor/splash-screen": "^7.0.0",
     "@capacitor/status-bar": "^7.0.0",
     "@capgo/inappbrowser": "^7.29.4",

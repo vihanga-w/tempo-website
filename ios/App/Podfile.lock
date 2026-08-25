@@ -1,64 +1,70 @@
 PODS:
-  - Capacitor (7.2.0):
+  - Capacitor (7.0.1):
     - CapacitorCordova
-  - CapacitorBrowser (7.0.1):
+  - CapacitorBrowser (7.0.0):
     - Capacitor
   - CapacitorCommunitySafeArea (7.0.0-alpha.1):
     - Capacitor
-  - CapacitorCordova (7.2.0)
-  - CapacitorPreferences (7.0.1):
+  - CapacitorCordova (7.0.1)
+  - CapacitorPreferences (7.0.0):
     - Capacitor
-  - CapacitorSplashScreen (7.0.1):
+  - CapacitorPushNotifications (7.0.7):
     - Capacitor
-  - CapacitorStatusBar (7.0.1):
+  - CapacitorSplashScreen (7.0.0):
+    - Capacitor
+  - CapacitorStatusBar (7.0.0):
     - Capacitor
   - CapgoInappbrowser (7.29.4):
     - Capacitor
-  - CordovaPlugins (7.2.0):
+  - CordovaPlugins (7.0.1):
     - CapacitorCordova
 
 DEPENDENCIES:
-  - "Capacitor (from `../../node_modules/@capacitor/ios`)"
-  - "CapacitorBrowser (from `../../node_modules/@capacitor/browser`)"
-  - "CapacitorCommunitySafeArea (from `../../node_modules/@capacitor-community/safe-area`)"
-  - "CapacitorCordova (from `../../node_modules/@capacitor/ios`)"
-  - "CapacitorPreferences (from `../../node_modules/@capacitor/preferences`)"
-  - "CapacitorSplashScreen (from `../../node_modules/@capacitor/splash-screen`)"
-  - "CapacitorStatusBar (from `../../node_modules/@capacitor/status-bar`)"
-  - "CapgoInappbrowser (from `../../node_modules/@capgo/inappbrowser`)"
+  - "Capacitor (from `../../node_modules/.pnpm/@capacitor+ios@7.0.1_@capacitor+core@7.0.1/node_modules/@capacitor/ios`)"
+  - "CapacitorBrowser (from `../../node_modules/.pnpm/@capacitor+browser@7.0.0_@capacitor+core@7.0.1/node_modules/@capacitor/browser`)"
+  - "CapacitorCommunitySafeArea (from `../../node_modules/.pnpm/@capacitor-community+safe-area@7.0.0-alpha.1_@capacitor+core@7.0.1/node_modules/@capacitor-community/safe-area`)"
+  - "CapacitorCordova (from `../../node_modules/.pnpm/@capacitor+ios@7.0.1_@capacitor+core@7.0.1/node_modules/@capacitor/ios`)"
+  - "CapacitorPreferences (from `../../node_modules/.pnpm/@capacitor+preferences@7.0.0_@capacitor+core@7.0.1/node_modules/@capacitor/preferences`)"
+  - "CapacitorPushNotifications (from `../../node_modules/.pnpm/@capacitor+push-notifications@7.0.7_@capacitor+core@7.0.1/node_modules/@capacitor/push-notifications`)"
+  - "CapacitorSplashScreen (from `../../node_modules/.pnpm/@capacitor+splash-screen@7.0.0_@capacitor+core@7.0.1/node_modules/@capacitor/splash-screen`)"
+  - "CapacitorStatusBar (from `../../node_modules/.pnpm/@capacitor+status-bar@7.0.0_@capacitor+core@7.0.1/node_modules/@capacitor/status-bar`)"
+  - "CapgoInappbrowser (from `../../node_modules/.pnpm/@capgo+inappbrowser@7.29.4_@capacitor+core@7.0.1/node_modules/@capgo/inappbrowser`)"
   - CordovaPlugins (from `../capacitor-cordova-ios-plugins`)
 
 EXTERNAL SOURCES:
   Capacitor:
-    :path: "../../node_modules/@capacitor/ios"
+    :path: "../../node_modules/.pnpm/@capacitor+ios@7.0.1_@capacitor+core@7.0.1/node_modules/@capacitor/ios"
   CapacitorBrowser:
-    :path: "../../node_modules/@capacitor/browser"
+    :path: "../../node_modules/.pnpm/@capacitor+browser@7.0.0_@capacitor+core@7.0.1/node_modules/@capacitor/browser"
   CapacitorCommunitySafeArea:
-    :path: "../../node_modules/@capacitor-community/safe-area"
+    :path: "../../node_modules/.pnpm/@capacitor-community+safe-area@7.0.0-alpha.1_@capacitor+core@7.0.1/node_modules/@capacitor-community/safe-area"
   CapacitorCordova:
-    :path: "../../node_modules/@capacitor/ios"
+    :path: "../../node_modules/.pnpm/@capacitor+ios@7.0.1_@capacitor+core@7.0.1/node_modules/@capacitor/ios"
   CapacitorPreferences:
-    :path: "../../node_modules/@capacitor/preferences"
+    :path: "../../node_modules/.pnpm/@capacitor+preferences@7.0.0_@capacitor+core@7.0.1/node_modules/@capacitor/preferences"
+  CapacitorPushNotifications:
+    :path: "../../node_modules/.pnpm/@capacitor+push-notifications@7.0.7_@capacitor+core@7.0.1/node_modules/@capacitor/push-notifications"
   CapacitorSplashScreen:
-    :path: "../../node_modules/@capacitor/splash-screen"
+    :path: "../../node_modules/.pnpm/@capacitor+splash-screen@7.0.0_@capacitor+core@7.0.1/node_modules/@capacitor/splash-screen"
   CapacitorStatusBar:
-    :path: "../../node_modules/@capacitor/status-bar"
+    :path: "../../node_modules/.pnpm/@capacitor+status-bar@7.0.0_@capacitor+core@7.0.1/node_modules/@capacitor/status-bar"
   CapgoInappbrowser:
-    :path: "../../node_modules/@capgo/inappbrowser"
+    :path: "../../node_modules/.pnpm/@capgo+inappbrowser@7.29.4_@capacitor+core@7.0.1/node_modules/@capgo/inappbrowser"
   CordovaPlugins:
     :path: "../capacitor-cordova-ios-plugins"
 
 SPEC CHECKSUMS:
-  Capacitor: 03bc7cbdde6a629a8b910a9d7d78c3cc7ed09ea7
-  CapacitorBrowser: 6299776d496e968505464884d565992faa20444a
+  Capacitor: de199cba6c8b20995428ad0b7cb0bc6ca625ffd4
+  CapacitorBrowser: 55c21db47416dcc8fc3b623e18fd7d09acb26081
   CapacitorCommunitySafeArea: 3f049619072ab5d0da2529bcb05b358ff6c13dc1
-  CapacitorCordova: 5967b9ba03915ef1d585469d6e31f31dc49be96f
-  CapacitorPreferences: 6c98117d4d7508034a4af9db64d6b26fc75d7b94
-  CapacitorSplashScreen: 1d67815a422a9b61539c94f283c08ed56667c0fc
-  CapacitorStatusBar: 6e7af040d8fc4dd655999819625cae9c2d74c36f
+  CapacitorCordova: 63d476958d5022d76f197031e8b7ea3519988c64
+  CapacitorPreferences: 8e4bef1f937fc991a19d7ea99330c36a62edd24b
+  CapacitorPushNotifications: 0527809a9619ed775439d5ab2c2d996122b48319
+  CapacitorSplashScreen: 7e7a0a1113833032f196b3af6fa437baccacf5bc
+  CapacitorStatusBar: a8c4c83ed2e973bdafb979e80e4b00d027832cb7
   CapgoInappbrowser: eab1573369dc798af28f37201b97e6fd738a5dde
-  CordovaPlugins: 09eaf3779c4d1fa6331773fcd29e29dcd8a7afd6
+  CordovaPlugins: c1b07aa5a30eeff293189f83d40c92b3d3e2c448
 
-PODFILE CHECKSUM: 294124b998b49d3bb90b57781acd55c02878bdb7
+PODFILE CHECKSUM: b9c8ba9bcb51cff9f3e36bb91c338558fd724896
 
 COCOAPODS: 1.16.2

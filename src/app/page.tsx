@@ -28,6 +28,7 @@ import { closeAppFormWebView } from "@/lib/native-spotify-app-form";
 import { Preferences } from '@capacitor/preferences';
 
 import User from "@/lib/usrlib";
+import { enableNativePush, nativePushSupported, restoreNativePush } from "@/lib/native-notify";
 import { API_URL, API_URL_SOCK, isNativeApp, NOTIF_PROCESSED_KEY, KNOWN_USER_KEY } from "@/lib/const";
 import { registerServiceWorker, registerSubscription, removeSubscription, resetStaleSubscription, useSubscribe, waitForServiceWorker } from "@/lib/notify";
 import { Modal } from "@/components/modal";
@@ -215,13 +216,59 @@ export default function Home() {
 
     // Handler for subscribing to push notifications
     const onSubmitSubscribe = async () => {
-      // TODO: Figure out how to setup notifications on native app
-      if (Capacitor.isNativePlatform())
-        return;
-
       if (!user.isLoggedIn) {
         console.error("Attempted to subscribe to notifications without being authorised");
         
+        return;
+      }
+
+      /**
+       * The same modal the web flow uses, so both are asked the same thing in
+       * the same words.
+       */
+      const askFirst = () => new Promise<boolean>(resolve => {
+        triggerModal("Notifications", (<>
+          <Text>
+            Would you like to receive notifications from Tempo?
+          </Text>
+          <br />
+          <Text>
+            Allowing notification permissions allows us to send you relevant notifications such as when a friend sends you a message or reacts to a song you are listening to.
+          </Text>
+        </>), {
+          text: "Count me in!",
+          callback() {
+            onModalClose();
+            resolve(true);
+          },
+        }, {
+          text: "No thanks",
+          callback() {
+            onModalClose();
+            resolve(false);
+          },
+        })
+      });
+
+      /*
+       * The app has no service worker and no push subscription to make - it has
+       * a token from Apple instead - so none of the flow below applies to it.
+       * This used to return here rather than diverge, which is why the app has
+       * never been able to receive a notification at all.
+       */
+      if (nativePushSupported()) {
+        if (window.localStorage.getItem(NOTIF_PROCESSED_KEY)) {
+          if (await restoreNativePush(user.id, user.getAuthHeaders()))
+            return;
+        }
+
+        const result = await enableNativePush(user.id, user.getAuthHeaders(), askFirst);
+
+        // Only a refusal of ours is remembered. iOS remembers its own, and a
+        // failure to reach the server is worth retrying on the next launch.
+        if (!result.ok && result.reason === "dismissed")
+          window.localStorage.setItem(NOTIF_PROCESSED_KEY, "true");
+
         return;
       }
 

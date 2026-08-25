@@ -1,4 +1,5 @@
 import { API_URL, NOTIF_PROCESSED_KEY, NOTIF_SUB_ID_KEY, NOTIF_VAPID_KEY } from "./const";
+import { enableNativePush, getNativePushStatus, nativePushSupported } from "./native-notify";
 
 // Function to convert Base64URL to Uint8Array
 const urlBase64ToUint8Array = (base64String: string) => {
@@ -140,6 +141,12 @@ const pushSupported = (): boolean => (
 type PushStatus = "unsupported" | "denied" | "off" | "on";
 
 const getPushStatus = async (): Promise<PushStatus> => {
+    // The installed app has no service worker and no PushManager, so every
+    // check below reads as unsupported for it. Its notifications come from
+    // Apple instead, and it answers for itself.
+    if (nativePushSupported())
+        return await getNativePushStatus();
+
     if (!pushSupported())
         return "unsupported";
 
@@ -278,6 +285,9 @@ const enablePushNotifications = async (
     userId: string,
     authHeaders: Record<string, string>,
 ): Promise<EnableResult> => {
+    if (nativePushSupported())
+        return await enableNativePush(userId, authHeaders);
+
     if (!pushSupported())
         return { ok: false, reason: "unsupported" };
 
