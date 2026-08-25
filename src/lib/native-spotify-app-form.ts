@@ -528,7 +528,7 @@ export function startSpotifyAppForm(options: AppFormOptions & { hidden?: boolean
     const code = buildFillScript(options);
 
     try {
-        ref = iab.open(CREATE_URL, "_blank", `location=yes,hidden=${options.hidden ? "yes" : "no"}`);
+        ref = iab.open(CREATE_URL, "_blank", `location=no,toolbar=no,hidden=${options.hidden ? "yes" : "no"}`);
     } catch (ex) {
         resolveReady({ reason: "unavailable", diagnostics: { error: String(ex) } });
 

@@ -162,10 +162,10 @@ export function SpotifyAppSetup({ redirectUri, onCreated, onCancel }: {
                     setWorking(false);
                     setStatus("");
 
-                    // Left on screen so the app that was just made can be
-                    // looked over
-                    session.reveal();
-
+                    // Stays out of sight: the app is made and read, and Tempo
+                    // is the thing guiding this - there is nothing on Spotify's
+                    // page for them to do. The button below brings it up for
+                    // anyone who wants to look.
                     return;
                 }
 

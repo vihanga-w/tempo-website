@@ -160,7 +160,7 @@ export function probeSpotifyUserId(options: ProbeOptions = {}): Promise<SpotifyI
              * again straight after - stops at about:blank and the flow stalls
              * behind it. Both were tried; this is the cost of the plugin.
              */
-            ref = iab.open(ACCOUNT_URL, "_blank", "location=yes");
+            ref = iab.open(ACCOUNT_URL, "_blank", "location=no,toolbar=no");
 
         } catch (ex) {
             resolve({ reason: "unavailable", diagnostics: { error: String(ex) } });
