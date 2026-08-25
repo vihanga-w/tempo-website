@@ -23,6 +23,7 @@ import { Capacitor } from "@capacitor/core";
 import { StatusBar, Style } from '@capacitor/status-bar';
 import { InAppBrowser } from '@capgo/inappbrowser';
 import { closeWebView, continueInWebView, probeSpotifyUserId } from "@/lib/native-spotify-id";
+import { fillSpotifyAppForm } from "@/lib/native-spotify-app-form";
 import { Preferences } from '@capacitor/preferences';
 
 import User from "@/lib/usrlib";
@@ -574,7 +575,51 @@ export default function Home() {
 
                   await closeWebView();
 
-                  alert("User not configured");
+                  /*
+                   * Let the sign-in webview finish dismissing before another is
+                   * presented. Opening straight away leaves UIKit with
+                   * overlapping transitions - it logs "unbalanced calls to
+                   * begin/end appearance transitions" - and the second webview
+                   * comes up blank and never loads.
+                   */
+                  await new Promise((r) => setTimeout(r, 700));
+
+                  /*
+                   * They need an app of their own, or the one on file no longer
+                   * works. Creating it cannot be done for them - Spotify has no
+                   * API for it - but the typing can be, and the redirect URI in
+                   * particular is what people get wrong and what makes sign-in
+                   * fail with nothing to explain it.
+                   *
+                   * The URI is asked of the server rather than written here, so
+                   * it cannot drift from the callback this deployment serves.
+                   */
+                  let redirectUri: string | undefined;
+
+                  try {
+                    const infoReq = await fetch(API_URL + "/spotify/byo/info");
+                    const info = await infoReq.json() as { error: boolean; redirectUri?: string };
+
+                    redirectUri = info.redirectUri;
+                  } catch (ex) {
+                    console.warn("Could not read the redirect URI to prefill:", ex);
+                  }
+
+                  if (!redirectUri) {
+                    alert("Could not start Spotify app set-up");
+
+                    return;
+                  }
+
+                  const form = await fillSpotifyAppForm({ redirectUri });
+
+                  console.warn("Spotify app form:", form.reason ?? "filled", form.value, form.diagnostics);
+
+                  alert(form.value
+                    ? "Filled in: " + form.value.filled.join(", ")
+                      + (form.value.missed.length ? "\nCould not find: " + form.value.missed.join(", ") : "")
+                      + "\n\nCheck it over, accept the terms, and press Save."
+                    : "Could not fill the Spotify app form (" + (form.reason ?? "unknown") + ")");
 
                   return;
                 }
