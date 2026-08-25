@@ -56,6 +56,12 @@ const POLL_MS = 1000;
  */
 const STALL_MS = 5000;
 
+/** How often to ask whether the page Spotify was sent to has arrived. */
+const ARRIVAL_POLL_MS = 600;
+
+/** How long to wait for it before showing the webview regardless. */
+const ARRIVAL_TRIES = 25;
+
 /**
  * Returns a value rather than posting one: Cordova wraps this in an eval and
  * hands the result to our callback, so the answer comes back the same way it
@@ -442,6 +448,30 @@ function buildCredentialsScript(): string {
     })()`;
 }
 
+/**
+ * Whether the page has left the dashboard and finished drawing.
+ *
+ * Showing the webview the moment it is sent onward puts the dashboard on
+ * screen while it navigates away from it, then a blank page while the next one
+ * loads. Neither is anything to look at, and both belong to a step the person
+ * was told Tempo was handling.
+ */
+function buildArrivedScript(): string {
+    return `(function () {
+        var href = location.href;
+
+        // Still where it was sent from
+        if (/developer\\.spotify\\.com\\/dashboard/i.test(href))
+            return { arrived: false, href: href };
+
+        // Drawn, and showing something to answer rather than a blank page
+        var drawn = document.readyState === "complete";
+        var answerable = !!document.querySelector("button, [type=submit], form");
+
+        return { arrived: drawn && answerable, href: href };
+    })()`;
+}
+
 interface CordovaBrowserRef {
     addEventListener: (name: string, cb: (event?: unknown) => void) => void;
     removeEventListener: (name: string, cb: (event?: unknown) => void) => void;
@@ -719,11 +749,39 @@ export function startSpotifyAppForm(options: AppFormOptions & { hidden?: boolean
             if (!ref)
                 return;
 
-            // Shown, because whatever Spotify asks next is theirs to answer
-            reveal();
-
             // Navigated from inside the page: this plugin has no method for it
             ref.executeScript({ code: `location.href = ${JSON.stringify(url)};` });
+
+            const arrivedCode = buildArrivedScript();
+
+            let tries = 0;
+
+            const watch = setInterval(() => {
+                tries++;
+
+                /*
+                 * The fallback matters more than the wait: whatever goes wrong,
+                 * leaving somebody watching a screen that says it is connecting
+                 * while a webview they cannot see holds the thing they need to
+                 * answer is the one outcome worth avoiding.
+                 */
+                if (tries > ARRIVAL_TRIES) {
+                    clearInterval(watch);
+                    reveal();
+
+                    return;
+                }
+
+                ref!.executeScript({ code: arrivedCode }, (results) => {
+                    const value = (Array.isArray(results) ? results[0] : undefined) as { arrived?: boolean } | undefined;
+
+                    if (!value?.arrived)
+                        return;
+
+                    clearInterval(watch);
+                    reveal();
+                });
+            }, ARRIVAL_POLL_MS);
         },
         reveal,
         conceal: () => {
