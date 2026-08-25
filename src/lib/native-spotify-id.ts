@@ -1,5 +1,7 @@
 import { InAppBrowser } from "@capgo/inappbrowser";
 
+import { API_URL } from "./const";
+
 /**
  * Reads a signed-in user's Spotify username by letting them log in to Spotify
  * itself, in a webview we can script.
@@ -44,6 +46,9 @@ const SILENT_MS = 12000;
 
 const SILENT_CHANNEL = "spotify-id-silent";
 
+/** Long enough for the server to finish writing before the app reads it back. */
+const RETURN_SETTLE_MS = 1000;
+
 export interface ProbeOptions {
     /**
      * Leave the webview open when a username is found.
@@ -63,7 +68,7 @@ export interface SpotifyIdResult {
 }
 
 interface CordovaBrowserRef {
-    addEventListener: (name: string, cb: (event?: unknown) => void) => void;
+    addEventListener: (name: string, cb: (event?: { url?: string }) => void) => void;
     executeScript: (details: { code: string }, cb?: (results: unknown[]) => void) => void;
     show: () => void;
     hide: () => void;
@@ -438,6 +443,48 @@ function readWithLogin(options: ProbeOptions = {}): Promise<SpotifyIdResult> {
  * Navigated from inside the page, because this plugin has no method for it -
  * and shown again, since whatever comes next is for the person to see.
  */
+/**
+ * Watches a sign-in through to the other side, and starts the app again.
+ *
+ * Sign-in begins on Tempo's own server and is handed onward, so arriving at
+ * Tempo only means the end once Spotify has been seen in between. What comes
+ * back is a page whose only real job is to report that it happened - reading it
+ * is not the point, and being shown it is the opposite of the point.
+ *
+ * Starting over is what routes people correctly: by then the account is signed
+ * in, so the ordinary rules take them where they should go. The wait is for the
+ * server to finish writing what the restart is about to read.
+ */
+function watchForReturn(watch: (onUrl: (url: string) => void) => void): void {
+    let atSpotify = false;
+    let finishing = false;
+
+    watch((url) => {
+        if (/accounts\.spotify\.com/i.test(url)) {
+            atSpotify = true;
+
+            return;
+        }
+
+        if (finishing || !atSpotify || !url.startsWith(API_URL))
+            return;
+
+        finishing = true;
+
+        const token = url.match(/[?&]st=([^&#]+)/)?.[1];
+
+        if (token)
+            fetch(`${API_URL}/appauth/complete/${token}`, { credentials: "include" })
+                .catch((ex) => console.warn("Could not report the finished sign-in:", ex));
+
+        setTimeout(() => {
+            closeWebView();
+
+            window.location.reload();
+        }, RETURN_SETTLE_MS);
+    });
+}
+
 export async function continueInWebView(url: string): Promise<void> {
     if (!active)
         return;
@@ -453,15 +500,26 @@ export async function continueInWebView(url: string): Promise<void> {
                 y: 0,
             });
 
+            watchForReturn((onUrl) => {
+                InAppBrowser.addListener("urlChangeEvent", (state) => onUrl(state.url))
+                    .catch(() => { });
+            });
+
             await InAppBrowser.setUrl({ url });
         } catch { }
 
         return;
     }
 
-    try { active.ref.show(); } catch { }
+    const ref = active.ref;
 
-    active.ref.executeScript({ code: `location.href = ${JSON.stringify(url)};` });
+    watchForReturn((onUrl) => {
+        ref.addEventListener("loadstart", (event) => onUrl(event?.url ?? ""));
+    });
+
+    try { ref.show(); } catch { }
+
+    ref.executeScript({ code: `location.href = ${JSON.stringify(url)};` });
 }
 
 /** Closes the webview left open by the probe. Never throws. */
