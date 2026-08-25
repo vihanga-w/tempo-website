@@ -78,6 +78,10 @@ const POLL_MS = 1000;
  */
 const STALL_MS = 5000;
 
+/** How often to ask whether an app appeared, and how long to keep asking. */
+const OUTCOME_POLL_MS = 700;
+const OUTCOME_TRIES = 20;
+
 /** How often to ask whether the page Spotify was sent to has arrived. */
 const ARRIVAL_POLL_MS = 600;
 
@@ -494,6 +498,37 @@ function buildArrivedScript(): string {
     })()`;
 }
 
+/**
+ * What became of the submission.
+ *
+ * Pressing the button is not evidence the app was made. Spotify refuses for
+ * reasons of its own - most often that the account already has as many apps as
+ * it is allowed - and says so on the page rather than by going anywhere. Read
+ * as a success, that leaves somebody told their profile was set up while no app
+ * exists, which is the least useful thing either of us could say.
+ */
+function buildOutcomeScript(): string {
+    return `(function () {
+        // Made: Spotify moves to the app it just created
+        if (/\\/dashboard\\/[0-9a-f]{32}/i.test(location.href))
+            return { outcome: "created" };
+
+        var text = function (el) { return ((el && el.textContent) || "").trim(); };
+
+        // Anything the page is complaining with. Alerts first, since they are
+        // meant for exactly this, then any short red-flagged text.
+        var spoken = [].slice.call(document.querySelectorAll('[role="alert"], [aria-live], .error, [class*="error" i], [class*="Error"]'))
+            .map(text)
+            .filter(function (t) { return t.length > 0 && t.length < 300; });
+
+        if (spoken.length)
+            return { outcome: "refused", message: spoken[0] };
+
+        // Still on the form with nothing said - it may simply not have gone yet
+        return { outcome: "pending", href: location.href };
+    })()`;
+}
+
 interface CordovaBrowserRef {
     addEventListener: (name: string, cb: (event?: { url?: string }) => void) => void;
     removeEventListener: (name: string, cb: (event?: unknown) => void) => void;
@@ -514,7 +549,7 @@ export interface AppFormSession {
      * because the submit button stays disabled until the page has taken the
      * tick.
      */
-    create: () => Promise<{ ok: boolean; status?: string }>;
+    create: () => Promise<{ ok: boolean; status?: string; message?: string }>;
     /**
      * The created app's client id and secret, once Spotify has landed on it.
      *
@@ -583,7 +618,7 @@ export function startSpotifyAppForm(options: AppFormOptions & { hidden?: boolean
     if (!iab) {
         resolveReady({ reason: "unavailable" });
 
-        return { ready, create: async () => ({ ok: false, status: "unavailable" }), credentials: async () => ({ status: "unavailable" }), continueTo: () => { }, reveal: () => { }, conceal: () => { }, close: () => { } };
+        return { ready, create: async () => ({ ok: false, status: "unavailable" as string }), credentials: async () => ({ status: "unavailable" }), continueTo: () => { }, reveal: () => { }, conceal: () => { }, close: () => { } };
     }
 
     const code = buildFillScript(options);
@@ -595,7 +630,7 @@ export function startSpotifyAppForm(options: AppFormOptions & { hidden?: boolean
     } catch (ex) {
         resolveReady({ reason: "unavailable", diagnostics: { error: String(ex) } });
 
-        return { ready, create: async () => ({ ok: false, status: "unavailable" }), credentials: async () => ({ status: "unavailable" }), continueTo: () => { }, reveal: () => { }, conceal: () => { }, close: () => { } };
+        return { ready, create: async () => ({ ok: false, status: "unavailable" as string }), credentials: async () => ({ status: "unavailable" }), continueTo: () => { }, reveal: () => { }, conceal: () => { }, close: () => { } };
     }
 
     let offPage = 0;
@@ -716,7 +751,50 @@ export function startSpotifyAppForm(options: AppFormOptions & { hidden?: boolean
     const poll = setInterval(attempt, POLL_MS);
     const deadline = setTimeout(() => finish({ reason: "timeout" }), DEADLINE_MS);
 
-    const create = () => new Promise<{ ok: boolean; status?: string }>((resolve) => {
+    /**
+     * Waits to see whether an app actually appeared.
+     *
+     * Spotify either moves to the new app or says why it will not, so this
+     * watches for one or the other rather than assuming the first.
+     */
+    const confirmOutcome = () => new Promise<{ ok: boolean; status?: string; message?: string }>((resolve) => {
+        if (!ref) {
+            resolve({ ok: false, status: "unavailable" });
+
+            return;
+        }
+
+        const outcomeCode = buildOutcomeScript();
+
+        let tries = 0;
+
+        const timer = setInterval(() => {
+            tries++;
+
+            if (tries > OUTCOME_TRIES) {
+                clearInterval(timer);
+                resolve({ ok: false, status: "noApp" });
+
+                return;
+            }
+
+            ref!.executeScript({ code: outcomeCode }, (results) => {
+                const value = (Array.isArray(results) ? results[0] : undefined) as
+                    { outcome?: string; message?: string } | undefined;
+
+                if (!value || value.outcome === "pending")
+                    return;
+
+                clearInterval(timer);
+
+                resolve(value.outcome === "created"
+                    ? { ok: true, status: "created" }
+                    : { ok: false, status: "refused", message: value.message });
+            });
+        }, OUTCOME_POLL_MS);
+    });
+
+    const create = () => new Promise<{ ok: boolean; status?: string; message?: string }>((resolve) => {
         if (!ref) {
             resolve({ ok: false, status: "unavailable" });
 
@@ -748,7 +826,9 @@ export function startSpotifyAppForm(options: AppFormOptions & { hidden?: boolean
 
                 if (value.status === "submitted") {
                     clearInterval(timer);
-                    resolve({ ok: true, status: value.status });
+
+                    // Pressed, not done. What matters is whether an app exists.
+                    confirmOutcome().then(resolve);
 
                     return;
                 }

@@ -114,11 +114,28 @@ export function SpotifyAppSetup({ redirectUri, swapToken, onReady, onCancel }: {
         const result = await session.create();
 
         if (!result.ok) {
-            console.warn("Could not finish the Spotify connection:", result.status);
+            console.warn("Could not finish the Spotify connection:", result.status, result.message);
+
+            /*
+             * Spotify's own words, when it gave any.
+             *
+             * It refuses for reasons only it knows - an account that already has
+             * as many apps as it is allowed is the common one - and those reasons
+             * are worth repeating rather than replacing with a guess. Anything
+             * general enough to cover them all would tell somebody nothing about
+             * the one thing standing in their way.
+             */
+            if (result.status === "refused" && result.message) {
+                giveUp(`Spotify would not set this up: ${result.message}`);
+
+                return;
+            }
 
             giveUp(result.status === "stalled"
                 ? "Spotify stopped responding while setting up your profile. Please check your connection and try again."
-                : "Spotify would not finish setting up your profile. Please try again in a moment.");
+                : result.status === "noApp"
+                    ? "Spotify did not finish setting up your profile, and did not say why. Please try again in a moment."
+                    : "Spotify would not finish setting up your profile. Please try again in a moment.");
 
             return;
         }
