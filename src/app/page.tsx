@@ -52,7 +52,7 @@ export default function Home() {
   const [modalTitle, setModalTitle] = useState<string>("");
   const [modalContent, setModalContent] = useState<JSX.Element>(<></>);
   /** Set when this account needs a Spotify app of its own; see SpotifyAppSetup. */
-  const [appSetupRedirectUri, setAppSetupRedirectUri] = useState<string | undefined>();
+  const [appSetupRedirectUri, setAppSetupRedirectUri] = useState<{ redirectUri: string; swapToken?: string } | undefined>();
   const [modalPBtn, setModalPBtn] = useState<{ text: string; callback: () => void } | undefined>();
   const [modalSBtn, setModalSBtn] = useState<{ text: string; callback: () => void } | undefined>();
 
@@ -615,7 +615,7 @@ export default function Home() {
 
                   // Hands over to the set-up screen, which fills the form out
                   // of sight while the person reads the agreement it needs
-                  setAppSetupRedirectUri(redirectUri);
+                  setAppSetupRedirectUri({ redirectUri, swapToken: seshRes.token });
 
                   return;
                 }
@@ -949,15 +949,18 @@ export default function Home() {
         </>
       ) : appSetupRedirectUri ? (
         <SpotifyAppSetup
-          redirectUri={appSetupRedirectUri}
-          onCreated={(authUrl) => {
-            console.log("Spotify app created and enrolled");
-
-            // Signing in against the app they just made. The webview is
-            // already logged in to Spotify, so this is a consent screen
-            // rather than another login.
-            if (authUrl)
-              window.location.href = authUrl;
+          redirectUri={appSetupRedirectUri.redirectUri}
+          swapToken={appSetupRedirectUri.swapToken}
+          onReady={(authUrl) => {
+            /*
+             * Straight on to signing in against the profile just set up.
+             *
+             * Sent to the webview rather than to this one: the sign-in has to
+             * finish where the swap session can hear about it, and that webview
+             * is already signed in to Spotify, so this is a consent screen
+             * rather than another login.
+             */
+            continueInWebView(authUrl);
           }}
           onCancel={() => setAppSetupRedirectUri(undefined)}
         />
