@@ -56,7 +56,7 @@ const PrivacyPolicy: React.FC = () => {
                 display: (isEmbed ? "none" : "block")
             }}>Tempo. Privacy Policy</h1>
             <p><strong>Effective Date:</strong> Tuesday 15th April 2025</p>
-            <p><strong>Last Updated:</strong> Tuesday 15th April 2025</p>
+            <p><strong>Last Updated:</strong> Tuesday 25th August 2026</p>
 
             <br />
 
@@ -72,51 +72,73 @@ const PrivacyPolicy: React.FC = () => {
 
             <Section number="1" title="About Tempo.">
                 <p>
-                    Tempo. is a UK-based social music platform that allows users to connect their Spotify accounts, share their real-time listening activity with friends, react to music, and receive AI-powered music recommendations. The app is built on Spotify’s API and integrates various social features to enhance the music discovery experience.
+                    Tempo. is a UK-based music app that allows users to connect their Spotify accounts and share their listening activity with friends they have added. The app is built on Spotify’s API.
+                </p>
+                <p>
+                    Tempo. shares insights drawn from what you listen to — the track you are playing, your listening history, your streaks and your statistics. It does not host user-generated content: there is no messaging, no commenting and no posting between users, so there is nothing you write or upload for us to store or moderate.
                 </p>
             </Section>
 
             <Section number="2" title="Information We Collect">
-                <h3>Personal Information</h3>
-                <p>When you connect your Spotify account, we collect the following:</p>
+                <h3>From your Spotify account</h3>
+                <p>When you connect your Spotify account, we receive and store:</p>
                 <ul>
-                    <li><strong>Spotify User ID</strong> – a unique identifier for your Spotify account.</li>
-                    <li><strong>Display Name</strong> – your public Spotify name, used within the app to identify you.</li>
-                    <li><strong>Email Address</strong> – to communicate with you and manage your account.</li>
+                    <li><strong>Spotify user ID</strong> – the unique identifier for your Spotify account, which is how we know a listening record is yours.</li>
+                    <li><strong>Display name</strong> – your public Spotify name, used to identify you to your friends and in search.</li>
+                    <li><strong>Email address</strong> – used so that friends who know your address can find you, and to contact you about your account.</li>
+                    <li><strong>Profile picture</strong> – the image on your Spotify account. We keep a copy so it loads quickly, along with a small set of its average colours used to draw a placeholder while it loads.</li>
+                    <li><strong>Access and refresh tokens</strong> – the credentials Spotify issues that let us read your listening activity on your behalf. These are held so that Tempo. can keep working without asking you to sign in repeatedly, and are revoked when you disconnect.</li>
                 </ul>
-                <p>We do not access or store your Spotify password. Authentication is handled securely by Spotify's own systems.</p>
-
-                <h3>Location and Technical Data</h3>
+                <p>We never receive or store your Spotify password. Authentication happens on Spotify’s own systems, and we only ever see the tokens it issues afterwards.</p>
                 <p>
-                    We collect your <strong>IP address</strong> to estimate your approximate geographic location (e.g. city or region). This helps us understand general usage patterns and may be used in the future to tailor regional content or features.
-                </p>
-                <p>
-                    We also collect technical data such as your device type, operating system, and app version to help us optimise performance and provide support.
+                    If you set Tempo. up using a Spotify application of your own, we also store that application’s <strong>client ID and client secret</strong>, because they are what your listening activity has to be requested with. They are used for no other purpose.
                 </p>
 
-                <h3>Usage and Activity Data</h3>
-                <p>To understand how users interact with Tempo., we collect:</p>
+                <h3>Your listening activity</h3>
+                <p>This is the substance of what Tempo. does, and it comes from Spotify’s API rather than from anything you enter:</p>
                 <ul>
-                    <li>Timestamps of when the app is opened</li>
-                    <li>Actions taken within the app (e.g. navigation events, reactions, comments)</li>
-                    <li>Listening behaviours inferred via the Spotify API</li>
-                    <li>Interaction with friends’ listening activity</li>
+                    <li>The track, episode or podcast you are currently playing, and how far through it you are</li>
+                    <li>Your listening history, including tracks played while Tempo. was not open</li>
+                    <li>Statistics derived from the above — listening streaks, totals, your most played music, and the times of day you typically listen</li>
+                    <li>A taste profile built from that history, used to describe your listening back to you in recaps</li>
                 </ul>
                 <p>
-                    This data enables us to improve recommendations, detect bugs, enhance UX, and generate insights.
+                    We do not collect anything you write, record or upload, because there is nothing in Tempo. to write, record or upload.
+                </p>
+
+                <h3>Your friends and settings</h3>
+                <ul>
+                    <li><strong>Friend connections</strong> – who you have added, and requests sent or received.</li>
+                    <li><strong>Your settings</strong> – including whether your profile is public, whether your listening activity is shared, and whether you appear in friend suggestions.</li>
+                </ul>
+
+                <h3>Notifications</h3>
+                <p>
+                    If you turn notifications on, we store what is needed to deliver them to that particular device: a push subscription in a browser, or a device token issued by Apple in the app. These identify the device, not you, and are deleted when the notification service tells us the device is no longer reachable.
+                </p>
+
+                <h3>Technical data</h3>
+                <p>
+                    Your <strong>IP address</strong> is used to limit how many requests a single source can make, which is what protects the service from abuse. For that purpose it is irreversibly hashed rather than stored. Unhashed addresses appear in our server logs alongside the requests made, which are retained only for a short period for security and debugging.
+                </p>
+                <p>
+                    We do not use your IP address, or anything else, to determine your location. Tempo. does not collect or infer where you are.
                 </p>
             </Section>
 
             <Section number="3" title="How We Use Your Data">
                 <ul>
-                    <li><strong>To provide access to the app and maintain functionality</strong>, including account login and Spotify integration.</li>
-                    <li><strong>To personalise your user experience</strong> based on your listening behaviour and reactions.</li>
-                    <li><strong>To recommend new music</strong> using our AI algorithms that analyse your interactions.</li>
-                    <li><strong>To support social features</strong>, allowing you to follow friends, share listening data, and engage with others.</li>
-                    <li><strong>To improve and develop the app</strong> by analysing how users interact with features and content.</li>
-                    <li><strong>To ensure safety and compliance</strong>, including monitoring of comments or behaviour that may breach our Terms of Use.</li>
-                    <li><strong>To communicate with you</strong>, including important updates, support messages or legal notices.</li>
+                    <li><strong>To sign you in and keep the app working</strong>, using the tokens Spotify issues to read your listening activity on your behalf.</li>
+                    <li><strong>To show your listening activity to the friends you have added</strong>, if you have chosen to share it.</li>
+                    <li><strong>To produce your statistics and recaps</strong> — streaks, totals, most played music and the summaries built from them.</li>
+                    <li><strong>To decide how often to check what you are playing</strong>: we look at when you have typically listened before, so that we ask Spotify more often when you are likely to be listening and less often when you are not.</li>
+                    <li><strong>To send you notifications</strong> you have asked for, such as a friend request or a recap being ready.</li>
+                    <li><strong>To keep the service available</strong>, by limiting how many requests a single source can make and by investigating faults.</li>
+                    <li><strong>To contact you</strong> about your account, including support requests and legal notices.</li>
                 </ul>
+                <p>
+                    We do not profile you for advertising, and we do not sell or share your data with advertisers.
+                </p>
             </Section>
 
             <Section number="4" title="Data Sharing and Sale">
