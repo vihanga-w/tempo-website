@@ -27,7 +27,7 @@ import { SpotifyAppSetup } from "@/components/spotify-app-setup";
 import { Preferences } from '@capacitor/preferences';
 
 import User from "@/lib/usrlib";
-import { API_URL, API_URL_SOCK, NOTIF_PROCESSED_KEY, KNOWN_USER_KEY } from "@/lib/const";
+import { API_URL, API_URL_SOCK, isNativeApp, NOTIF_PROCESSED_KEY, KNOWN_USER_KEY } from "@/lib/const";
 import { registerServiceWorker, registerSubscription, removeSubscription, resetStaleSubscription, useSubscribe, waitForServiceWorker } from "@/lib/notify";
 import { Modal } from "@/components/modal";
 import { SafeArea, initialize } from "@capacitor-community/safe-area";
@@ -41,7 +41,7 @@ TimeAgo.addDefaultLocale(en)
 export default function Home() {
   // Application states
   const [debugInjected, setDebugInjected] = useState<boolean>(false);
-  const [isInMobileBrowser, setIsInMobileBrowser] = useState<boolean>(!Capacitor.isNativePlatform());
+  const [isInMobileBrowser, setIsInMobileBrowser] = useState<boolean>(!isNativeApp());
   const [hasPreviouslyBeenOpened, setHasPreviouslyBeenOpened] = useState<boolean>(false);
   const [mobileOS, setMobileOS] = useState<"ios" | "android" | "generic">("generic");
   const [deferredPWAInstaller, setDeferredPWAInstaller] = useState<any>();
@@ -185,10 +185,22 @@ export default function Home() {
       },
     });
 
-    // Check whether we are in a PWA standalone app
-    if (window.navigator && !window.localStorage.getItem("tempo-override-pwa-detection") && !Capacitor.isNativePlatform()) setIsInMobileBrowser(!((("standalone" in window.navigator) && window.navigator.standalone) || window.matchMedia("(display-mode: standalone)").matches));
-    else if (window.localStorage.getItem("tempo-override-pwa-detection")) setIsInMobileBrowser(false);
-    else setIsInMobileBrowser(!Capacitor.isNativePlatform())
+    /*
+     * Whether to explain how to install Tempo.
+     *
+     * The installed app never needs telling, so it is asked first and asked
+     * plainly - the checks below are about browsers, and running them at all in
+     * the app is how somebody ended up reading instructions for installing
+     * something they were already inside.
+     */
+    if (isNativeApp())
+      setIsInMobileBrowser(false);
+    else if (window.localStorage.getItem("tempo-override-pwa-detection"))
+      setIsInMobileBrowser(false);
+    else if (window.navigator)
+      setIsInMobileBrowser(!((("standalone" in window.navigator) && window.navigator.standalone) || window.matchMedia("(display-mode: standalone)").matches));
+    else
+      setIsInMobileBrowser(true);
   }, []);
 
   useEffect(() => {
@@ -894,7 +906,7 @@ export default function Home() {
         {modalContent}
     </Modal>
     <Box background="#0D0D0E" height="100%" width="100%" overflow="auto" data-profile-scroll-container>
-      {isInMobileBrowser ? (
+      {isInMobileBrowser && !isNativeApp() ? (
         <>
           <Box
             position="absolute"

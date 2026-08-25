@@ -1,3 +1,5 @@
+import { Capacitor } from "@capacitor/core";
+
 // API endpoints.
 //
 // NEXT_PUBLIC_* is inlined at build time, so this is fixed when `next build`
@@ -52,3 +54,28 @@ export const NOTIF_SUB_ID_KEY = "tempo-notif-subid";
  * server refuses to guess between two accounts sharing one.
  */
 export const KNOWN_USER_KEY = "tempo.known-user";
+
+/**
+ * Whether this is the installed app rather than a browser.
+ *
+ * Asked of the bridge as well as of Capacitor's own helper. The helper reads a
+ * value the native bridge sets on the window, and it has been seen to answer
+ * "web" inside the app - after a navigation, most likely, before the bridge has
+ * finished announcing itself. Getting it wrong shows somebody instructions for
+ * installing an app they are already using, so it is worth asking twice.
+ */
+export function isNativeApp(): boolean {
+    try {
+        if (Capacitor.isNativePlatform())
+            return true;
+
+        if (typeof window === "undefined")
+            return false;
+
+        const bridge = (window as unknown as { Capacitor?: { isNative?: boolean; platform?: string } }).Capacitor;
+
+        return bridge?.isNative === true || (bridge?.platform !== undefined && bridge.platform !== "web");
+    } catch {
+        return false;
+    }
+}
