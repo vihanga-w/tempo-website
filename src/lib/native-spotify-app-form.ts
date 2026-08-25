@@ -470,6 +470,15 @@ export interface AppFormSession {
      * reading the page, so there is no doubt which app it belongs to.
      */
     credentials: () => Promise<{ clientId?: string; clientSecret?: string; status?: string; diagnostics?: Record<string, unknown> }>;
+    /**
+     * Sends this webview on to the next URL, and shows it.
+     *
+     * Sign-in has to finish in this webview specifically: it is the one holding
+     * the Spotify session, and the one the swap session is waiting on. Handing
+     * the URL to any other - or to the app's own - leaves the enrolment started
+     * and never finished, which is a wait with no end to it.
+     */
+    continueTo: (url: string) => void;
     /** Brings the webview on screen. */
     reveal: () => void;
     /** Puts it away again without losing the page it is on. */
@@ -522,7 +531,7 @@ export function startSpotifyAppForm(options: AppFormOptions & { hidden?: boolean
     if (!iab) {
         resolveReady({ reason: "unavailable" });
 
-        return { ready, create: async () => ({ ok: false, status: "unavailable" }), credentials: async () => ({ status: "unavailable" }), reveal: () => { }, conceal: () => { }, close: () => { } };
+        return { ready, create: async () => ({ ok: false, status: "unavailable" }), credentials: async () => ({ status: "unavailable" }), continueTo: () => { }, reveal: () => { }, conceal: () => { }, close: () => { } };
     }
 
     const code = buildFillScript(options);
@@ -532,7 +541,7 @@ export function startSpotifyAppForm(options: AppFormOptions & { hidden?: boolean
     } catch (ex) {
         resolveReady({ reason: "unavailable", diagnostics: { error: String(ex) } });
 
-        return { ready, create: async () => ({ ok: false, status: "unavailable" }), credentials: async () => ({ status: "unavailable" }), reveal: () => { }, conceal: () => { }, close: () => { } };
+        return { ready, create: async () => ({ ok: false, status: "unavailable" }), credentials: async () => ({ status: "unavailable" }), continueTo: () => { }, reveal: () => { }, conceal: () => { }, close: () => { } };
     }
 
     let offPage = 0;
@@ -706,6 +715,16 @@ export function startSpotifyAppForm(options: AppFormOptions & { hidden?: boolean
         ready,
         create,
         credentials,
+        continueTo: (url: string) => {
+            if (!ref)
+                return;
+
+            // Shown, because whatever Spotify asks next is theirs to answer
+            reveal();
+
+            // Navigated from inside the page: this plugin has no method for it
+            ref.executeScript({ code: `location.href = ${JSON.stringify(url)};` });
+        },
         reveal,
         conceal: () => {
             shown = false;

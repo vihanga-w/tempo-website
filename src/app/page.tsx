@@ -951,16 +951,10 @@ export default function Home() {
         <SpotifyAppSetup
           redirectUri={appSetupRedirectUri.redirectUri}
           swapToken={appSetupRedirectUri.swapToken}
-          onReady={(authUrl) => {
-            /*
-             * Straight on to signing in against the profile just set up.
-             *
-             * Sent to the webview rather than to this one: the sign-in has to
-             * finish where the swap session can hear about it, and that webview
-             * is already signed in to Spotify, so this is a consent screen
-             * rather than another login.
-             */
-            continueInWebView(authUrl);
+          onReady={() => {
+            // The set-up screen has already sent its own webview on to sign in;
+            // the swap session below is what hears about it finishing
+            console.log("Profile set up, signing in");
           }}
           onCancel={() => setAppSetupRedirectUri(undefined)}
         />

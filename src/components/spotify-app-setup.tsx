@@ -152,6 +152,12 @@ export function SpotifyAppSetup({ redirectUri, swapToken, onReady, onCancel }: {
             const res = await req.json() as { error: boolean; message?: string; authUrl?: string };
 
             if (!res.error && res.authUrl) {
+                setStatus("Almost there…");
+
+                // Sent to the webview that did the set-up, which is the one
+                // signed in to Spotify and the one the app is waiting on
+                session.continueTo(res.authUrl);
+
                 onReady(res.authUrl);
 
                 return;
