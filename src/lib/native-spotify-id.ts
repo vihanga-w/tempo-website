@@ -1,244 +1,230 @@
-import { InAppBrowser } from "@capgo/inappbrowser";
-
 /**
  * Reads a signed-in user's Spotify username by letting them log in to Spotify
  * itself, in a webview we can script.
  *
- * A username is Tempo's account id, and the ordinary sign-in cannot hand it
- * over before the person has an account — a chicken-and-egg the bring-your-own
- * app flow keeps running into. But the Spotify account pages already know who
- * is logged in, and a webview parked on spotify.com holds that session's
- * cookies, so a script injected there can ask Spotify's own account API for the
- * username directly. That is what this does: open the profile page, wait for
- * the login to land back on it, then read the name out and hand it back.
+ * A username is Tempo's account id, and sign-in cannot hand it over before the
+ * person has an account - a chicken-and-egg the bring-your-own-app flow keeps
+ * running into. Spotify's own account pages know who is logged in, so a script
+ * injected there can ask Spotify's account API directly.
  *
- * Nothing is typed by the person into our webview and no password passes
- * through our code — the login happens on Spotify's real pages, and all we
- * receive is the username those pages already display.
+ * The webview is only on screen while it needs them. Spotify sends a visitor to
+ * log in first, which they have to see; the moment that lands on an account page
+ * it goes away again, and comes back only if Spotify asks them to log in afresh.
+ *
+ * No password passes through Tempo's code: the login happens on Spotify's real
+ * pages, and the script only reads what those pages already show.
  */
 
-const PROFILE_URL = "https://www.spotify.com/account/profile/";
+/**
+ * Spotify puts a region in most of these paths - /uk/account/, /de/account/ -
+ * and which one depends on the account, so matching a particular one would work
+ * for whoever it was written against and quietly fail for everybody else. These
+ * match around the region instead of naming it.
+ */
+export const LOGIN_PATTERN = "accounts\\.spotify\\.com\\/(?:[a-z-]{2,5}\\/)?login";
+export const ACCOUNT_PATTERN = "spotify\\.com\\/(?:[a-z-]{2,5}\\/)?account\\/";
+
+const ACCOUNT_URL = "https://www.spotify.com/account/profile/";
 
 /** How long to wait for a login before giving up, so this cannot hang forever. */
 const DEADLINE_MS = 5 * 60 * 1000;
+
+/** How often to ask the page where it is and who is logged in. */
+const POLL_MS = 900;
 
 export interface ProbeOptions {
     /**
      * Leave the webview open when a username is found.
      *
-     * The webview holds the Spotify session the person just logged into, so
-     * sending it on to the authorise URL means Spotify already knows them and
-     * goes straight to consent. Closing it and opening a fresh one would throw
-     * that away and ask them to log in a second time.
-     *
-     * The caller owns the webview from that point and must either continue it
-     * or close it — see continueInWebView and closeWebView.
+     * It holds the Spotify session the person just logged into, so sending it on
+     * to the authorise URL means Spotify goes straight to consent rather than
+     * asking them to log in a second time.
      */
     keepOpenOnSuccess?: boolean;
 }
 
 export interface SpotifyIdResult {
-    /** The username, which is the account's Spotify id — present on success. */
+    /** The username, which is the account's Spotify id - present on success. */
     username?: string;
-    /** Why nothing came back: the person closed it, or the wait ran out. */
     reason?: "closed" | "timeout" | "unavailable";
-    /**
-     * Everything the injected probe saw, kept whether it succeeded or not.
-     *
-     * The profile page is Spotify's, not ours, and it changes without notice —
-     * so when extraction misses, this is what says which strategy fired, what
-     * the account API answered, and what the page looked like, rather than a
-     * bare failure with nowhere to start.
-     */
     diagnostics?: Record<string, unknown>;
 }
 
-/**
- * The script that runs inside the Spotify page.
- *
- * Built as a string because it executes in the webview's world, not ours. It
- * tries the account API first — a same-origin fetch that carries the login
- * cookies and returns the username as data rather than as markup to be scraped
- * — and falls back to reading the page only if that comes back empty. Whatever
- * happens, it posts one message back, so the app side always hears exactly once.
- */
-function buildProbeScript(): string {
-    return `(async () => {
-        const report = (payload) => {
-            try {
-                window.mobileApp.postMessage({ detail: Object.assign({ channel: "spotify-id" }, payload) });
-            } catch (e) {
-                // Nothing else can be done from in here if the bridge is absent
-            }
-        };
-
-        const diagnostics = { href: location.href, strategies: {} };
-
-        // Strategy 1: Spotify's own account API. Same origin, so the session
-        // cookie rides along, and the username comes back as a plain field.
-        try {
-            const res = await fetch("/api/account-settings/v1/profile", {
-                headers: { "Accept": "application/json" },
-                credentials: "include",
-            });
-
-            diagnostics.strategies.api = { status: res.status };
-
-            if (res.ok) {
-                const body = await res.json();
-                const username = body && body.profile && body.profile.username;
-
-                diagnostics.strategies.api.username = username || null;
-
-                if (username) {
-                    report({ username: String(username), diagnostics });
-                    return;
-                }
-            }
-        } catch (e) {
-            diagnostics.strategies.api = { error: String(e) };
-        }
-
-        // Strategy 2: read it off the rendered page. The profile page shows the
-        // username next to a label; locales differ, so match the label loosely
-        // and take the value beside it. Best-effort — a miss still reports, so
-        // the diagnostics show what the page actually held.
-        try {
-            const labelled = Array.from(document.querySelectorAll("*")).find((el) =>
-                el.children.length === 0 && /username/i.test(el.textContent || ""));
-
-            let domUsername = null;
-
-            if (labelled) {
-                const row = labelled.closest("tr, li, div, section") || labelled.parentElement;
-                const text = row ? row.textContent || "" : "";
-                const match = text.replace(/username/i, "").trim().match(/[A-Za-z0-9._-]{3,}/);
-
-                domUsername = match ? match[0] : null;
-            }
-
-            diagnostics.strategies.dom = { username: domUsername };
-
-            if (domUsername) {
-                report({ username: domUsername, diagnostics });
-                return;
-            }
-        } catch (e) {
-            diagnostics.strategies.dom = { error: String(e) };
-        }
-
-        report({ diagnostics });
-    })();`;
+interface CordovaBrowserRef {
+    addEventListener: (name: string, cb: (event?: unknown) => void) => void;
+    executeScript: (details: { code: string }, cb?: (results: unknown[]) => void) => void;
+    show: () => void;
+    hide: () => void;
+    close: () => void;
 }
 
 /**
- * @returns the username on success, or a reason it could not be read. Never
- *          rejects — every exit resolves, so a caller can rely on being told
- *          what happened rather than having to catch.
+ * Reports where the page is and, on an account page, who is logged in.
+ *
+ * The account API is a promise and this has to answer at once - Cordova hands
+ * back whatever the script evaluates to - so the request is started once and
+ * left on the window for a later call to collect.
  */
-export async function probeSpotifyUserId(options: ProbeOptions = {}): Promise<SpotifyIdResult> {
-    let latestUrl = PROFILE_URL;
-    let probed = false;
-    let settled = false;
+function buildProbeScript(): string {
+    return `(function () {
+        var href = location.href;
 
-    const listeners: { remove: () => Promise<void> }[] = [];
+        if (/${LOGIN_PATTERN}/i.test(href))
+            return { page: "login", href: href };
 
-    return new Promise<SpotifyIdResult>(async (resolve) => {
-        const finish = async (result: SpotifyIdResult) => {
+        if (!/${ACCOUNT_PATTERN}/i.test(href))
+            return { page: "other", href: href };
+
+        if (!window.__tempoIdStarted) {
+            window.__tempoIdStarted = true;
+
+            fetch("/api/account-settings/v1/profile", {
+                headers: { Accept: "application/json" },
+                credentials: "include",
+            })
+                .then(function (r) { return r.ok ? r.json() : null; })
+                .then(function (body) {
+                    window.__tempoId = body && body.profile && body.profile.username;
+                    window.__tempoIdDone = true;
+                })
+                .catch(function (e) {
+                    window.__tempoIdError = String(e);
+                    window.__tempoIdDone = true;
+                });
+        }
+
+        return {
+            page: "account",
+            href: href,
+            username: window.__tempoId,
+            done: !!window.__tempoIdDone,
+            error: window.__tempoIdError,
+        };
+    })()`;
+}
+
+/** The webview this module is holding, so it can be handed on or closed later. */
+let activeRef: CordovaBrowserRef | undefined;
+
+/**
+ * @returns the username, or the reason nothing came back. Never rejects: every
+ *          exit resolves, so callers are told what happened.
+ */
+export function probeSpotifyUserId(options: ProbeOptions = {}): Promise<SpotifyIdResult> {
+    return new Promise<SpotifyIdResult>((resolve) => {
+        const iab = (window as unknown as {
+            cordova?: { InAppBrowser?: { open: (url: string, target: string, opts?: string) => CordovaBrowserRef } };
+        }).cordova?.InAppBrowser;
+
+        if (!iab) {
+            resolve({ reason: "unavailable" });
+
+            return;
+        }
+
+        let ref: CordovaBrowserRef;
+
+        try {
+            // Visible to begin with: Spotify asks them to log in, and they
+            // cannot answer a window they cannot see
+            ref = iab.open(ACCOUNT_URL, "_blank", "location=yes");
+        } catch (ex) {
+            resolve({ reason: "unavailable", diagnostics: { error: String(ex) } });
+
+            return;
+        }
+
+        activeRef = ref;
+
+        const code = buildProbeScript();
+
+        let settled = false;
+        let shown = true;
+        let last: Record<string, unknown> | undefined;
+
+        const finish = (result: SpotifyIdResult) => {
             if (settled)
                 return;
 
             settled = true;
 
-            clearTimeout(timer);
+            clearInterval(poll);
+            clearTimeout(deadline);
 
-            for (const l of listeners) {
-                try { await l.remove(); } catch { }
+            if (!(options.keepOpenOnSuccess && result.username)) {
+                try { ref.close(); } catch { }
+
+                activeRef = undefined;
             }
 
-            // Handed to the caller rather than closed; anything that did not
-            // find a username is closed here, since nobody is going to use it
-            if (!(options.keepOpenOnSuccess && result.username))
-                try { await InAppBrowser.close(); } catch { }
-
-            resolve(result);
+            resolve({ ...result, diagnostics: result.diagnostics ?? last });
         };
 
-        const timer = setTimeout(() => finish({ reason: "timeout" }), DEADLINE_MS);
-
-        // On the profile page and logged in — Spotify sends an unauthenticated
-        // visitor to accounts.spotify.com/login and only back here once they
-        // are through, so this URL is itself the signal that the login landed.
-        const onProfilePage = () => latestUrl.includes("/account/profile");
-
-        const runProbe = async () => {
-            if (probed || !onProfilePage())
+        const attempt = () => {
+            if (settled)
                 return;
 
-            probed = true;
-
             try {
-                await InAppBrowser.executeScript({ code: buildProbeScript() });
-            } catch {
-                await finish({ reason: "unavailable" });
-            }
+                ref.executeScript({ code }, (results) => {
+                    const value = (Array.isArray(results) ? results[0] : undefined) as Record<string, unknown> | undefined;
+
+                    if (!value)
+                        return;
+
+                    last = value;
+
+                    /*
+                     * On screen only while Spotify needs them. Past the login
+                     * there is nothing to look at and nothing to do, so it goes
+                     * away; if Spotify sends them back to log in - a session
+                     * that expired, a wrong password - it returns.
+                     */
+                    if (value.page === "login" && !shown) {
+                        shown = true;
+
+                        try { ref.show(); } catch { }
+                    } else if (value.page === "account" && shown) {
+                        shown = false;
+
+                        try { ref.hide(); } catch { }
+                    }
+
+                    const username = (typeof value.username === "string" ? value.username : "").trim();
+
+                    if (username !== "")
+                        finish({ username });
+                });
+            } catch { }
         };
 
-        try {
-            listeners.push(await InAppBrowser.addListener("messageFromWebview", (event) => {
-                const detail = (event?.detail ?? {}) as Record<string, unknown>;
+        ref.addEventListener("loadstop", attempt);
+        ref.addEventListener("exit", () => finish({ reason: "closed" }));
 
-                if (detail.channel !== "spotify-id")
-                    return;
+        const poll = setInterval(attempt, POLL_MS);
+        const deadline = setTimeout(() => finish({ reason: "timeout" }), DEADLINE_MS);
 
-                const username = typeof detail.username === "string" ? detail.username : undefined;
-
-                // A probe that ran but found nothing lets the person move around
-                // — they may not have finished logging in — so only a username
-                // ends the flow here. A fruitless probe re-arms for the next
-                // page load rather than closing on them.
-                if (username)
-                    finish({ username, diagnostics: detail.diagnostics as Record<string, unknown> });
-                else
-                    probed = false;
-            }));
-
-            listeners.push(await InAppBrowser.addListener("urlChangeEvent", (state) => {
-                latestUrl = state.url;
-            }));
-
-            listeners.push(await InAppBrowser.addListener("browserPageLoaded", () => {
-                // A short beat so the profile page's own scripts have run and
-                // the account API is ready to answer
-                setTimeout(runProbe, 400);
-            }));
-
-            listeners.push(await InAppBrowser.addListener("closeEvent", () => finish({ reason: "closed" })));
-
-            await InAppBrowser.openWebView({
-                url: PROFILE_URL,
-                title: "Sign in with Spotify",
-                isInspectable: true,
-            });
-        } catch {
-            await finish({ reason: "unavailable" });
-        }
+        attempt();
     });
 }
 
 /**
- * Sends a webview kept open by probeSpotifyUserId on to the next URL.
+ * Sends the webview left open by the probe on to the next URL.
  *
- * Used to join the ordinary sign-in without a second login: the session is
- * already in this webview, so Spotify goes straight to the consent screen.
+ * Navigated from inside the page, because this plugin has no method for it -
+ * and shown again, since whatever comes next is for the person to see.
  */
 export async function continueInWebView(url: string): Promise<void> {
-    await InAppBrowser.setUrl({ url });
+    if (!activeRef)
+        return;
+
+    try { activeRef.show(); } catch { }
+
+    activeRef.executeScript({ code: `location.href = ${JSON.stringify(url)};` });
 }
 
-/** Closes a webview kept open by probeSpotifyUserId. Never throws. */
+/** Closes the webview left open by the probe. Never throws. */
 export async function closeWebView(): Promise<void> {
-    try {
-        await InAppBrowser.close();
-    } catch { }
+    try { activeRef?.close(); } catch { }
+
+    activeRef = undefined;
 }
