@@ -209,26 +209,57 @@ function Band({ maxSpeed = 50, minSpeed = 0, onRest }: BandProps) {
       const deltaY = Math.abs(y - (card.current.prevY || 0));
       const magnitude = Math.sqrt(deltaX ** 2 + deltaY ** 2);
 
-      const settled = 0.00032;
+      /*
+       * "Has swung, and has since stopped."
+       *
+       * Three numbers rather than one, because the two questions are different
+       * sizes. SWINGING is what the card does on the way down; STILL is what a
+       * card that has finished doing it looks like; and rest has to hold for a
+       * while, because a swing passes through nearly-still twice per arc at the
+       * top of its travel.
+       *
+       * Using a single threshold for both made the card count as swung after
+       * one frame above it and at rest on the very next frame below - so the
+       * animation was over before it was seen. The version before that required
+       * the movement to land inside a narrow window, which is a frame the card
+       * only lands on if it is sampled while decelerating through it: settle
+       * faster than a frame, or stop dead, or have the physics paused because
+       * the tab was hidden, and it never arrives at all.
+       *
+       * The screen behind this no longer depends on the answer either way -
+       * it gives up waiting after a few seconds - so this can afford to want
+       * real movement before it believes in real stillness.
+       */
+      const SWINGING = 0.005;
+      const STILL = 0.00032;
+      const STILL_FRAMES = 12;
+      const CALM_MS = 1500;
+
+      const now = Date.now();
+
+      if (magnitude > SWINGING) {
+        card.current.hasMoved = true;
+        card.current.lastSwing = now;
+        card.current.stillFrames = 0;
+      } else if (magnitude > STILL) {
+        card.current.stillFrames = 0;
+      } else {
+        card.current.stillFrames = (card.current.stillFrames || 0) + 1;
+      }
 
       /*
-       * "Has stopped", not "is moving slowly".
+       * Either genuinely stopped, or done swinging.
        *
-       * This used to require the movement to land inside a window — above
-       * 0.0001 and at or below this — which is a frame the card only lands on
-       * if it happens to be sampled while decelerating through it. Settle
-       * faster than a frame, or stop dead at zero, or have the physics paused
-       * because the tab was hidden through the sign-in redirect, and that frame
-       * never arrives. Whoever it happened to sat on the loading screen for as
-       * long as they were willing to.
-       *
-       * Waiting for movement first keeps it from reporting rest before the card
-       * has done anything, which is the only reason there was a lower bound.
+       * The second is needed because a card on a string does not have to come
+       * to a dead stop - it can drift for a long time, dipping through still
+       * twice an arc without ever staying there - and waiting only for
+       * stillness would leave that card animating until the screen behind gave
+       * up on it.
        */
-      if (magnitude > settled)
-        card.current.hasMoved = true;
+      const stopped = (card.current.stillFrames || 0) >= STILL_FRAMES;
+      const calm = now - (card.current.lastSwing || now) > CALM_MS;
 
-      if (card.current.hasMoved && magnitude <= settled && !card.current.atRest) {
+      if (card.current.hasMoved && (stopped || calm) && !card.current.atRest) {
         onRest();
 
         card.current.atRest = true;
