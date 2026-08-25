@@ -1,3 +1,5 @@
+import { InAppBrowser } from "@capgo/inappbrowser";
+
 /**
  * Reads a signed-in user's Spotify username by letting them log in to Spotify
  * itself, in a webview we can script.
@@ -31,6 +33,16 @@ const DEADLINE_MS = 5 * 60 * 1000;
 
 /** How often to ask the page where it is and who is logged in. */
 const POLL_MS = 900;
+
+/**
+ * How long to try reading quietly before showing anything.
+ *
+ * Only reached when Spotify neither answers nor redirects - a slow connection,
+ * most likely. A login is shown after it, which is the safe way to be wrong.
+ */
+const SILENT_MS = 12000;
+
+const SILENT_CHANNEL = "spotify-id-silent";
 
 export interface ProbeOptions {
     /**
@@ -119,14 +131,193 @@ function buildProbeScript(): string {
     })()`;
 }
 
-/** The webview this module is holding, so it can be handed on or closed later. */
-let activeRef: CordovaBrowserRef | undefined;
+/**
+ * Reads the username without anything appearing on screen.
+ *
+ * A webview has to be inside a window for WebKit to load it at all - hidden, it
+ * stops at about:blank - so instead of hiding this one it is made a single
+ * pixel in the corner. It is on screen in the sense that matters to WebKit and
+ * in no sense that matters to a person.
+ *
+ * This uses the other browser plugin, the one whose executeScript only works on
+ * the first page of the first webview. That limit is exactly the shape of this
+ * job: an account with a live session goes to the profile page and stays on the
+ * origin, which is the case that works. The moment Spotify wants a login it
+ * redirects away, the scripting stops, and there would be nothing to see in a
+ * one-pixel window anyway - so that is the signal to hand over to a real one.
+ *
+ * @returns the username, or nothing - in which case a login is needed.
+ */
+async function readSilently(): Promise<{ username?: string; needsLogin?: boolean }> {
+    const listeners: { remove: () => Promise<void> }[] = [];
+
+    const cleanUp = async () => {
+        for (const l of listeners) {
+            try { await l.remove(); } catch { }
+        }
+    };
+
+    return new Promise<{ username?: string; needsLogin?: boolean }>(async (resolve) => {
+        let settled = false;
+
+        const finish = async (result: { username?: string; needsLogin?: boolean }) => {
+            if (settled)
+                return;
+
+            settled = true;
+
+            clearTimeout(deadline);
+            clearInterval(poll);
+
+            await cleanUp();
+
+            // Kept open only when it worked and the caller wants it; otherwise
+            // this pixel has done its job
+            if (!result.username) {
+                try { await InAppBrowser.close(); } catch { }
+
+                active = undefined;
+            }
+
+            resolve(result);
+        };
+
+        const deadline = setTimeout(() => finish({ needsLogin: true }), SILENT_MS);
+
+        try {
+            listeners.push(await InAppBrowser.addListener("messageFromWebview", (event) => {
+                const detail = (event?.detail ?? {}) as Record<string, unknown>;
+
+                if (detail.channel !== SILENT_CHANNEL)
+                    return;
+
+                const username = (typeof detail.username === "string" ? detail.username : "").trim();
+
+                if (username !== "")
+                    finish({ username });
+                else
+                    // Answered, but with nobody logged in
+                    finish({ needsLogin: true });
+            }));
+
+            listeners.push(await InAppBrowser.addListener("urlChangeEvent", (state) => {
+                // Spotify asking for a login. Nothing further can be read
+                // quietly, and a one-pixel window is no place to answer it.
+                if (new RegExp(LOGIN_PATTERN, "i").test(state.url))
+                    finish({ needsLogin: true });
+            }));
+
+            await InAppBrowser.openWebView({
+                url: ACCOUNT_URL,
+                title: "Spotify",
+                isInspectable: true,
+                // Present, and effectively invisible
+                width: 1,
+                height: 1,
+                x: 0,
+                y: 0,
+            });
+
+            active = { kind: "silent" };
+        } catch {
+            await finish({ needsLogin: true });
+
+            return;
+        }
+
+        const ask = () => {
+            if (settled)
+                return;
+
+            InAppBrowser.executeScript({ code: buildSilentScript() }).catch(() => { });
+        };
+
+        listeners.push(await InAppBrowser.addListener("browserPageLoaded", () => setTimeout(ask, 400)));
+
+        const poll = setInterval(ask, POLL_MS);
+
+        ask();
+    });
+}
+
+/**
+ * Asks Spotify's account API who is logged in, and posts the answer back.
+ *
+ * Written to post rather than return, because this plugin discards whatever a
+ * script evaluates to - the bridge is the only way back from it.
+ */
+function buildSilentScript(): string {
+    return `(function () {
+        if (window.__tempoSilentAsked)
+            return;
+
+        if (!/${ACCOUNT_PATTERN}/i.test(location.href))
+            return;
+
+        window.__tempoSilentAsked = true;
+
+        var say = function (payload) {
+            try {
+                payload.channel = ${JSON.stringify(SILENT_CHANNEL)};
+
+                window.mobileApp.postMessage({ detail: payload });
+            } catch (e) { }
+        };
+
+        fetch("/api/account-settings/v1/profile", {
+            headers: { Accept: "application/json" },
+            credentials: "include",
+        })
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .then(function (body) {
+                say({ username: (body && body.profile && body.profile.username) || "" });
+            })
+            .catch(function () {
+                // Left for the deadline: a failure here is indistinguishable
+                // from not being logged in, and both end the same way
+            });
+    })()`;
+}
+
+/**
+ * Which webview is currently open, if any.
+ *
+ * Two plugins are in play - one that can be made invisible and one that can be
+ * scripted after a redirect - so what is on screen has to be remembered along
+ * with how to talk to it.
+ */
+type ActiveView =
+    | { kind: "silent" }
+    | { kind: "visible"; ref: CordovaBrowserRef };
+
+let active: ActiveView | undefined;
 
 /**
  * @returns the username, or the reason nothing came back. Never rejects: every
  *          exit resolves, so callers are told what happened.
  */
-export function probeSpotifyUserId(options: ProbeOptions = {}): Promise<SpotifyIdResult> {
+export async function probeSpotifyUserId(options: ProbeOptions = {}): Promise<SpotifyIdResult> {
+    /*
+     * Quietly first.
+     *
+     * Almost everybody arrives with a Spotify session already saved, and for
+     * them none of this needs to be seen: the profile page loads, the API says
+     * who they are, and the whole trip happens in a window one pixel across.
+     * Only when Spotify actually wants a login does anything appear.
+     */
+    const silent = await readSilently();
+
+    if (silent.username) {
+        if (!options.keepOpenOnSuccess)
+            await closeWebView();
+
+        return { username: silent.username };
+    }
+
+    return readWithLogin(options);
+}
+
+function readWithLogin(options: ProbeOptions = {}): Promise<SpotifyIdResult> {
     return new Promise<SpotifyIdResult>((resolve) => {
         const iab = (window as unknown as {
             cordova?: { InAppBrowser?: { open: (url: string, target: string, opts?: string) => CordovaBrowserRef } };
@@ -168,7 +359,7 @@ export function probeSpotifyUserId(options: ProbeOptions = {}): Promise<SpotifyI
             return;
         }
 
-        activeRef = ref;
+        active = { kind: "visible", ref };
 
         const code = buildProbeScript();
 
@@ -188,7 +379,7 @@ export function probeSpotifyUserId(options: ProbeOptions = {}): Promise<SpotifyI
             if (!(options.keepOpenOnSuccess && result.username)) {
                 try { ref.close(); } catch { }
 
-                activeRef = undefined;
+                active = undefined;
             }
 
             resolve({ ...result, diagnostics: result.diagnostics ?? last });
@@ -248,17 +439,37 @@ export function probeSpotifyUserId(options: ProbeOptions = {}): Promise<SpotifyI
  * and shown again, since whatever comes next is for the person to see.
  */
 export async function continueInWebView(url: string): Promise<void> {
-    if (!activeRef)
+    if (!active)
         return;
 
-    try { activeRef.show(); } catch { }
+    if (active.kind === "silent") {
+        // Grown from its pixel to the whole screen: whatever comes next -
+        // a consent screen, most likely - is for the person to see
+        try {
+            await InAppBrowser.updateDimensions({
+                width: Math.round(window.innerWidth),
+                height: Math.round(window.innerHeight),
+                x: 0,
+                y: 0,
+            });
 
-    activeRef.executeScript({ code: `location.href = ${JSON.stringify(url)};` });
+            await InAppBrowser.setUrl({ url });
+        } catch { }
+
+        return;
+    }
+
+    try { active.ref.show(); } catch { }
+
+    active.ref.executeScript({ code: `location.href = ${JSON.stringify(url)};` });
 }
 
 /** Closes the webview left open by the probe. Never throws. */
 export async function closeWebView(): Promise<void> {
-    try { activeRef?.close(); } catch { }
+    if (active?.kind === "visible")
+        try { active.ref.close(); } catch { }
+    else if (active?.kind === "silent")
+        try { await InAppBrowser.close(); } catch { }
 
-    activeRef = undefined;
+    active = undefined;
 }
