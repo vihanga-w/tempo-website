@@ -46,6 +46,14 @@ export function SpotifyAppSetup({ redirectUri, swapToken, onReady, onCancel }: {
      * screen that would never finish.
      */
     const [declined, setDeclined] = useState(false);
+    /**
+     * Spotify said no, in its own words.
+     *
+     * Kept as a screen of its own rather than a line of red text under a form
+     * they can no longer use: the usual reason is being asked to wait a day,
+     * which is not something to fix by reading the form again.
+     */
+    const [refused, setRefused] = useState("");
     /** Bumped to start a fresh attempt after one was put off. */
     const [attempt, setAttempt] = useState(0);
 
@@ -126,7 +134,11 @@ export function SpotifyAppSetup({ redirectUri, swapToken, onReady, onCancel }: {
              * the one thing standing in their way.
              */
             if (result.status === "refused" && result.message) {
-                giveUp(`Spotify would not set this up: ${result.message}`);
+                session.close();
+
+                setWorking(false);
+                setStatus("");
+                setRefused(result.message);
 
                 return;
             }
@@ -194,9 +206,11 @@ export function SpotifyAppSetup({ redirectUri, swapToken, onReady, onCancel }: {
                 <Text fontFamily="Inter" fontSize="26px" fontWeight="bold">
                     {premiumRequired
                         ? "Spotify Premium required"
-                        : declined
-                            ? "Whenever you're ready"
-                            : "Setting up your profile"}
+                        : refused !== ""
+                            ? "Spotify needs a moment"
+                            : declined
+                                ? "Whenever you're ready"
+                                : "Setting up your profile"}
                 </Text>
 
                 {premiumRequired && (
@@ -208,6 +222,24 @@ export function SpotifyAppSetup({ redirectUri, swapToken, onReady, onCancel }: {
                         </Text>
                         <Button onClick={() => { setPremiumRequired(false); setAttempt((a) => a + 1); }}>
                             I&apos;ve upgraded — try again
+                        </Button>
+                    </Stack>
+                )}
+
+                {refused !== "" && (
+                    <Stack gap="18px">
+                        <Text fontFamily="Inter" fontSize="15px" lineHeight="1.5" opacity="0.75">
+                            Spotify would not set your profile up just now, and said:
+                        </Text>
+                        <Text fontFamily="Inter" fontSize="15px" lineHeight="1.5" background="rgba(255,255,255,0.05)" borderRadius="12px" padding="14px">
+                            {refused}
+                        </Text>
+                        <Text fontFamily="Inter" fontSize="14px" lineHeight="1.5" opacity="0.6">
+                            Nothing is lost — come back when it will let you, and Tempo will
+                            pick up from here.
+                        </Text>
+                        <Button onClick={() => { setRefused(""); setError(""); setAttempt((a) => a + 1); }}>
+                            Try again
                         </Button>
                     </Stack>
                 )}
@@ -225,7 +257,7 @@ export function SpotifyAppSetup({ redirectUri, swapToken, onReady, onCancel }: {
                     </Stack>
                 )}
 
-                {!premiumRequired && !declined && (<>
+                {!premiumRequired && !declined && refused === "" && (<>
                     <Text fontFamily="Inter" fontSize="15px" lineHeight="1.5" opacity="0.75">
                         Spotify lets only a handful of listeners share a connection, so Tempo
                         gives you one of your own. We configure it for you — all you need to do
