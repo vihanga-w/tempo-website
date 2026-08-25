@@ -233,7 +233,7 @@ export default function Home() {
           </Text>
           <br />
           <Text>
-            Allowing notification permissions allows us to send you relevant notifications such as when a friend sends you a message or reacts to a song you are listening to.
+            We&apos;ll let you know when someone sends you a friend request, when you and a friend end up listening to the same song, and when your recaps are ready.
           </Text>
         </>), {
           text: "Count me in!",
@@ -356,7 +356,7 @@ export default function Home() {
           </Text>
           <br />
           <Text>
-            Allowing notification permissions allows us to send you relevant notifications such as when a friend sends you a message or reacts to a song you are listening to.
+            We&apos;ll let you know when someone sends you a friend request, when you and a friend end up listening to the same song, and when your recaps are ready.
           </Text>
         </>), {
           text: "Count me in!",
