@@ -30,6 +30,17 @@ export function SmallAddButton({
                 if (onClick) onClick();
             }}
             zIndex={zIndex}
+            /*
+             * The whole control goes, not just its picture.
+             *
+             * Only the image was faded before, which leaves a 62-pixel target
+             * sitting in the corner of pages that have nothing to add - and on
+             * a page it does not belong to, a button that cannot be seen but
+             * can still be found is worse than one that is simply there.
+             */
+            opacity={opacity ?? "1"}
+            visibility={opacity === "0" ? "hidden" : "visible"}
+            transition="opacity .15s"
             width="62px"
             height="62px"
             marginLeft="auto"

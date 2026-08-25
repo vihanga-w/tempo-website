@@ -655,33 +655,40 @@ export function startSpotifyAppForm(options: AppFormOptions & { hidden?: boolean
     ref.addEventListener("exit", () => finish({ reason: "closed" }));
 
     /*
-     * The end of the sign-in, caught before it draws.
+     * Back on Tempo's own pages, which means Spotify has accepted.
      *
-     * Tempo's own page is where Spotify sends people afterwards, and its only
-     * real job is one request telling the app the sign-in landed - the words on
-     * it are for somebody finishing in a browser tab, who does have to close it
-     * themselves. In the app they are wrong twice over: nobody needs to close
-     * anything, and the app is already signed in behind it.
+     * What happens after that is the server's business - it writes the account,
+     * and the page it sends people to exists only to say so. Rather than read
+     * that page, or wait on a token arriving through a socket that may be
+     * listening for a different flow, the app simply starts again: by then the
+     * account is enrolled, so the ordinary path on a fresh start routes
+     * straight to where it should go.
      *
-     * loadstart arrives with the address before the page is drawn, so the
-     * request is made here instead and the webview closed without it ever being
-     * seen.
+     * loadstart carries the address before the page is drawn, so none of it is
+     * ever seen. The second is for the server to finish writing what the
+     * restart is about to read.
      */
+    let finishing = false;
+
     ref.addEventListener("loadstart", (event) => {
         const url = event?.url ?? "";
-
-        if (!/[?&]st=/.test(url))
-            return;
-
         const token = url.match(/[?&]st=([^&#]+)/)?.[1];
 
-        closeAppFormWebView();
-
-        if (!token)
+        if (finishing || !(url.startsWith(API_URL) || token !== undefined))
             return;
 
-        fetch(`${API_URL}/appauth/complete/${token}`, { credentials: "include" })
-            .catch((ex) => console.warn("Could not report the finished sign-in:", ex));
+        finishing = true;
+
+        // Still sent, for anything else waiting to hear it
+        if (token)
+            fetch(`${API_URL}/appauth/complete/${token}`, { credentials: "include" })
+                .catch((ex) => console.warn("Could not report the finished sign-in:", ex));
+
+        setTimeout(() => {
+            closeAppFormWebView();
+
+            window.location.reload();
+        }, 1000);
     });
 
     const poll = setInterval(attempt, POLL_MS);
