@@ -45,15 +45,15 @@ export default function RootLayout({
 
         {/* Sharing Metadata */}
         <meta name="twitter:title" content="Tempo." />
-        <meta name="twitter:url" content="https://tempo-music.co" />
+        <meta name="twitter:url" content="https://tempo.vihangaw.xyz" />
         <meta name="twitter:description" content="The social music platform" />
-        <meta name="twitter:image" content="https://tempo-music.co/icons/ios/192.png" />
+        <meta name="twitter:image" content="https://tempo.vihangaw.xyz/icons/ios/192.png" />
         <meta property="og:type" content="website" />
         <meta property="og:title" content="Tempo." />
         <meta property="og:description" content="The social music platform" />
         <meta property="og:site_name" content="Tempo." />
-        <meta property="og:url" content="https://tempo-music.co" />
-        <meta property="og:image" content="https://tempo-music.co/icons/ios/192.png" />
+        <meta property="og:url" content="https://tempo.vihangaw.xyz" />
+        <meta property="og:image" content="https://tempo.vihangaw.xyz/icons/ios/192.png" />
 
         <meta name="viewport" content="viewport-fit=cover, width=device-width, initial-scale=1" />
 

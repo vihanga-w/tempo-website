@@ -174,7 +174,7 @@ const PrivacyPolicy: React.FC = () => {
                     <li><strong>Right to restrict processing</strong> – You may ask us to suspend processing of your data under certain conditions.</li>
                     <li><strong>Right to data portability</strong> – You can request a copy of your data in a commonly used, machine-readable format.</li>
                 </ul>
-                <p>To exercise any of these rights, please contact us at <a href="mailto:hello@tempo-music.co" style={{ color: "royalblue" }}>hello@tempo-music.co</a>.</p>
+                <p>To exercise any of these rights, please contact us at <a href="mailto:tempo@vihangaw.xyz" style={{ color: "royalblue" }}>tempo@vihangaw.xyz</a>.</p>
             </Section>
 
             <Section number="9" title="Security Measures">
@@ -202,7 +202,7 @@ const PrivacyPolicy: React.FC = () => {
                 <p>
                     If you have questions, concerns, or requests relating to your personal data or this Privacy Policy, you can contact us at:
                 </p>
-                <p><strong>Email:</strong> <a href="mailto:hello@tempo-music.co" style={{ color: "royalblue" }}>hello@tempo-music.co</a></p>
+                <p><strong>Email:</strong> <a href="mailto:tempo@vihangaw.xyz" style={{ color: "royalblue" }}>tempo@vihangaw.xyz</a></p>
                 <p>We aim to respond to all requests within 30 days.</p>
             </Section>
 

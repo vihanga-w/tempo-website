@@ -137,7 +137,7 @@ const TermsAndConditions: React.FC = () => {
                     We reserve the right to suspend or terminate your access to Tempo. if we believe you have violated these Terms, abused other users, or engaged in behaviour that threatens the app’s safety or functionality. Termination may be immediate and without prior notice.
                 </p>
                 <p>
-                    You may delete your account at any time by contacting us directly at <a href="mailto:hello@tempo-music.co" style={{ color: "royalblue" }}>hello@tempo-music.co</a>. Upon account deletion, we will remove your personal data in accordance with our retention and deletion policies.
+                    You may delete your account at any time by contacting us directly at <a href="mailto:tempo@vihangaw.xyz" style={{ color: "royalblue" }}>tempo@vihangaw.xyz</a>. Upon account deletion, we will remove your personal data in accordance with our retention and deletion policies.
                 </p>
             </Section>
 
@@ -158,7 +158,7 @@ const TermsAndConditions: React.FC = () => {
 
             <Section title="Contact">
                 <p>
-                    If you have any questions about these Terms, please contact us at <a href="mailto:hello@tempo-music.co" style={{ color: "royalblue" }}>hello@tempo-music.co</a>.
+                    If you have any questions about these Terms, please contact us at <a href="mailto:tempo@vihangaw.xyz" style={{ color: "royalblue" }}>tempo@vihangaw.xyz</a>.
                 </p>
             </Section>
         </div>

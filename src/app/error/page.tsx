@@ -39,7 +39,7 @@ export default function AuthError() {
                 </Button>
 
                 <Text fontSize="13px" fontFamily="Inter" color="#6b6b6b" mt="6">
-                    Still stuck? Reach us at hello@tempo-music.co
+                    Still stuck? Reach us at tempo@vihangaw.xyz
                 </Text>
             </Box>
         </Center>

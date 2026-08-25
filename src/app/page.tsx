@@ -1062,7 +1062,7 @@ export default function Home() {
               >{perfMsg}</Text>
             </Stack>
             <Box pos="absolute" bottom="20px" left="0" right="0" margin="auto" width="220px" padding="4px" paddingLeft="6px" background="rgba(255, 255, 255, 0.075)" border="2px solid rgba(255, 255, 255, 0.05)" borderRadius="30px">
-              <iframe src="https://status.tempo-music.co/badge?theme=dark" width="220" height="30" style={{
+              <iframe src="https://status.tempo.vihangaw.xyz/badge?theme=dark" width="220" height="30" style={{
                 background: "transparent",
                 colorScheme: "normal",
               }} />
