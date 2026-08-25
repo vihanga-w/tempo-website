@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'co.tempomusic.app',
+  appId: 'xyz.vihangaw.tempo',
   appName: 'Tempo.',
   webDir: 'out',
   plugins: {
