@@ -58,6 +58,23 @@ export function describeTracks(activity: FriendRecentActivity): string {
 /** How many covers the deck shows before it stops being legible. */
 const MAX_FANNED = 3;
 
+/** How far each cover behind the newest peeks out. */
+const FAN_OFFSET = 13;
+
+/** One cover's edge. */
+const COVER_SIZE = 32;
+
+/**
+ * The deck occupies a full three covers' worth whether or not it has three.
+ *
+ * Sized to the maximum rather than the contents so every row's text starts at
+ * the same place. Letting it shrink left a ragged column of names down the
+ * section - a friend who played one track pulled their name 26px left of a
+ * friend who played three - which reads as a rendering fault rather than as
+ * information.
+ */
+const DECK_WIDTH = COVER_SIZE + ((MAX_FANNED - 1) * FAN_OFFSET);
+
 /**
  * One friend's recent listening, as a fixed-height row.
  *
@@ -114,15 +131,15 @@ export function FriendRecentActivityRow({
           * played four tracks takes barely more width than one who played a
           * single track - the run reads as depth instead of length.
           */}
-        <Box position="relative" width={`${(28 + (covers.length - 1) * 13).toString()}px`} height="40px" flexShrink="0">
+        <Box position="relative" width={`${DECK_WIDTH.toString()}px`} height="40px" flexShrink="0">
             {covers.map((t, i) => (
                 <Image
                     key={t.songId + t.timestamp.toString()}
                     position="absolute"
                     top="4px"
-                    left={`${(i * 13).toString()}px`}
-                    width="32px"
-                    height="32px"
+                    left={`${(i * FAN_OFFSET).toString()}px`}
+                    width={`${COVER_SIZE.toString()}px`}
+                    height={`${COVER_SIZE.toString()}px`}
                     borderRadius="7px"
                     objectFit="cover"
                     src={getSizedImageUrl(t.track.album.artUrl, 34, 34)}

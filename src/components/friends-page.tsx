@@ -200,8 +200,12 @@ export default function FriendsPage({
     const SECTION_LABEL_HEIGHT = 27;
     const SEE_ALL_HEIGHT = 30;
 
-    /** Tab bar and home indicator, which the viewport height does not exclude. */
-    const BOTTOM_RESERVE = 96;
+    /**
+     * The home indicator, and enough of a margin that the last row does not sit
+     * flush against the bottom of the screen. There is no tab bar on this page,
+     * so nothing larger needs holding back.
+     */
+    const BOTTOM_RESERVE = 40;
 
     /** Never worth rendering the section for fewer than this. */
     const MIN_ROWS = 2;
@@ -253,11 +257,27 @@ export default function FriendsPage({
             setRowsThatFit(Math.max(MIN_ROWS, Math.floor(forRows / ROW_HEIGHT)));
         };
 
-        measure();
+        /*
+         * Measured after the browser has laid the page out, and then again
+         * shortly after.
+         *
+         * The first pass alone was wrong every time: this section is measured
+         * from where it starts, and what sits above it - a friend's now-playing
+         * card - arrives from the socket a moment after the first render. So it
+         * measured against a page with no live section, decided it had 150px
+         * more room than it does, and rendered a row too many that then hung off
+         * the bottom of the screen.
+         */
+        const frame = requestAnimationFrame(measure);
+        const settle = setTimeout(measure, 400);
 
         window.addEventListener("resize", measure);
 
-        return () => window.removeEventListener("resize", measure);
+        return () => {
+            cancelAnimationFrame(frame);
+            clearTimeout(settle);
+            window.removeEventListener("resize", measure);
+        };
     }, [recentActivity.length, shownListening.length, hiddenListening, pendingRequests]);
 
     // One "now" for every row, so two rows written in the same render cannot
