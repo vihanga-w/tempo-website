@@ -608,6 +608,30 @@ export class DataStreamer extends EventEmitter {
 
                     this.emit("handshake");
 
+                    /*
+                     * With a token, authenticating is the handshake.
+                     *
+                     * The ping below cannot be answered on the endpoint a token
+                     * connects to: that one waits for the token as its first
+                     * message and only starts answering anything else once it
+                     * has one. A ping is not the token, so it was ignored - and
+                     * this end would not send the token until the ping came
+                     * back. The two waited on each other, which on a phone is
+                     * every connection, because a phone has no cookie to
+                     * authenticate with and always carries a token.
+                     *
+                     * The acceptance that comes back is the same proof of a live
+                     * round trip the ping was there to get.
+                     */
+                    if (this.storedToken) {
+                        this.sock?.send(JSON.stringify({
+                            overrideToken: this.storedToken,
+                            clientId,
+                        }));
+
+                        return;
+                    }
+
                     // Wait until server has successfully responded to a ping
                     const handshake = new Promise<void>(async (resolve, reject) => {
                         if (!this.socketOpen()) {
@@ -664,15 +688,10 @@ export class DataStreamer extends EventEmitter {
                     }
 
                     console.log("Socket is reaady!");
-                    
-                    if (this.storedToken) {
-                        this.sock?.send(JSON.stringify({
-                            overrideToken: this.storedToken,
-                            clientId,
-                        }));
-                    } else {
-                        sessionReadyCb();
-                    }
+
+                    // Only the cookie-authenticated endpoint gets this far; a
+                    // token connection has already announced itself above
+                    sessionReadyCb();
                 }
             } catch (ex) {
                 console.error("Failed to initialise DataStreamer, error:", (ex as unknown as Error).toString());
