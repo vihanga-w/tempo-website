@@ -668,16 +668,38 @@ export function startSpotifyAppForm(options: AppFormOptions & { hidden?: boolean
      * ever seen. The second is for the server to finish writing what the
      * restart is about to read.
      */
+    let atSpotify = false;
     let finishing = false;
 
     ref.addEventListener("loadstart", (event) => {
         const url = event?.url ?? "";
         const token = url.match(/[?&]st=([^&#]+)/)?.[1];
 
-        if (finishing || !(url.startsWith(API_URL) || token !== undefined))
+        /*
+         * Spotify has the person now.
+         *
+         * Noted because the address this was sent to is Tempo's own - the
+         * sign-in starts on the server and is handed onward - so arriving back
+         * at Tempo only means something once they have been away. Without this,
+         * the first step looked like the last one and the app started over
+         * before anybody had been asked anything.
+         */
+        if (/accounts\.spotify\.com/i.test(url)) {
+            atSpotify = true;
+
+            return;
+        }
+
+        if (finishing || !atSpotify || !(url.startsWith(API_URL) || token !== undefined))
             return;
 
         finishing = true;
+
+        // Out of sight the moment they are done with it, rather than after the
+        // wait below - there is nothing on Tempo's pages here for them to read
+        shown = false;
+
+        try { ref!.hide(); } catch { }
 
         // Still sent, for anything else waiting to hear it
         if (token)
