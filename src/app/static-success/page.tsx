@@ -13,11 +13,22 @@ export default function AuthSuccess() {
 
         const swapToken = window.location.search.split("st=")[1].split("&")[0];
 
+        // This is what tells the app its sign-in landed, so it happens whether
+        // or not anybody ever reads the line below
         fetch(API_URL + "/appauth/complete/" + swapToken);
 
+        /*
+         * Only for somebody who has been left to close this themselves.
+         *
+         * The app closes this window as soon as it hears the sign-in landed,
+         * and the wait above was shorter than that takes - so people finishing
+         * set-up in the app were told to close a page that was about to close
+         * itself, which is the last thing they should be reading at the end of
+         * it. Long enough now that seeing it means something really is stuck.
+         */
         setTimeout(() => {
           setDelayed(true);
-        }, 1e3);
+        }, 6e3);
     }, []);
 
     return (<Center background="#0D0D0E" padding="15%" pos="fixed" width="100vw" height="100vh" top="0" left="0">
