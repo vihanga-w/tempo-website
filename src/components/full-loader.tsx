@@ -1,116 +1,55 @@
 "use client";
 
-import { Text, Center } from "@chakra-ui/react";
+import { Center } from "@chakra-ui/react";
 import { useEffect, useState } from "react";
 
-/**
- * The word "Tempo", handwritten in a different hand every fifth of a second.
- *
- * Hoisted out of the component so the list is one object rather than a new one
- * on every render, which matters here because the effect below depends on it.
- */
-const FONT_LOOP: {
-    family: string;
-    weight: string;
-    size: string;
-}[] = [
-    { family: "Nanum Pen Script", weight: "regular", size: "50px" },
-    { family: "Caveat", weight: "regular", size: "42px" },
-    { family: "Shadows Into Light", weight: "regular", size: "42px" },
-    { family: "Shadows Into Light Two", weight: "regular", size: "42px" },
-    { family: "Indie Flower", weight: "regular", size: "42px" },
-    { family: "Gloria Hallelujah", weight: "regular", size: "38px" },
-    { family: "Single Day", weight: "regular", size: "44px" },
-    { family: "Reenie Beanie", weight: "regular", size: "44px" },
-    { family: "Schoolbell", weight: "regular", size: "44px" },
-    { family: "Gluten", weight: "regular", size: "32px" },
-    { family: "Rock Salt", weight: "regular", size: "26px" },
-    { family: "Nothing You Could Do", weight: "regular", size: "32px" },
-];
-
-/** The one word this ever renders, so only its glyphs need to arrive. */
-const WORD = "Tempo";
+import { LOADER_WORDS } from "./loader-word-paths";
 
 /**
- * Long enough for twelve small font files, short enough not to be a wait.
+ * The word "Tempo", rewritten in a different handwriting five times a second.
  *
- * Reaching it means starting anyway: a loading screen that will not draw
- * because its decoration has not arrived is worse than one that flickers.
+ * Drawn as outlines rather than set in twelve fonts. Fonts have to arrive, and
+ * a screen that changes this fast gave twelve chances to catch the word
+ * mid-download and show it in a fallback face instead - which is the one hand
+ * that is not handwriting at all, and is the most conspicuous thing on an
+ * otherwise still screen. Waiting for all twelve first removed most of it and
+ * left a flicker on the first pass; there is nothing to wait for now.
+ *
+ * See scripts/generate-loader-paths.mjs for where the outlines come from.
  */
-const FONT_TIMEOUT_MS = 3000;
-
 export default function FullLoader() {
-    const [fontIndex, setFontIndex] = useState<number>(0);
-    const [ready, setReady] = useState(false);
-
-    /*
-     * Every hand is fetched before the first is shown.
-     *
-     * The stylesheet in the document head only describes these families; the
-     * files themselves are not fetched until something is painted in one. So
-     * each font arrived as it came up in the loop, and the word snapped from a
-     * fallback into the real hand a fifth of a second later - twelve times
-     * over, which is the flicker.
-     */
-    useEffect(() => {
-        let cancelled = false;
-
-        const start = () => {
-            if (!cancelled)
-                setReady(true);
-        };
-
-        if (typeof document === "undefined" || !document.fonts) {
-            start();
-
-            return;
-        }
-
-        // Whichever comes first: every hand loaded, or the wait being over
-        const giveUp = setTimeout(start, FONT_TIMEOUT_MS);
-
-        Promise.all(FONT_LOOP.map((font) =>
-            document.fonts.load(`${font.weight} ${font.size} "${font.family}"`, WORD).catch(() => undefined)))
-            .then(start)
-            .catch(start);
-
-        return () => {
-            cancelled = true;
-
-            clearTimeout(giveUp);
-        };
-    }, []);
+    const [index, setIndex] = useState<number>(0);
 
     useEffect(() => {
-        if (!ready)
-            return;
-
         const intervalId = setInterval(() => {
-            setFontIndex(prev => {
-                let newIndex;
+            setIndex(prev => {
+                let next;
 
                 do {
-                    newIndex = Math.floor(Math.random() * FONT_LOOP.length);
-                } while (newIndex === prev);
+                    next = Math.floor(Math.random() * LOADER_WORDS.length);
+                } while (next === prev);
 
-                return newIndex;
+                return next;
             });
         }, 200);
 
         return () => clearInterval(intervalId);
-    }, [ready]);
+    }, []);
+
+    const word = LOADER_WORDS[index];
 
     return (<Center width="100%" height="100%" background="#0D0D0E">
-        <Text
-            textAlign="center"
-            width="100%"
-            fontFamily={FONT_LOOP[fontIndex].family}
-            fontWeight={FONT_LOOP[fontIndex].weight}
-            fontSize={FONT_LOOP[fontIndex].size}
-            // Held back rather than shown in a fallback: the first frame would
-            // otherwise be the one hand that is not handwriting at all
-            opacity={ready ? 1 : 0}
-            transition="opacity .2s"
-        >Tempo</Text>
-    </Center>)
+        <svg
+            width={word.width}
+            height={word.height}
+            viewBox={word.viewBox}
+            // The outlines carry no colour of their own, so they take the
+            // text colour around them as the words used to
+            fill="currentColor"
+            role="img"
+            aria-label="Tempo"
+        >
+            <path d={word.path} />
+        </svg>
+    </Center>);
 }

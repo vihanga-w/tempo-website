@@ -104,7 +104,15 @@ export default function RootLayout({
         {/* Fonts */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400..700&family=Gloria+Hallelujah&family=Gluten:wght@100..900&family=Indie+Flower&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Libre+Franklin:ital,wght@0,100..900;1,100..900&family=Nanum+Pen+Script&family=Nothing+You+Could+Do&family=Reenie+Beanie&family=Rock+Salt&family=Schoolbell&family=Shadows+Into+Light&family=Shadows+Into+Light+Two&family=Single+Day" rel="stylesheet" />
+        {/*
+          * Only the two faces the interface is actually set in.
+          *
+          * The twelve handwritten families that used to be here were for the
+          * loading screen, which now draws its word as outlines - so fetching
+          * them was a dozen font files pulled on every cold start for a screen
+          * that no longer waits on any of them.
+          */}
+        <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Libre+Franklin:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
       </head>
       <body style={{
         height: "100%",
