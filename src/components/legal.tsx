@@ -87,8 +87,29 @@ export default function LegalPage({
     <ChakraProvider theme={theme}>
       <LegalDrawer open={onOpen} close={onClose} isOpen={isOpen} page={legalPage == "" ? "terms" : legalPage} />
 
-      <Flex minHeight="100vh" direction="column" bg="#0D0D0E">
-        <Container maxW="container.md" py={6} px={5} flex="1" display="flex" flexDirection="column">
+      {/*
+        * A full screen is not a full viewport here.
+        *
+        * The document is already pushed down by the top inset, so a child asking
+        * for the whole viewport on top of that is taller than the screen by
+        * exactly that much - and what fell off the bottom was the Continue
+        * button, on the one page that cannot be got past without it.
+        */}
+      <Flex
+        minHeight="calc(100vh - var(--safe-area-inset-top, 0px))"
+        direction="column"
+        bg="#0D0D0E"
+      >
+        <Container
+          maxW="container.md"
+          py={6}
+          px={5}
+          flex="1"
+          display="flex"
+          flexDirection="column"
+          // Clear of the home indicator, which sits over the bottom of the page
+          paddingBottom="calc(var(--safe-area-inset-bottom, 0px) + 24px)"
+        >
           <Center mt={10} mb={8}>
             <Image
                 src={`/icons/ui/logo-clear.svg`}
@@ -162,7 +183,6 @@ export default function LegalPage({
               _hover={{ bg: "#2A33EE" }}
               _disabled={{ bg: "gray.700", cursor: "not-allowed" }}
               py={6}
-              marginBottom="20px"
               size="lg"
               onClick={() => {
                 window.localStorage.setItem("tempo-legal-agreed", Date.now().toString());
