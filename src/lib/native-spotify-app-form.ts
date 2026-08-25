@@ -20,6 +20,8 @@
  * back to a callback, so nothing here depends on a message bridge.
  */
 
+import { API_URL } from "./const";
+
 /** Fields to fill, matched by how the page describes them rather than by selector. */
 export interface AppFormFill {
     filled: string[];
@@ -40,6 +42,26 @@ export interface AppFormResult {
 }
 
 const CREATE_URL = "https://developer.spotify.com/dashboard/create";
+
+/**
+ * The set-up webview, if one is open.
+ *
+ * Held here as well as on the session because whoever finishes the sign-in is
+ * not whoever started it: the app hears its token land somewhere else entirely
+ * and has to be able to put this away, and closing "the browser" without saying
+ * which one closed a different plugin's and left this one covering a signed-in
+ * app with a page telling people to close it themselves.
+ */
+let openFormView: CordovaBrowserRef | undefined;
+
+/** Closes the set-up webview wherever it was opened from. Never throws. */
+export async function closeAppFormWebView(): Promise<void> {
+    try {
+        openFormView?.close();
+    } catch { }
+
+    openFormView = undefined;
+}
 
 /** How long to keep trying before giving up on the form appearing. */
 const DEADLINE_MS = 3 * 60 * 1000;
@@ -473,7 +495,7 @@ function buildArrivedScript(): string {
 }
 
 interface CordovaBrowserRef {
-    addEventListener: (name: string, cb: (event?: unknown) => void) => void;
+    addEventListener: (name: string, cb: (event?: { url?: string }) => void) => void;
     removeEventListener: (name: string, cb: (event?: unknown) => void) => void;
     executeScript: (details: { code: string }, cb?: (results: unknown[]) => void) => void;
     show: () => void;
@@ -568,6 +590,8 @@ export function startSpotifyAppForm(options: AppFormOptions & { hidden?: boolean
 
     try {
         ref = iab.open(CREATE_URL, "_blank", `location=no,toolbar=no,hidden=${options.hidden ? "yes" : "no"}`);
+
+        openFormView = ref;
     } catch (ex) {
         resolveReady({ reason: "unavailable", diagnostics: { error: String(ex) } });
 
@@ -629,6 +653,36 @@ export function startSpotifyAppForm(options: AppFormOptions & { hidden?: boolean
 
     ref.addEventListener("loadstop", attempt);
     ref.addEventListener("exit", () => finish({ reason: "closed" }));
+
+    /*
+     * The end of the sign-in, caught before it draws.
+     *
+     * Tempo's own page is where Spotify sends people afterwards, and its only
+     * real job is one request telling the app the sign-in landed - the words on
+     * it are for somebody finishing in a browser tab, who does have to close it
+     * themselves. In the app they are wrong twice over: nobody needs to close
+     * anything, and the app is already signed in behind it.
+     *
+     * loadstart arrives with the address before the page is drawn, so the
+     * request is made here instead and the webview closed without it ever being
+     * seen.
+     */
+    ref.addEventListener("loadstart", (event) => {
+        const url = event?.url ?? "";
+
+        if (!/[?&]st=/.test(url))
+            return;
+
+        const token = url.match(/[?&]st=([^&#]+)/)?.[1];
+
+        closeAppFormWebView();
+
+        if (!token)
+            return;
+
+        fetch(`${API_URL}/appauth/complete/${token}`, { credentials: "include" })
+            .catch((ex) => console.warn("Could not report the finished sign-in:", ex));
+    });
 
     const poll = setInterval(attempt, POLL_MS);
     const deadline = setTimeout(() => finish({ reason: "timeout" }), DEADLINE_MS);
@@ -789,6 +843,10 @@ export function startSpotifyAppForm(options: AppFormOptions & { hidden?: boolean
 
             try { ref?.hide(); } catch { }
         },
-        close: () => { try { ref?.close(); } catch { } },
+        close: () => {
+            try { ref?.close(); } catch { }
+
+            openFormView = undefined;
+        },
     };
 }

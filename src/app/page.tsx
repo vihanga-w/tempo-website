@@ -24,6 +24,7 @@ import { StatusBar, Style } from '@capacitor/status-bar';
 import { InAppBrowser } from '@capgo/inappbrowser';
 import { closeWebView, continueInWebView, probeSpotifyUserId } from "@/lib/native-spotify-id";
 import { SpotifyAppSetup } from "@/components/spotify-app-setup";
+import { closeAppFormWebView } from "@/lib/native-spotify-app-form";
 import { Preferences } from '@capacitor/preferences';
 
 import User from "@/lib/usrlib";
@@ -639,9 +640,15 @@ export default function Home() {
                 console.log("POLL:", tok)
       
                 if (tok && tok !== "INIT") {
+                  // Both, because by this point the webview on screen may be
+                  // either: the one this flow opened, or the one set-up opened
+                  // and is still showing. Closing only ours left a signed-in
+                  // app underneath a page telling people to close it.
                   try {
                     InAppBrowser.close();
                   } catch { }
+
+                  closeAppFormWebView();
 
                   clearInterval(checker);
                   prepare(tok);
@@ -651,6 +658,8 @@ export default function Home() {
               try {
                 InAppBrowser.close();
               } catch { }
+
+              closeAppFormWebView();
 
               // The poller and this message race to the same swap token, and
               // whichever loses finds it already spent. Only the poller cleared
