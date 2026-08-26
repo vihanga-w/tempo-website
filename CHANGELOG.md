@@ -1,5 +1,20 @@
 # Changelog
 
+## The friends tab
+
+### 👀 See what your friends have been listening to
+
+You can now see what songs your friends have been listening to, right on the
+Friends tab! Anyone who isn't playing something right now turns up under
+Recent activity — their last few covers, what they finished on, and how long
+ago it was. If they had a song on repeat, we'll say so.
+
+When lots of friends are listening at once the ones who just put music on get
+the cards, and the rest are a tap away, so it all still fits on one screen
+without scrolling.
+
+Headings and names are written normally now, too, instead of IN CAPITALS.
+
 ## The profile page
 
 ### 🎧 The record is a real record
