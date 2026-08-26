@@ -511,8 +511,23 @@ export default function FriendsPage({
                 <Box>
                     <SectionLabel marginBottom="8px">Listening now</SectionLabel>
 
-                    <Stack gap="17px">
-                    <AnimatePresence initial={false}>
+                    {/* Relative, because a card on its way out is taken out of
+                        the flow and positioned against this. */}
+                    <Stack gap="17px" position="relative">
+                    {/*
+                      * popLayout, not the default.
+                      *
+                      * A friend arriving from behind "more listening" pushes
+                      * another past the cap, so one card enters and one leaves
+                      * at once. Left in the flow while it fades, the leaving
+                      * card holds its space for the length of the animation -
+                      * the section stands a card taller than it has any right
+                      * to, everything below is pushed down, and both snap back
+                      * when the fade ends. Taken out of the flow, the cards
+                      * that remain close the gap straight away and the one
+                      * leaving fades over the top of them.
+                      */}
+                    <AnimatePresence initial={false} mode="popLayout">
                     {shownListening.map(friend => {
                         const id = resolveFriendId(friend);
 
@@ -578,8 +593,8 @@ export default function FriendsPage({
                 {recentActivity.length > 0 && (<>
                     <SectionLabel marginBottom="5px">Recent activity</SectionLabel>
 
-                    <Stack gap="0px">
-                        <AnimatePresence initial={false}>
+                    <Stack gap="0px" position="relative">
+                        <AnimatePresence initial={false} mode="popLayout">
                         {visibleActivity.map(activity => (
                             <motion.div
                                 key={activity.userId}
