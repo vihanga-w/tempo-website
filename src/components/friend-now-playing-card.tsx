@@ -265,14 +265,22 @@ export function FriendNowPlayingCard({
                         ) : (
                             <InitialAvatar userId={userId} displayName={username} size="15px" borderRadius="5px" fontSize="9px" />
                         )}
+                        {/*
+                          * Somebody's name, written the way they write it.
+                          *
+                          * Small letterspaced capitals made a friend look like
+                          * a column heading, and gave the friendliest thing on
+                          * the page the tone of a filing label - BRIAN rather
+                          * than Brian. It also collided with the section
+                          * headings, which were set the same way, so a person
+                          * and a heading were indistinguishable at a glance.
+                          */}
                         <Text
                             fontFamily="Inter"
-                            fontSize="11px"
+                            fontSize="12px"
                             fontWeight="semibold"
-                            letterSpacing="0.09em"
-                            textTransform="uppercase"
                             color="text.color"
-                            opacity="0.55"
+                            opacity="0.65"
                             userSelect="none"
                             whiteSpace="nowrap"
                             overflow="hidden"

@@ -10,6 +10,26 @@ import { FriendNowPlayingCard } from "./friend-now-playing-card";
 import { FriendRecentActivityRow } from "./friend-recent-activity-row";
 import { FriendRecentActivity } from "@/lib/usrlib";
 
+/**
+ * A heading for one of the page's three sections.
+ *
+ * Written the way somebody would say it, rather than set in small letterspaced
+ * capitals. Two reasons beyond the tone: capitals were already spoken for -
+ * the now-playing card sets a friend's name the same way, so a heading and a
+ * person looked like the same kind of thing - and a heading that organises a
+ * whole screen was being drawn smaller than the rows underneath it.
+ */
+function SectionLabel({ children, marginBottom }: Readonly<{ children: string; marginBottom: string }>) {
+    return (<Text
+        fontFamily="Inter"
+        fontSize="14px"
+        fontWeight="semibold"
+        color="secondary.dark"
+        marginBottom={marginBottom}
+        userSelect="none"
+    >{children}</Text>);
+}
+
 export default function FriendsPage({
     user,
     streamer,
@@ -201,11 +221,35 @@ export default function FriendsPage({
     const SEE_ALL_HEIGHT = 30;
 
     /**
-     * The home indicator, and enough of a margin that the last row does not sit
-     * flush against the bottom of the screen. There is no tab bar on this page,
-     * so nothing larger needs holding back.
+     * Clear of the bottom of the screen, whatever that means on this device.
+     *
+     * A constant was wrong twice over. The home indicator's height is the
+     * device's to say, not ours - and the screen's corners are round, so the
+     * last thing on the page is also the thing closest to where the display
+     * curves away. "See all" sits at the left margin, which is exactly where
+     * that curve eats into, and a row that measured as fitting would have had
+     * its final line clipped by the glass.
+     *
+     * So: the reported inset, plus a margin wide enough to sit inside the
+     * corner radius rather than under it.
      */
-    const BOTTOM_RESERVE = 40;
+    const CORNER_MARGIN = 28;
+
+    const bottomInset = useMemo(() => {
+        if (typeof window === "undefined")
+            return 34;
+
+        const raw = getComputedStyle(document.documentElement)
+            .getPropertyValue("--safe-area-inset-bottom")
+            .trim();
+
+        const parsed = parseFloat(raw);
+
+        // Unset on a device without one, and on anything that reports nonsense
+        return (Number.isFinite(parsed) ? parsed : 0);
+    }, []);
+
+    const BOTTOM_RESERVE = bottomInset + CORNER_MARGIN;
 
     /** Never worth rendering the section for fewer than this. */
     const MIN_ROWS = 2;
@@ -341,16 +385,7 @@ export default function FriendsPage({
 
             {friends.length > 0 && (
                 <Box marginBottom="30px">
-                    <Text
-                        fontFamily="Inter"
-                        fontSize="11px"
-                        fontWeight="semibold"
-                        letterSpacing="0.08em"
-                        textTransform="uppercase"
-                        color="secondary.dark"
-                        marginBottom="12px"
-                        userSelect="none"
-                    >Your friends</Text>
+                    <SectionLabel marginBottom="12px">Your friends</SectionLabel>
 
                     {/* Always present, and scrolls sideways rather than wrapping,
                         so the strip stays a fixed part of the page whether anyone
@@ -417,16 +452,7 @@ export default function FriendsPage({
 
             {listening.length > 0 && (
                 <Box>
-                    <Text
-                        fontFamily="Inter"
-                        fontSize="11px"
-                        fontWeight="semibold"
-                        letterSpacing="0.08em"
-                        textTransform="uppercase"
-                        color="secondary.dark"
-                        marginBottom="16px"
-                        userSelect="none"
-                    >Listening now</Text>
+                    <SectionLabel marginBottom="16px">Listening now</SectionLabel>
 
                     <Stack gap="20px">
                     {shownListening.map(friend => {
@@ -472,16 +498,7 @@ export default function FriendsPage({
               */}
             <Box ref={activityRef} marginTop="30px">
                 {recentActivity.length > 0 && (<>
-                    <Text
-                        fontFamily="Inter"
-                        fontSize="11px"
-                        fontWeight="semibold"
-                        letterSpacing="0.08em"
-                        textTransform="uppercase"
-                        color="secondary.dark"
-                        marginBottom="10px"
-                        userSelect="none"
-                    >Recent activity</Text>
+                    <SectionLabel marginBottom="10px">Recent activity</SectionLabel>
 
                     <Stack gap="0px">
                         {visibleActivity.map(activity => (
