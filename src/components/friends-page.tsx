@@ -8,6 +8,7 @@ import { findBestSCDNImageSize } from "@/lib/utils";
 import { getSizedImageUrl } from "@/lib/sized-img";
 import { FriendNowPlayingCard } from "./friend-now-playing-card";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { useSettledOrder } from "@/lib/use-settled-order";
 import { FriendRecentActivityRow } from "./friend-recent-activity-row";
 import { FriendRecentActivity } from "@/lib/usrlib";
 
@@ -313,8 +314,39 @@ export default function FriendsPage({
 
     const [showAllListening, setShowAllListening] = useState<boolean>(false);
 
-    const shownListening = showAllListening ? listening : listening.slice(0, NOW_PLAYING_CAP);
-    const hiddenListening = listening.length - shownListening.length;
+    /*
+     * The order the cards are actually drawn in, held to one rearrangement
+     * every few seconds.
+     *
+     * Ordering by whoever changed track most recently is right and cannot be
+     * applied the moment it happens: a friend flicking through a playlist
+     * changes track every few seconds, and the cards would spend the evening
+     * swapping places. Somebody starting or stopping is not held - a card must
+     * never claim that a friend is playing something they are not.
+     */
+    const settledOrder = useSettledOrder(useMemo(
+        () => listening.map(resolveFriendId),
+        [listening]));
+
+    const orderedListening = useMemo(() => {
+        const byId = new Map(listening.map(v => [resolveFriendId(v), v]));
+
+        const ordered = settledOrder
+            .map(id => byId.get(id))
+            .filter((v): v is typeof listening[number] => v !== undefined);
+
+        // Anybody the settled order has not caught up with yet still belongs on
+        // the page: the set is never held back, only the sequence
+        for (const friend of listening) {
+            if (!settledOrder.includes(resolveFriendId(friend)))
+                ordered.push(friend);
+        }
+
+        return ordered;
+    }, [listening, settledOrder]);
+
+    const shownListening = showAllListening ? orderedListening : orderedListening.slice(0, NOW_PLAYING_CAP);
+    const hiddenListening = orderedListening.length - shownListening.length;
 
     const [recentActivity, setRecentActivity] = useState<FriendRecentActivity[]>([]);
     const [showAllActivity, setShowAllActivity] = useState<boolean>(false);
@@ -323,20 +355,30 @@ export default function FriendsPage({
     const activityRef = useRef<HTMLDivElement>(null);
 
     /**
-     * Refreshed when playback changes as well as on mount: a friend who stops
-     * listening leaves the live section and belongs in this one immediately,
-     * and without the tick they would disappear from the page until it was
-     * reopened.
+     * Refreshed when who is listening changes, as well as on mount: somebody
+     * who stops playing something has just finished a track, and what they
+     * finished on belongs here.
+     *
+     * Keyed on that set rather than on the playback tick. The tick fires every
+     * few seconds as progress is pushed, and asking for a forced refresh on
+     * each one meant a request per tick and a cache that was never once read -
+     * to learn, almost every time, that a friend who stopped an hour ago had
+     * still stopped.
      */
+    const listeningKey = useMemo(
+        () => listening.map(resolveFriendId).sort().join(" "),
+        [listening]);
+
     useEffect(() => {
         let cancelled = false;
 
-        user.getFriendsRecentActivity(playbackTick > 0)
+        user.getFriendsRecentActivity(listeningKey !== "")
             .then(data => { if (!cancelled) setRecentActivity(data); })
             .catch(() => { if (!cancelled) setRecentActivity([]); });
 
         return () => { cancelled = true; };
-    }, [user, playbackTick]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [user, listeningKey]);
 
     /**
      * How many rows fit between the top of this section and the bottom of the
