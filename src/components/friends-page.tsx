@@ -329,20 +329,24 @@ export default function FriendsPage({
         [listening]));
 
     const orderedListening = useMemo(() => {
+        const ids = listening.map(resolveFriendId);
+
+        /*
+         * The settled order updates through state, so it is one render behind a
+         * membership change. Appending the newcomer while it caught up put them
+         * at the bottom for one committed frame, and the card then slid the
+         * whole way to the top - a journey that never happened. When the
+         * members differ, the desired order is rendered as it is; the hook
+         * catches up without anything moving.
+         */
+        if (ids.length !== settledOrder.length || !ids.every(id => settledOrder.includes(id)))
+            return listening;
+
         const byId = new Map(listening.map(v => [resolveFriendId(v), v]));
 
-        const ordered = settledOrder
+        return settledOrder
             .map(id => byId.get(id))
             .filter((v): v is typeof listening[number] => v !== undefined);
-
-        // Anybody the settled order has not caught up with yet still belongs on
-        // the page: the set is never held back, only the sequence
-        for (const friend of listening) {
-            if (!settledOrder.includes(resolveFriendId(friend)))
-                ordered.push(friend);
-        }
-
-        return ordered;
     }, [listening, settledOrder]);
 
     const shownListening = showAllListening ? orderedListening : orderedListening.slice(0, NOW_PLAYING_CAP);
@@ -369,10 +373,18 @@ export default function FriendsPage({
         () => listening.map(resolveFriendId).sort().join(" "),
         [listening]);
 
+    // What the set looked like last time, so opening the page reads the cache
+    // and only an actual change in who is listening forces past it
+    const previousListeningKey = useRef<string | null>(null);
+
     useEffect(() => {
         let cancelled = false;
 
-        user.getFriendsRecentActivity(listeningKey !== "")
+        const changed = (previousListeningKey.current !== null && previousListeningKey.current !== listeningKey);
+
+        previousListeningKey.current = listeningKey;
+
+        user.getFriendsRecentActivity(changed)
             .then(data => { if (!cancelled) setRecentActivity(data); })
             .catch(() => { if (!cancelled) setRecentActivity([]); });
 
