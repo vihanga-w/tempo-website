@@ -179,6 +179,38 @@ export default function FriendsPage({
             (playing ? listening : idle).push(friend);
         }
 
+        /*
+         * Whoever put music on most recently gets the space.
+         *
+         * These cards are capped, so the order decides who is seen - and it was
+         * alphabetical, which meant the same friend was promoted every time and
+         * another was never shown at all.
+         *
+         * Sorted on when the session began rather than on when it last changed:
+         * the newest listener is the one you have not seen yet, while a friend
+         * three hours into a run is the least new thing on the page. Keying on
+         * the last event instead would be fresher still and unusable - the
+         * order would rearrange itself on every song, moving cards under the
+         * finger about to tap one, and anybody skipping through a playlist
+         * would hold the top of the list.
+         *
+         * A session with no start recorded sorts last rather than first, so a
+         * missing value cannot outrank a real one.
+         */
+        listening.sort((a, b) => {
+            const startedAt = (friend: typeof friends[number]) => {
+                const id = user.id
+                    ? (friend.friendship.u1Id === user.id ? friend.friendship.u2Id : friend.friendship.u1Id)
+                    : friend.user.id;
+
+                const start = streamer?.getPrevState(id)?.data?.state?.playSessionStart;
+
+                return (typeof start === "number" && start > 0 ? start : 0);
+            };
+
+            return startedAt(b) - startedAt(a);
+        });
+
         return { listening, idle };
     }, [friends, streamer, playbackTick, user.id]);
 
