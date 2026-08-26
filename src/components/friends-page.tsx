@@ -248,9 +248,9 @@ export default function FriendsPage({
     const NOW_PLAYING_CAP = 3;
 
     /** Room a row needs, and what sits above and below the rows. */
-    const ROW_HEIGHT = 52;
-    const SECTION_LABEL_HEIGHT = 27;
-    const SEE_ALL_HEIGHT = 30;
+    const ROW_HEIGHT = 50;
+    const SECTION_LABEL_HEIGHT = 22;
+    const SEE_ALL_HEIGHT = 26;
 
     /**
      * Clear of the bottom of the screen, whatever that means on this device.
@@ -416,8 +416,8 @@ export default function FriendsPage({
             )}
 
             {friends.length > 0 && (
-                <Box marginBottom="30px">
-                    <SectionLabel marginBottom="12px">Your friends</SectionLabel>
+                <Box marginBottom="24px">
+                    <SectionLabel marginBottom="6px">Your friends</SectionLabel>
 
                     {/* Always present, and scrolls sideways rather than wrapping,
                         so the strip stays a fixed part of the page whether anyone
@@ -484,9 +484,9 @@ export default function FriendsPage({
 
             {listening.length > 0 && (
                 <Box>
-                    <SectionLabel marginBottom="16px">Listening now</SectionLabel>
+                    <SectionLabel marginBottom="8px">Listening now</SectionLabel>
 
-                    <Stack gap="20px">
+                    <Stack gap="17px">
                     {shownListening.map(friend => {
                         const id = resolveFriendId(friend);
 
@@ -511,7 +511,7 @@ export default function FriendsPage({
                             fontSize="12px"
                             fontWeight="semibold"
                             color="accent.dark"
-                            marginTop="14px"
+                            marginTop="11px"
                             cursor="pointer"
                             userSelect="none"
                             onClick={() => setShowAllListening(true)}
@@ -528,9 +528,9 @@ export default function FriendsPage({
               * capped. The ref is what the measurement reads, so it stays
               * mounted even while the list is empty.
               */}
-            <Box ref={activityRef} marginTop="30px">
+            <Box ref={activityRef} marginTop="24px">
                 {recentActivity.length > 0 && (<>
-                    <SectionLabel marginBottom="10px">Recent activity</SectionLabel>
+                    <SectionLabel marginBottom="5px">Recent activity</SectionLabel>
 
                     <Stack gap="0px">
                         {visibleActivity.map(activity => (
@@ -549,7 +549,7 @@ export default function FriendsPage({
                             fontSize="12px"
                             fontWeight="semibold"
                             color="accent.dark"
-                            marginTop="10px"
+                            marginTop="8px"
                             cursor="pointer"
                             userSelect="none"
                             onClick={() => setShowAllActivity(true)}

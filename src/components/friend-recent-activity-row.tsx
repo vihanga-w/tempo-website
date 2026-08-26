@@ -97,7 +97,7 @@ export function FriendRecentActivityRow({
 
     return (<HStack
         gap="12px"
-        paddingY="6px"
+        paddingY="5px"
         cursor="pointer"
         onClick={() => openPubProfile(activity.userId)}
         aria-label={`${activity.username}, ${describeTracks(activity)}, ${describeWhen(activity.lastPlayedAt, now)}`}
