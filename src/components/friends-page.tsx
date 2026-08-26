@@ -210,7 +210,9 @@ export default function FriendsPage({
     /** Never worth rendering the section for fewer than this. */
     const MIN_ROWS = 2;
 
-    const shownListening = listening.slice(0, NOW_PLAYING_CAP);
+    const [showAllListening, setShowAllListening] = useState<boolean>(false);
+
+    const shownListening = showAllListening ? listening : listening.slice(0, NOW_PLAYING_CAP);
     const hiddenListening = listening.length - shownListening.length;
 
     const [recentActivity, setRecentActivity] = useState<FriendRecentActivity[]>([]);
@@ -449,10 +451,13 @@ export default function FriendsPage({
                         <Text
                             fontFamily="Inter"
                             fontSize="12px"
-                            color="secondary.dark"
+                            fontWeight="semibold"
+                            color="accent.dark"
                             marginTop="14px"
+                            cursor="pointer"
                             userSelect="none"
-                        >+{hiddenListening} more listening</Text>
+                            onClick={() => setShowAllListening(true)}
+                        >+{hiddenListening} more listening &rsaquo;</Text>
                     )}
                 </Box>
             )}

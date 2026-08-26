@@ -104,28 +104,6 @@ export function FriendRecentActivityRow({
         _active={{ opacity: 0.7 }}
         transition="opacity .12s"
     >
-        {pfp ? (
-            <Image
-                width="32px"
-                height="32px"
-                borderRadius="10px"
-                objectFit="cover"
-                src={getSizedImageUrl(pfp, 34, 34)}
-                alt=""
-                draggable={false}
-                flexShrink="0"
-                opacity="0.9"
-            />
-        ) : (
-            <InitialAvatar
-                userId={activity.userId}
-                displayName={activity.username}
-                size="32px"
-                borderRadius="10px"
-                opacity={0.9}
-            />
-        )}
-
         {/*
           * The covers overlap rather than sitting in a row, so a friend who
           * played four tracks takes barely more width than one who played a
@@ -156,6 +134,39 @@ export function FriendRecentActivityRow({
 
         <Stack gap="1px" flex="1" minWidth="0">
             <HStack gap="6px" minWidth="0">
+                {/*
+                  * Beside the name rather than leading the row, and square
+                  * rather than round, which is how a profile picture is drawn
+                  * everywhere else - 42px in the strip above, 15px on the
+                  * now-playing card this sits under.
+                  *
+                  * It also settles what a leading avatar could not: sat next to
+                  * the album art, a photograph of a person and a photograph on
+                  * a record sleeve are the same object at the same size, and
+                  * the row read as three interchangeable squares. Next to the
+                  * name there is nothing to confuse it with.
+                  */}
+                {pfp ? (
+                    <Image
+                        width="15px"
+                        height="15px"
+                        borderRadius="5px"
+                        objectFit="cover"
+                        src={getSizedImageUrl(pfp, 16, 16)}
+                        alt=""
+                        draggable={false}
+                        flexShrink="0"
+                    />
+                ) : (
+                    <InitialAvatar
+                        userId={activity.userId}
+                        displayName={activity.username}
+                        size="15px"
+                        borderRadius="5px"
+                        fontSize="9px"
+                    />
+                )}
+
                 <Text
                     fontFamily="Inter"
                     fontSize="13px"
