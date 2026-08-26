@@ -643,7 +643,14 @@ export default function FriendsPage({
               * capped. The ref is what the measurement reads, so it stays
               * mounted even while the list is empty.
               */}
-            <Box ref={activityRef} marginTop="24px">
+            {/*
+              * The bottom padding is for the expanded state. Collapsed, the
+              * rows are counted to end above the fold and the padding falls
+              * inside what was already reserved - but once "See all" opens the
+              * list past the fold the page scrolls, and without it the last
+              * row sat flush against the glass, under the home indicator.
+              */}
+            <Box ref={activityRef} marginTop="24px" paddingBottom="calc(var(--safe-area-inset-bottom, 0px) + 28px)">
                 {recentActivity.length > 0 && (<>
                     <SectionLabel marginBottom="5px">Recent activity</SectionLabel>
 
