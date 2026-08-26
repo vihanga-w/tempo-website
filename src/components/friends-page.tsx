@@ -7,6 +7,7 @@ import { DataStreamer, UpdateEvent } from "@/lib/live-ingest";
 import { findBestSCDNImageSize } from "@/lib/utils";
 import { getSizedImageUrl } from "@/lib/sized-img";
 import { FriendNowPlayingCard } from "./friend-now-playing-card";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { FriendRecentActivityRow } from "./friend-recent-activity-row";
 import { FriendRecentActivity } from "@/lib/usrlib";
 
@@ -180,35 +181,39 @@ export default function FriendsPage({
         }
 
         /*
-         * Whoever put music on most recently gets the space.
+         * Whoever changed what they are playing most recently gets the space.
          *
-         * These cards are capped, so the order decides who is seen - and it was
-         * alphabetical, which meant the same friend was promoted every time and
-         * another was never shown at all.
+         * These cards are capped, so the order decides who is seen at all - and
+         * it was alphabetical, which promoted the same friend every time and
+         * never showed another.
          *
-         * Sorted on when the session began rather than on when it last changed:
-         * the newest listener is the one you have not seen yet, while a friend
-         * three hours into a run is the least new thing on the page. Keying on
-         * the last event instead would be fresher still and unusable - the
-         * order would rearrange itself on every song, moving cards under the
-         * finger about to tap one, and anybody skipping through a playlist
-         * would hold the top of the list.
+         * Keyed on when the current song started, not on when the payload last
+         * arrived. updatedAt moves every few seconds as progress is pushed, so
+         * ordering by it would rearrange the cards continuously and move one
+         * out from under the finger about to tap it. Where the song began only
+         * moves when somebody actually changes track, which is the event worth
+         * reacting to.
          *
-         * A session with no start recorded sorts last rather than first, so a
-         * missing value cannot outrank a real one.
+         * A state that cannot say sorts last, so a missing value never outranks
+         * a real one.
          */
         listening.sort((a, b) => {
-            const startedAt = (friend: typeof friends[number]) => {
+            const songStartedAt = (friend: typeof friends[number]) => {
                 const id = user.id
                     ? (friend.friendship.u1Id === user.id ? friend.friendship.u2Id : friend.friendship.u1Id)
                     : friend.user.id;
 
-                const start = streamer?.getPrevState(id)?.data?.state?.playSessionStart;
+                const state = streamer?.getPrevState(id)?.data?.state;
 
-                return (typeof start === "number" && start > 0 ? start : 0);
+                if (!state?.updatedAt)
+                    return 0;
+
+                const elapsed = (state.progressNormal ?? 0) * (state.duration ?? 0);
+
+                return state.updatedAt - elapsed;
             };
 
-            return startedAt(b) - startedAt(a);
+            return songStartedAt(b) - songStartedAt(a);
         });
 
         return { listening, idle };
@@ -246,6 +251,26 @@ export default function FriendsPage({
      * visible without scrolling.
      */
     const NOW_PLAYING_CAP = 3;
+
+    /**
+     * How a card moves when the order changes.
+     *
+     * These reorder on their own, because somebody else changed what they were
+     * playing - so the movement has to look deliberate or it reads as the page
+     * glitching. Firm and quick, with most of the distance covered early and a
+     * long settle, which is the difference between something being placed and
+     * something falling.
+     *
+     * Not a spring: the overshoot reads as playful, and a friend's listening
+     * rearranging itself is information rather than a toy.
+     */
+    const SHIFT = { duration: 0.38, ease: [0.32, 0.72, 0, 1] as const };
+
+    // Somebody who has asked for less movement gets none of this: the order
+    // still changes, it simply changes instantly
+    const stillness = useReducedMotion();
+
+    const shift = stillness ? { duration: 0 } : SHIFT;
 
     /** Room a row needs, and what sits above and below the rows. */
     const ROW_HEIGHT = 50;
@@ -487,19 +512,40 @@ export default function FriendsPage({
                     <SectionLabel marginBottom="8px">Listening now</SectionLabel>
 
                     <Stack gap="17px">
+                    <AnimatePresence initial={false}>
                     {shownListening.map(friend => {
                         const id = resolveFriendId(friend);
 
-                        return (<FriendNowPlayingCard
+                        return (<motion.div
+                            /*
+                             * Keyed on the friend, not the position, which is
+                             * what lets a card be recognised in its new place
+                             * rather than redrawn there.
+                             */
                             key={friend.friendship.id}
-                            userId={id}
-                            username={friend.user.displayName}
-                            pfpUrl={friend.user.images?.length > 0 ? findBestSCDNImageSize(friend.user.images, 56, 56) ?? undefined : undefined}
-                            pfpColourBlob={friend.user.profilePictureColourBlob}
-                            streamer={streamer}
-                            openPubProfile={openPubProfile}
-                        />);
+                            layout
+                            transition={shift}
+                            /*
+                             * Arriving and leaving are not slides. A friend who
+                             * has just started listening has no previous place
+                             * to have come from, and sliding in from one would
+                             * describe a move that did not happen.
+                             */
+                            initial={{ opacity: 0, scale: 0.97 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.97 }}
+                        >
+                            <FriendNowPlayingCard
+                                userId={id}
+                                username={friend.user.displayName}
+                                pfpUrl={friend.user.images?.length > 0 ? findBestSCDNImageSize(friend.user.images, 56, 56) ?? undefined : undefined}
+                                pfpColourBlob={friend.user.profilePictureColourBlob}
+                                streamer={streamer}
+                                openPubProfile={openPubProfile}
+                            />
+                        </motion.div>);
                     })}
+                    </AnimatePresence>
                     </Stack>
 
                     {/* The friends held back by the cap. Named rather than
@@ -533,14 +579,24 @@ export default function FriendsPage({
                     <SectionLabel marginBottom="5px">Recent activity</SectionLabel>
 
                     <Stack gap="0px">
+                        <AnimatePresence initial={false}>
                         {visibleActivity.map(activity => (
-                            <FriendRecentActivityRow
+                            <motion.div
                                 key={activity.userId}
-                                activity={activity}
-                                openPubProfile={openPubProfile}
-                                now={activityNow}
-                            />
+                                layout
+                                transition={shift}
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                            >
+                                <FriendRecentActivityRow
+                                    activity={activity}
+                                    openPubProfile={openPubProfile}
+                                    now={activityNow}
+                                />
+                            </motion.div>
                         ))}
+                        </AnimatePresence>
                     </Stack>
 
                     {!showAllActivity && recentActivity.length > visibleActivity.length && (
