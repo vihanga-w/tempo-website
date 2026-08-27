@@ -22,8 +22,11 @@ export function describeWhen(timestamp: number, now: number = Date.now()): strin
     if (elapsed < 5 * MINUTE)
         return "just now";
 
+    // Floor, not round: rounding turns anything from 59m30s into "60m ago",
+    // which is a minute that does not exist in this band. The hour branch below
+    // already floors, so this also stops the two disagreeing.
     if (elapsed < HOUR)
-        return `${Math.round(elapsed / MINUTE)}m ago`;
+        return `${Math.floor(elapsed / MINUTE)}m ago`;
 
     if (elapsed < DAY)
         return `${Math.floor(elapsed / HOUR)}h ago`;
@@ -95,13 +98,31 @@ export function FriendRecentActivityRow({
     const covers = activity.tracks.slice(0, MAX_FANNED);
     const pfp = activity.pfpUrl ? findBestSCDNImageSize([{ url: activity.pfpUrl, height: 64, width: 64 }], 32, 32) ?? activity.pfpUrl : undefined;
 
+    const open = () => openPubProfile(activity.userId);
+
     return (<HStack
         gap="12px"
         paddingY="5px"
         cursor="pointer"
-        onClick={() => openPubProfile(activity.userId)}
+        onClick={open}
+        /*
+         * A div with a click handler is reachable by pointer and by nothing
+         * else. The label was already here, so a screen reader described the
+         * row and then offered no way to open it. These three give it the
+         * behaviour the styling has been promising: focusable, announced as a
+         * button, and activated by the keys a button is activated by.
+         */
+        role="button"
+        tabIndex={0}
+        onKeyDown={event => {
+            if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                open();
+            }
+        }}
         aria-label={`${activity.username}, ${describeTracks(activity)}, ${describeWhen(activity.lastPlayedAt, now)}`}
         _active={{ opacity: 0.7 }}
+        _focusVisible={{ outline: "2px solid", outlineColor: "accent.dark", outlineOffset: "2px", borderRadius: "8px" }}
         transition="opacity .12s"
     >
         {/*

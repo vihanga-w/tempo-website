@@ -30,6 +30,20 @@ describe("describeWhen", () => {
         expect(at(5 * MINUTE)).toBe("5m ago");
     });
 
+    /*
+     * Rounding produced "60m ago" for anything from 59m30s, which is a minute
+     * that does not exist in this band — the next one up is an hour. Caught in
+     * review after the branch merged.
+     */
+    it("never says 60m, which is what rounding at the top of the hour produces", () => {
+        expect(at(59 * MINUTE + 30e3)).toBe("59m ago");
+        expect(at(HOUR - 1)).toBe("59m ago");
+    });
+
+    it("rounds minutes down, as the hour band does", () => {
+        expect(at(20 * MINUTE + 59e3)).toBe("20m ago");
+    });
+
     it("counts whole hours within the day", () => {
         expect(at(2 * HOUR)).toBe("2h ago");
         // Rounds down: 2h59 is still "2h ago", never "3h ago" before it is

@@ -11,6 +11,7 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useSettledOrder } from "@/lib/use-settled-order";
 import { FriendRecentActivityRow } from "./friend-recent-activity-row";
 import { FriendRecentActivity } from "@/lib/usrlib";
+import { ASSUMED_INSET, safeAreaInsetBottom } from "@/lib/safe-area";
 
 /**
  * A heading for one of the page's three sections.
@@ -293,19 +294,12 @@ export default function FriendsPage({
      */
     const CORNER_MARGIN = 28;
 
-    const bottomInset = useMemo(() => {
-        if (typeof window === "undefined")
-            return 34;
-
-        const raw = getComputedStyle(document.documentElement)
-            .getPropertyValue("--safe-area-inset-bottom")
-            .trim();
-
-        const parsed = parseFloat(raw);
-
-        // Unset on a device without one, and on anything that reports nonsense
-        return (Number.isFinite(parsed) ? parsed : 0);
-    }, []);
+    // Reading the custom property off the root element returned the literal
+    // `env(safe-area-inset-bottom, 0px)` rather than a length, since a custom
+    // property is not resolved until something uses it — so this measured NaN
+    // and reserved nothing on every device. safeAreaInsetBottom resolves it
+    // properly; see src/lib/safe-area.ts.
+    const bottomInset = useMemo(() => safeAreaInsetBottom(ASSUMED_INSET), []);
 
     const BOTTOM_RESERVE = bottomInset + CORNER_MARGIN;
 
@@ -629,6 +623,15 @@ export default function FriendsPage({
                             marginTop="11px"
                             cursor="pointer"
                             userSelect="none"
+                            role="button"
+                            tabIndex={0}
+                            onKeyDown={event => {
+                                if (event.key === "Enter" || event.key === " ") {
+                                    event.preventDefault();
+                                    setShowAllListening(true);
+                                }
+                            }}
+                            _focusVisible={{ outline: "2px solid", outlineColor: "accent.dark", outlineOffset: "2px", borderRadius: "4px" }}
                             onClick={() => setShowAllListening(true)}
                         >+{hiddenListening} more listening &rsaquo;</Text>
                     )}
@@ -684,6 +687,15 @@ export default function FriendsPage({
                             marginTop="8px"
                             cursor="pointer"
                             userSelect="none"
+                            role="button"
+                            tabIndex={0}
+                            onKeyDown={event => {
+                                if (event.key === "Enter" || event.key === " ") {
+                                    event.preventDefault();
+                                    setShowAllActivity(true);
+                                }
+                            }}
+                            _focusVisible={{ outline: "2px solid", outlineColor: "accent.dark", outlineOffset: "2px", borderRadius: "4px" }}
                             onClick={() => setShowAllActivity(true)}
                         >See all {recentActivity.length} &rsaquo;</Text>
                     )}
