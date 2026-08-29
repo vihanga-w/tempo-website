@@ -47,3 +47,5 @@ next-env.d.ts
 .fw-dev
 
 android/app/src/main/res/mipmap-*
+# Real friend playback, produced by the demo harness. Never committed.
+/public/discover-fixture.json

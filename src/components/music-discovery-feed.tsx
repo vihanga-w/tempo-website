@@ -731,8 +731,12 @@ const MusicDiscoveryFeed: React.FC<{
           * lately, or none sharing their activity, gets an empty page. It used
           * to render as a blank screen with a like button, which reads as
           * broken. Say which of those it is where the client can tell.
+          *
+          * Only when the feed arrived empty. A feed that had items and has been
+          * swiped dry is a different state with its own card below, and keying
+          * both off the internal list rendered the two on top of each other.
           */}
-        {!isLoading() && internalFeed.length === 0 && (
+        {!isLoading() && internalFeed.length === 0 && feed.length === 0 && (
             <Box
                 pos="fixed"
                 top="0"
@@ -1344,7 +1348,13 @@ const MusicDiscoveryFeed: React.FC<{
                             </motion.div>
                         );
                     })
-                ) : (
+                ) : feed.length === 0 ? null : (
+                    /*
+                     * Reaching the end means there was an end to reach. With
+                     * nothing to swipe in the first place this congratulated the
+                     * listener for finishing a page they were never shown, on
+                     * top of the empty state that was trying to explain why.
+                     */
                     <motion.div
                         key="end-message"
                         initial={{ opacity: 0 }}
