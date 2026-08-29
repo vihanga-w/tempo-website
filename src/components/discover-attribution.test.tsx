@@ -7,6 +7,9 @@ import { DiscoverAttribution, DiscoverSource, NewArtistBadge } from "./discover-
 
 afterEach(cleanup);
 
+// Sixteen red pixels — the 4x4 the server sends, as it sends it.
+const RED_BLOB = Buffer.from(new Array(16).fill([220, 20, 20]).flat()).toString("base64");
+
 /*
  * The avatar fallback paints a gradient, which Chakra resolves against the
  * theme. Rendered bare it reads the gradient's own text as a token path and
@@ -50,6 +53,24 @@ describe("DiscoverAttribution", () => {
 
         expect(img).not.toBeNull();
         expect(img?.getAttribute("alt")).toBe("");
+    });
+
+    /*
+     * The server sends four bytes of that person's colours with every pick. The
+     * row used to render a bare <img> and drop them, so the avatar popped in
+     * from blank; the history card in the same feed has always used them.
+     */
+    it("holds the friend's colours while their picture loads", () => {
+        const { container } = render(<DiscoverAttribution
+            source={source({ pfpUrl: "https://example.test/a.jpg", pfpColourBlob: RED_BLOB })}
+            colour="#fff" />);
+
+        const placeholder = [...container.querySelectorAll("div")]
+            .find(element => element.style.backgroundImage.includes("radial-gradient"));
+
+        expect(placeholder).toBeTruthy();
+        // Whitespace between the channels is up to whoever serialised it
+        expect(placeholder!.style.backgroundImage).toMatch(/rgb\(\s*220,\s*20,\s*20\s*\)/);
     });
 
     it("opens the friend's profile when tapped", () => {

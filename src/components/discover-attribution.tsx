@@ -1,7 +1,8 @@
-import { Box, HStack, Image, Text } from "@chakra-ui/react";
+import { Box, HStack, Text } from "@chakra-ui/react";
 
 import { timeAgo } from "@/lib/time-ago";
 import { getSizedImageUrl } from "@/lib/sized-img";
+import { SkeletonImage } from "./playback-state";
 import { InitialAvatar } from "./initial-avatar";
 
 export interface DiscoverSource {
@@ -55,14 +56,20 @@ export function DiscoverAttribution({
             }}
         >
             {source.pfpUrl ? (
-                <Image
+                /*
+                 * SkeletonImage rather than a bare Image, so the four bytes of
+                 * colour the server already sends with every pick get used: the
+                 * avatar holds that person's colour while the picture loads
+                 * instead of popping in from blank. The history card further
+                 * down this file has done it this way all along.
+                 */
+                <SkeletonImage
                     src={getSizedImageUrl(source.pfpUrl, 40, 40)}
-                    alt=""
+                    colourBlob={source.pfpColourBlob}
                     width="20px"
                     height="20px"
                     borderRadius="full"
-                    objectFit="cover"
-                    draggable="false"
+                    onError={() => {}}
                 />
             ) : (
                 <InitialAvatar

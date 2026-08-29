@@ -56,6 +56,7 @@ export const SkeletonImage = ({
     border,
     loading,
     colourBlob,
+    alt = "",
 }: {
     src: string;
     onError?: ReactEventHandler<HTMLImageElement>;
@@ -71,6 +72,14 @@ export const SkeletonImage = ({
      * instead of pulsing grey.
      */
     colourBlob?: string;
+    /**
+     * Empty by default, which is the right answer for most of the call sites:
+     * an avatar rendered beside the person's name adds nothing a screen reader
+     * needs, and marking it decorative stops the reader announcing the URL. It
+     * was previously not set at all, which is not the same thing — a missing
+     * alt is an unlabelled image, an empty one is a deliberately silent one.
+     */
+    alt?: string;
 }) => {
     const [isLoaded, setIsLoaded] = useState<boolean>(false);
 
@@ -134,6 +143,7 @@ export const SkeletonImage = ({
             transition={transition ?? (placeholder ? "opacity .25s" : undefined)}
             border={border}
             src={src}
+            alt={alt}
             draggable={false}
             loading={loading}
             onError={(e) => {
