@@ -54,8 +54,17 @@ const MusicDiscoveryFeed: React.FC<{
     livePlaybackStatesPlaceholderCount?: number;
     livePlaybackStates?: UpdateEvent[];
     streamer: DataStreamer | null;
-    setPubProfileUserId?: (userId: string) => void;
-    pageChanger?: (page: string, returnPage: string) => void;
+    /*
+     * Required, not optional.
+     *
+     * The component only offers a tap when it has both, and Discover was
+     * mounted without either — so every attribution row on that page looked
+     * tappable-adjacent and did nothing, with no type error to say so. A
+     * caller with nowhere to send the tap can pass undefined explicitly and
+     * mean it.
+     */
+    setPubProfileUserId: ((userId: string) => void) | undefined;
+    pageChanger: ((page: string, returnPage: string) => void) | undefined;
     setReactionDrawerItem?: (item: UpdateEvent["data"]["state"]) => void;
     openReactionDrawer?: () => void;
 }> = ({
@@ -726,11 +735,12 @@ const MusicDiscoveryFeed: React.FC<{
         {/*
           * Nothing to show is a normal state for Discover, not a failure.
           *
-          * Every pick comes from a friend playing something in the last few
+          * Most picks come from a friend playing something in the last few
           * days, so a listener with no friends yet, or none who have listened
-          * lately, or none sharing their activity, gets an empty page. It used
-          * to render as a blank screen with a like button, which reads as
-          * broken. Say which of those it is where the client can tell.
+          * lately, or none sharing their activity, sees very little — and with
+          * no listening history of their own to build a taste profile from,
+          * nothing at all. It used to render as a blank screen with a like
+          * button, which reads as broken.
           *
           * Only when the feed arrived empty. A feed that had items and has been
           * swiped dry is a different state with its own card below, and keying
@@ -755,7 +765,7 @@ const MusicDiscoveryFeed: React.FC<{
                     </Text>
                     <Text fontSize="15px" opacity={0.7} lineHeight="1.5">
                         {type === "discover"
-                            ? "Discover is built from what your friends have been playing. Once they listen to something, it turns up here."
+                            ? "Picks come from what your friends have been playing and from what you listen to yourself. Once there has been some listening to go on, they turn up here."
                             : "When your friends play something, it shows up here."}
                     </Text>
                 </VStack>

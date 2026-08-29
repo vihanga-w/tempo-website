@@ -1,10 +1,15 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render as rtlRender, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render as rtlRender, screen, waitFor } from "@testing-library/react";
 import { ChakraProvider } from "@chakra-ui/react";
 
 import { theme } from "@/app/theme";
 import { FeedItem } from "@/lib/usrlib";
-import MusicDiscoveryFeed from "./music-discovery-feed";
+import MusicDiscoveryFeed, { Song as FeedItemSong } from "./music-discovery-feed";
+
+interface Nav {
+    setPubProfileUserId: (userId: string) => void;
+    pageChanger: (page: string, returnPage: string) => void;
+}
 
 /*
  * The feed pulls in an audio-preview player, a YouTube background and a
@@ -25,15 +30,19 @@ const user = {
     markFYPAlertViewed: () => {},
 };
 
-const song = (id: string): FeedItem => ({
+// A real 1x1 gif. The colour extractor logs an error for an empty src, and a
+// test should not be the thing that produces it.
+const ART = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+
+const song = (id: string, from?: FeedItemSong["from"]): FeedItem => ({
     type: "discover",
     data: {
         id, title: "Weird Fishes / Arpeggi", artists: ["Radiohead"],
-        album: "In Rainbows", imageUrl: "", likeness: 1.5,
+        album: "In Rainbows", imageUrl: ART, likeness: 1.5, from,
     },
 });
 
-const render = (feed: FeedItem[]) =>
+const render = (feed: FeedItem[], nav: Partial<Nav> = {}) =>
     rtlRender(
         <ChakraProvider theme={theme}>
             <MusicDiscoveryFeed
@@ -42,6 +51,8 @@ const render = (feed: FeedItem[]) =>
                 loadMore={() => {}}
                 type="discover"
                 streamer={null}
+                setPubProfileUserId={nav.setPubProfileUserId}
+                pageChanger={nav.pageChanger}
             />
         </ChakraProvider>
     );
@@ -74,5 +85,39 @@ describe("an empty Discover", () => {
 
         await waitFor(() => expect(screen.queryByText(/reached the end/)).toBeNull());
         expect(screen.queryByText("Nothing new just yet")).toBeNull();
+    });
+});
+
+/*
+ * Discover was mounted without either navigation prop, so the attribution row
+ * on every card rendered as plain text and a tap went nowhere. Nothing failed
+ * — the component simply does not offer the tap when it has no destination —
+ * which is why the props are no longer optional and why this asserts on the
+ * wiring rather than on the row in isolation.
+ */
+describe("tapping who a pick came from", () => {
+    const from = {
+        userId: "friend-1", username: "Sorcha",
+        playedAt: Date.now() - 2 * 3600e3, familiarArtist: true,
+    };
+
+    it("opens that friend's profile", async () => {
+        const setPubProfileUserId = vi.fn();
+        const pageChanger = vi.fn();
+
+        render([song("a", from)], { setPubProfileUserId, pageChanger });
+
+        const row = await screen.findByRole("button", { name: /Open Sorcha's profile/ });
+        fireEvent.click(row);
+
+        expect(setPubProfileUserId).toHaveBeenCalledWith("friend-1");
+        expect(pageChanger).toHaveBeenCalledWith("pub-profile", "discover");
+    });
+
+    it("does not pretend to be tappable with nowhere to send it", async () => {
+        render([song("a", from)]);
+
+        expect(await screen.findByText("Sorcha")).toBeTruthy();
+        expect(screen.queryByRole("button", { name: /Open Sorcha's profile/ })).toBeNull();
     });
 });

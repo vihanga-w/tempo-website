@@ -895,49 +895,44 @@ export default React.memo(function UIApp({
                     )}
 
                     {currentPage == "discover" && (
-                        <>
-                            {discoveryData.length == 0 ? (
-                                <Text
-                                    position="absolute"
-                                    top="0"
-                                    left="0"
-                                    justifyContent="center"
-                                    alignItems="center"
-                                    display="flex"
-                                    height="calc(100vh - 72px)"
-                                    width="100vw"
-                                    color="text.dark"
-                                    margin="auto"
-                                    textAlign="center"
-                                    fontFamily="Inter"
-                                    fontSize="16px"
-                                    fontWeight="regular"
-                                    zIndex="1"
-                                >
-                                    Tempo is learning your music taste.
-                                    <br />
-                                    We'll let you know when Discover is ready!
-                                </Text>
-                            ) : (
-                                <Suspense fallback={<SuspenseSpinner />}>
-                                    <MusicDiscoveryFeed
-                                        user={user}
-                                        type="discover"
-                                        key={"discover-feed"}
-                                        streamer={streamer}
-                                        feed={discoveryData}
-                                        loadMore={(index: number) => {
-                                            setCurrentFYPPageIndex(prev => {
-                                                return {
-                                                    p: !prev?.p ? 1 : prev.p + 1,
-                                                    t: index,
-                                                }
-                                            });
-                                        }}
-                                    />
-                                </Suspense>
-                            )}
-                        </>
+                        /*
+                         * The feed renders its own empty state, so an empty
+                         * Discover is no longer a separate branch here.
+                         *
+                         * This used to short-circuit to "Tempo is learning your
+                         * music taste", which described the taste-profile model
+                         * warming up — the only source Discover had at the time.
+                         * Most of a pick's supply is now a friend having played
+                         * something, so that message named the wrong cause, and
+                         * it kept the component's own empty state from ever
+                         * being reached on this page.
+                         */
+                        <Suspense fallback={<SuspenseSpinner />}>
+                            <MusicDiscoveryFeed
+                                user={user}
+                                type="discover"
+                                key={"discover-feed"}
+                                streamer={streamer}
+                                feed={discoveryData}
+                                /*
+                                 * Both of these were missing, which left the
+                                 * attribution row on every Discover card
+                                 * untappable — the component only offers the tap
+                                 * when it has somewhere to send it. The activity
+                                 * feed below has passed them all along.
+                                 */
+                                setPubProfileUserId={setPubProfileUserId}
+                                pageChanger={pageChanger}
+                                loadMore={(index: number) => {
+                                    setCurrentFYPPageIndex(prev => {
+                                        return {
+                                            p: !prev?.p ? 1 : prev.p + 1,
+                                            t: index,
+                                        }
+                                    });
+                                }}
+                            />
+                        </Suspense>
                     )}
 
                     {/* Playlists page */}
