@@ -28,6 +28,7 @@ import { API_URL } from "@/lib/const";
 import YoutubeBg from 'youtube-bg-react';
 import 'youtube-bg-react/dist/index.css';
 import { InitialAvatar } from "./initial-avatar";
+import { DiscoverAttribution, DiscoverSource, NewArtistBadge } from "./discover-attribution";
 
 export interface Song {
     id: string;
@@ -37,6 +38,11 @@ export interface Song {
     imageUrl: string;
     previewUrl?: string;
     likeness: number;
+    /**
+     * Whose play this came from. Absent on taste-profile picks, which nobody
+     * played, so the attribution row is what tells the two kinds apart.
+     */
+    from?: DiscoverSource;
 }
 
 const MusicDiscoveryFeed: React.FC<{
@@ -716,6 +722,41 @@ const MusicDiscoveryFeed: React.FC<{
         {isLoading() && (<Box pos="fixed" top="0" left="0" zIndex="999" width="100vw" height="100vh" backgroundColor="bg.dark" display="flex" alignItems="center" justifyContent="center">
             <Spinner size="lg" />
         </Box>)}
+
+        {/*
+          * Nothing to show is a normal state for Discover, not a failure.
+          *
+          * Every pick comes from a friend playing something in the last few
+          * days, so a listener with no friends yet, or none who have listened
+          * lately, or none sharing their activity, gets an empty page. It used
+          * to render as a blank screen with a like button, which reads as
+          * broken. Say which of those it is where the client can tell.
+          */}
+        {!isLoading() && internalFeed.length === 0 && (
+            <Box
+                pos="fixed"
+                top="0"
+                left="0"
+                zIndex="998"
+                width="100vw"
+                height="100vh"
+                display="flex"
+                alignItems="center"
+                justifyContent="center"
+                padding="32px"
+            >
+                <VStack spacing="10px" maxWidth="300px" textAlign="center">
+                    <Text fontSize="20px" fontWeight="bold">
+                        {type === "discover" ? "Nothing new just yet" : "No recent activity"}
+                    </Text>
+                    <Text fontSize="15px" opacity={0.7} lineHeight="1.5">
+                        {type === "discover"
+                            ? "Discover is built from what your friends have been playing. Once they listen to something, it turns up here."
+                            : "When your friends play something, it shows up here."}
+                    </Text>
+                </VStack>
+            </Box>
+        )}
         <VStack
             spacing={0}
             align="center"
@@ -1038,7 +1079,19 @@ const MusicDiscoveryFeed: React.FC<{
                                                 color={colors.fg}
                                                 width="80%"
                                             >
-                                                {(item.data as Song).title} ({Math.min(Math.round((item.data as Song).likeness * 100), 100)}%)
+                                                {(item.data as Song).title}
+                                                {/*
+                                                  * The percentage only means something for taste-profile
+                                                  * picks, whose likeness is a cosine. A friend pick's
+                                                  * likeness encodes its interleave position and is always
+                                                  * above 1, so this rendered "(100%)" on every one of them.
+                                                  */}
+                                                {!(item.data as Song).from && (
+                                                    <> ({Math.min(Math.round((item.data as Song).likeness * 100), 100)}%)</>
+                                                )}
+                                                {(item.data as Song).from?.familiarArtist === false && (
+                                                    <NewArtistBadge colour={colors.fg} />
+                                                )}
                                             </Text>
                                             <Text
                                                 fontSize="18px"
@@ -1048,7 +1101,20 @@ const MusicDiscoveryFeed: React.FC<{
                                             >
                                                 {(item.data as Song).artists.join(", ")}
                                             </Text>
-                                            
+
+                                            {(item.data as Song).from && (
+                                                <DiscoverAttribution
+                                                    source={(item.data as Song).from as DiscoverSource}
+                                                    colour={colors.fg}
+                                                    onOpenProfile={(setPubProfileUserId && pageChanger)
+                                                        ? (userId => {
+                                                            setPubProfileUserId(userId);
+                                                            pageChanger("pub-profile", type);
+                                                        })
+                                                        : undefined}
+                                                />
+                                            )}
+
                                             {/* Audio Preview for Discover */}
                                             <AudioPreview
                                                 songId={(item.data as Song).id}
