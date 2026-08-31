@@ -26,7 +26,7 @@ import { useEffect, useRef } from "react";
 const RAD = Math.PI / 180;
 
 /** Where the destination sits on the visible arc, as a fraction of the radius. */
-const LIFT_FRACTION = 0.78;
+const LIFT_FRACTION = 0.83;
 const LIFT_DEGREES = Math.asin(LIFT_FRACTION) / RAD;
 
 const FLY_MS = 1700;
@@ -42,7 +42,18 @@ const FLY_MS = 1700;
  * exactly how they come to disagree.
  */
 export const GLOBE_RADIUS_RATIO = 0.98;
-export const GLOBE_CENTRE_DROP = 200;
+
+/**
+ * How far below the band's foot the sphere's centre sits, as a fraction of its
+ * radius -- not a pixel count.
+ *
+ * The radius scales with the screen, so a fixed drop does not: the same number
+ * that gives a good horizon on a 390pt phone left a 320pt one with a 73px
+ * sliver and the destination pin 94% of the way down it. Expressed against the
+ * radius, the visible arc is always 0.37R and the pin always lands in the same
+ * place, whatever the screen.
+ */
+export const GLOBE_CENTRE_DROP_RATIO = 0.63;
 
 /** How long the globe holds still after arriving before it drifts again. */
 const HOLD_MS = 2800;
@@ -233,7 +244,7 @@ export default function PassportGlobe({
             // an arc of a large sphere rather than a small ball.
             R = W * GLOBE_RADIUS_RATIO;
             cx = W / 2;
-            cy = H + GLOBE_CENTRE_DROP;
+            cy = H + (R * GLOBE_CENTRE_DROP_RATIO);
         }
 
         function strokeLines(set: Line[], style: string, width: number) {
@@ -281,10 +292,25 @@ export default function PassportGlobe({
             };
         }
 
+        /*
+         * Land fades out before the limb rather than being drawn up to it.
+         *
+         * Orthographic projection puts a point at angular distance t from the
+         * centre at R*sin(t) from the middle, so near the edge sin barely moves:
+         * everything between 78 and 90 degrees out lands in the last three per
+         * cent of the radius. Drawn at full weight that is a few hundred dots
+         * stacked into five pixels -- a solid ring that follows no coastline,
+         * which is what made the continents look like they leaked into the sea.
+         *
+         * Cutting them at 0.22 costs the outer 2.5% of the disc, which nobody
+         * can see is missing, and the two faint bands before it mean the cut
+         * itself has no visible edge.
+         */
+        const BAND_MIN = 0.22;
         const BAND_INK = [
-            "rgba(233,231,251,0.115)",
-            "rgba(233,231,251,0.075)",
-            "rgba(233,231,251,0.04)",
+            "rgba(233,231,251,0.105)",
+            "rgba(233,231,251,0.062)",
+            "rgba(233,231,251,0.028)",
         ];
 
         function draw(now: number) {
@@ -325,7 +351,7 @@ export default function PassportGlobe({
                     const z1 = -dots.x[i] * sinY + dots.z[i] * cosY;
                     const zz = dots.y[i] * sinP + z1 * cosP;
 
-                    if (zz <= 0.05)
+                    if (zz <= BAND_MIN)
                         continue;
 
                     const sy = cy - (dots.y[i] * cosP - z1 * sinP) * R;
@@ -333,7 +359,7 @@ export default function PassportGlobe({
                     if (sy > H + 4 || sy < -4)
                         continue;
 
-                    const band = zz > 0.62 ? 0 : (zz > 0.3 ? 1 : 2);
+                    const band = zz > 0.55 ? 0 : (zz > 0.35 ? 1 : 2);
                     const k = counts[band]++;
 
                     buckets[band][k * 2] = cx + (dots.x[i] * cosY + dots.z[i] * sinY) * R;
@@ -348,8 +374,8 @@ export default function PassportGlobe({
                 }
             }
 
-            strokeLines(border, "rgba(233,231,251,0.075)", 0.6);
-            strokeLines(coast, "rgba(233,231,251,0.20)", 0.85);
+            strokeLines(border, "rgba(233,231,251,0.042)", 0.6);
+            strokeLines(coast, "rgba(233,231,251,0.125)", 0.8);
             ctx!.restore();
 
             const marks = pinsRef.current.map(p => ({

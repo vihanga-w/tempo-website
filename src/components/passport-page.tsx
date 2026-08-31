@@ -6,7 +6,7 @@ import { Box, Center, HStack, Spinner, Stack, Text } from "@chakra-ui/react";
 import { useEffect, useMemo, useState } from "react";
 import { keyframes } from "@emotion/react";
 import PassportGlobe, {
-    GlobePin, GLOBE_RADIUS_RATIO, GLOBE_CENTRE_DROP,
+    GlobePin, GLOBE_RADIUS_RATIO, GLOBE_CENTRE_DROP_RATIO,
 } from "./passport-globe";
 import PassportStamp from "./passport-stamp";
 import { useCountUp } from "@/lib/use-count-up";
@@ -107,7 +107,7 @@ function globeGeometry(width: number, screenHeight: number): { scrim: string; cl
     const R = width * GLOBE_RADIUS_RATIO;
     const cx = width / 2;
     // The sphere's centre sits below the bottom of the screen
-    const cy = screenHeight + GLOBE_CENTRE_DROP;
+    const cy = screenHeight + (R * GLOBE_CENTRE_DROP_RATIO);
     const outer = R + SCRIM_FADE;
     const inner = (R / outer) * 100;
 
@@ -136,7 +136,7 @@ function globeGeometry(width: number, screenHeight: number): { scrim: string; cl
      */
     const clearance = Math.max(
         GLOBE_HEIGHT,
-        Math.ceil(R + SCRIM_FADE - GLOBE_CENTRE_DROP),
+        Math.ceil(R + SCRIM_FADE - (R * GLOBE_CENTRE_DROP_RATIO)),
     );
 
     return {
