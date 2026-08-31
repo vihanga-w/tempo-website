@@ -21,6 +21,9 @@ import { stampDesign } from "@/lib/stamp-design";
 const ACCENT = "#A480FF";
 const GOLD = "#E3B341";
 
+const AUG = Date.UTC(2026, 7, 4);
+const DAY = 86400000;
+
 const COUNTRIES: [string, string, string][] = [
     ["NG", "Nigeria", "2026-08"], ["GB", "United Kingdom", "2026-08"],
     ["US", "United States", "2026-08"], ["KR", "South Korea", "2026-07"],
@@ -72,7 +75,7 @@ export default function DevPassport() {
                         key={code}
                         countryCode={code}
                         countryName={name}
-                        month={month}
+                        earnedAt={AUG - (i * 11 * DAY)}
                         colour={ACCENT}
                         count={i % 4 === 0 ? (i % 7) + 2 : undefined}
                     />
@@ -89,7 +92,7 @@ export default function DevPassport() {
                         key={`n-${code}`}
                         countryCode={code}
                         countryName={name}
-                        month=""
+                        earnedAt={0}
                         colour={GOLD}
                     />
                 ))}
@@ -116,7 +119,7 @@ export default function DevPassport() {
                 position: "relative", height: 300, width: 360, border: "1px solid #1E1E1E",
                 borderRadius: 18, overflow: "hidden", background: "#0D0D0E",
             }}>
-                <PassportGlobe pins={PINS} target={target} height={300} />
+                <PassportGlobe pins={PINS} target={target} height={300} pinned={false} />
             </div>
         </div>
     );

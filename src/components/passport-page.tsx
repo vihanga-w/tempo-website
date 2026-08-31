@@ -122,7 +122,17 @@ function globeScrim(width: number, screenHeight: number): string {
 /** Says nothing is here yet, and what would put something here. */
 function Empty({ children }: Readonly<{ children: React.ReactNode }>) {
     return (
-        <Text fontSize="14px" color="#4A4A4A" lineHeight="1.55" paddingY="10px" maxWidth="34ch">
+        <Text
+            fontSize="14px"
+            color="#4A4A4A"
+            lineHeight="1.55"
+            paddingY="10px"
+            // Explicit, for the reason the leaderboard gives for its own width:
+            // left to itself this is sized by its contents. The 34ch measure it
+            // was copied from belongs to the profile's narrow column, and here
+            // it left the text at about two thirds of the screen.
+            width="100%"
+        >
             {children}
         </Text>
     );
@@ -263,21 +273,27 @@ export default function PassportPage({ user }: Readonly<{ user: User }>) {
 
     return (
         <>
-            <PassportGlobe
-                pins={pins}
-                target={target}
-                height={GLOBE_HEIGHT}
-                pinColour={ACCENT}
-                targetColour={GOLD}
-            />
-
-            {/* Content dissolves along the globe's curve rather than into a line */}
+            {/*
+              * Order matters, and it is the opposite of the obvious one. The
+              * scrim is opaque inside the sphere's radius -- that is how the
+              * text dissolves -- so the globe has to be painted on top of it or
+              * the page colour covers the world. The canvas is transparent
+              * outside the sphere, so the scrim still shows through above it.
+              */}
             <Box
                 position="fixed"
                 inset="0"
                 zIndex={2}
                 pointerEvents="none"
                 background={scrim}
+            />
+
+            <PassportGlobe
+                pins={pins}
+                target={target}
+                height={GLOBE_HEIGHT}
+                pinColour={ACCENT}
+                targetColour={GOLD}
             />
 
             <Box
@@ -380,6 +396,9 @@ export default function PassportPage({ user }: Readonly<{ user: User }>) {
                         <Empty>
                             A country is stamped once you have played three of its artists,
                             or one of them on three separate days.
+                            {pendingArtists > 0
+                                ? " Tempo is still working out where your music comes from."
+                                : ""}
                         </Empty>
                     ) : (
                         <Box
@@ -392,7 +411,7 @@ export default function PassportPage({ user }: Readonly<{ user: User }>) {
                                 <PassportStamp
                                     countryCode={destination.countryCode}
                                     countryName={destination.name}
-                                    month=""
+                                    earnedAt={0}
                                     colour={GOLD}
                                 />
                             )}
@@ -402,10 +421,7 @@ export default function PassportPage({ user }: Readonly<{ user: User }>) {
                                     key={country.countryCode}
                                     countryCode={country.countryCode}
                                     countryName={country.name}
-                                    month={
-                                        passport.stamps.find(s => s.countryCode === country.countryCode)
-                                            ?.month ?? ""
-                                    }
+                                    earnedAt={country.lastAt}
                                     colour={ACCENT}
                                     count={country.stampCount}
                                 />
@@ -431,13 +447,6 @@ export default function PassportPage({ user }: Readonly<{ user: User }>) {
                             ))}
                         </Stack>
                     </Box>
-                )}
-
-                {!hasAnything && (
-                    <Empty>
-                        Tempo is still working out where your music comes from. Keep listening
-                        and the map will fill in.
-                    </Empty>
                 )}
 
                 {/*

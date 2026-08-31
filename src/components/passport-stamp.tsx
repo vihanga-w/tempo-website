@@ -1,50 +1,78 @@
 import { Box } from "@chakra-ui/react";
 import { useMemo } from "react";
 import {
-    stampDesign, stampDate, stampCode, StampDesign, StampFrame,
+    stampDesign, stampDate, stampCode, shiftHue, StampDesign, StampFrame,
 } from "@/lib/stamp-design";
 
 /**
  * One impression in the passport.
  *
- * Drawn rather than typed, because the shapes are the point: eight frames, a
- * curve of text where the frame has a curved top, a code in the middle and a
- * date under it. Which one a country gets is decided in stamp-design.ts by
- * hashing the country, so it is the same everywhere and never changes.
+ * Built from the parts a real stamp is built from rather than from the idea of
+ * one: the country curved over the top between two rules, the authority curved
+ * under the bottom reading the right way up, the date ruled off across the
+ * middle the way a date wheel prints it, and a small pictogram for how you
+ * arrived. Which frame and which decorations a country gets is decided in
+ * stamp-design.ts by hashing the country, so it is the same everywhere and never
+ * changes.
  *
- * Everything is stroked in one colour and left slightly transparent. A stamp is
- * ink pressed into paper, not a filled icon, and the moment it becomes a solid
- * shape it reads as a badge from a different app.
+ * Everything is stroked, never filled, and the outline is broken by a dash
+ * pattern. A stamp is ink pressed through a worn rubber die, and a perfect
+ * vector outline is the single thing that most gives away a drawn one.
  */
 
 const VIEW = 100;
 const C = VIEW / 2;
 
-/** The outline for a frame, as an SVG path or shape element. */
+/**
+ * The rows every stamp is set on.
+ *
+ * Shared by all nine frames, with each frame drawn large enough to contain
+ * them. Sizing the content to the frame instead meant four numbers guessed per
+ * shape, and the date crossed the outline on half of them.
+ */
+const ROW = { name: 25, code: 52, date: 67, foot: 80 };
+
+/** Where the lettering ring sits. An ellipse is shorter than it is wide. */
+const ARC_RADIUS: { [key in StampFrame]?: number } = {
+    circle: 34, scallop: 32, oval: 30, arch: 30,
+};
+
+/** The arc the authority is set on, low enough to clear the date. */
+const FOOT_RADIUS: { [key in StampFrame]?: number } = {
+    circle: 34, scallop: 32, oval: 29,
+};
+
 function FrameShape({
-    frame, stroke, width, inset,
+    frame, stroke, width, inset, dash,
 }: {
     frame: StampFrame;
     stroke: string;
     width: number;
     inset: number;
+    dash?: string;
 }) {
     const r = (VIEW / 2) - inset;
-    const common = { fill: "none", stroke, strokeWidth: width };
+    const common = {
+        fill: "none",
+        stroke,
+        strokeWidth: width,
+        strokeDasharray: dash === "none" ? undefined : dash,
+    };
 
     switch (frame) {
         case "circle":
             return <circle cx={C} cy={C} r={r} {...common} />;
 
         case "oval":
-            return <ellipse cx={C} cy={C} rx={r} ry={r * 0.76} {...common} />;
+            return <ellipse cx={C} cy={C} rx={r} ry={r * 0.9} {...common} />;
 
         case "rect":
+        case "rectBox":
             return (
                 <rect
-                    x={inset} y={inset + r * 0.16}
-                    width={VIEW - inset * 2} height={(VIEW - inset * 2) * 0.68}
-                    rx={4} {...common}
+                    x={inset} y={inset + 4}
+                    width={VIEW - inset * 2} height={VIEW - (inset * 2) - 8}
+                    rx={3} {...common}
                 />
             );
 
@@ -69,14 +97,13 @@ function FrameShape({
         }
 
         case "scallop": {
-            // A serrated edge, cut the way a postage stamp is: a ring of small
-            // arcs rather than a smooth circle.
-            const teeth = 28;
+            // A serrated edge, cut the way a postage stamp is
+            const teeth = 30;
             const path: string[] = [];
 
             for (let i = 0; i <= teeth; i++) {
                 const a = (Math.PI * 2 * i) / teeth - Math.PI / 2;
-                const wobble = (i % 2 === 0) ? r : r - 2.4;
+                const wobble = (i % 2 === 0) ? r : r - 2.2;
 
                 path.push(
                     `${i === 0 ? "M" : "L"}${(C + wobble * Math.cos(a)).toFixed(2)},`
@@ -88,11 +115,10 @@ function FrameShape({
         }
 
         case "arch": {
-            // Flat along the bottom, domed over the top
-            const top = inset + 4;
-            const bottom = VIEW - inset - 6;
-            const left = inset + 2;
-            const right = VIEW - inset - 2;
+            const top = inset + 3;
+            const bottom = VIEW - inset - 5;
+            const left = inset + 1;
+            const right = VIEW - inset - 1;
 
             return (
                 <path
@@ -108,47 +134,42 @@ function FrameShape({
         default:
             return (
                 <rect
-                    x={inset + 2} y={inset + 2}
-                    width={VIEW - (inset + 2) * 2} height={VIEW - (inset + 2) * 2}
-                    rx={22} {...common}
+                    x={inset + 1} y={inset + 1}
+                    width={VIEW - (inset + 1) * 2} height={VIEW - (inset + 1) * 2}
+                    rx={20} {...common}
                 />
             );
     }
 }
 
-/** The little "how you arrived" mark. Music, not aviation. */
-function Glyph({
-    design, colour, y,
-}: {
-    design: StampDesign;
-    colour: string;
-    /** Sits a fixed distance above the date, whatever height the frame put it at. */
-    y: number;
-}) {
-    if (design.glyph === "none")
+/** How you arrived. A plane on a real stamp; here, the music. */
+function Glyph({ glyph, colour, y }: { glyph: StampDesign["glyph"]; colour: string; y: number }) {
+    if (glyph === "none")
         return null;
 
-    if (design.glyph === "record")
+    const stroke = { stroke: colour, fill: "none", strokeWidth: 1 };
+
+    if (glyph === "record")
         return (
-            <g stroke={colour} fill="none" strokeWidth={1.1}>
-                <circle cx={C} cy={y} r={4.4} />
-                <circle cx={C} cy={y} r={1.1} />
+            <g {...stroke}>
+                <circle cx={C} cy={y} r={3.8} />
+                <circle cx={C} cy={y} r={1} />
             </g>
         );
 
-    if (design.glyph === "note")
+    if (glyph === "note")
         return (
-            <g stroke={colour} fill="none" strokeWidth={1.1}>
-                <circle cx={C - 2.2} cy={y + 2.4} r={2.4} />
-                <path d={`M${C + 0.2},${y + 2.4} L${C + 0.2},${y - 4}`} strokeLinecap="round" />
-                <path d={`M${C + 0.2},${y - 4} L${C + 4.6},${y - 2.6}`} strokeLinecap="round" />
+            <g {...stroke}>
+                <circle cx={C - 2} cy={y + 2} r={2.1} />
+                <path d={`M${C + 0.1},${y + 2} L${C + 0.1},${y - 3.6}`} strokeLinecap="round" />
+                <path d={`M${C + 0.1},${y - 3.6} L${C + 4.2},${y - 2.4}`} strokeLinecap="round" />
             </g>
         );
 
     return (
         <path
-            d={`M${C - 6},${y} q3,-4 6,0 t6,0`}
-            stroke={colour} fill="none" strokeWidth={1.1} strokeLinecap="round"
+            d={`M${C - 5.5},${y} q2.7,-3.6 5.5,0 t5.5,0`}
+            {...stroke} strokeLinecap="round"
         />
     );
 }
@@ -156,18 +177,21 @@ function Glyph({
 export default function PassportStamp({
     countryCode,
     countryName,
-    month,
+    earnedAt,
     colour,
     count,
+    port,
     size = "100%",
 }: Readonly<{
     countryCode: string;
     countryName: string;
-    /** "2026-08". Empty for a stamp not yet earned. */
-    month: string;
+    /** When the stamp was earned. 0 for a country not yet visited. */
+    earnedAt: number;
     colour: string;
-    /** Repeat visits, shown as a small tally rather than duplicate stamps. */
+    /** Repeat visits, shown as a tally rather than as duplicate impressions. */
     count?: number;
+    /** The way in — the city the artists came from. Falls back to the authority. */
+    port?: string;
     size?: string;
 }>) {
     const design = useMemo(
@@ -175,35 +199,29 @@ export default function PassportStamp({
         [countryCode, countryName],
     );
 
+    const ink = useMemo(
+        () => shiftHue(colour, design.hueShift),
+        [colour, design.hueShift],
+    );
+
     const code = stampCode(countryCode);
-    const date = month ? stampDate(month) : "NOT YET";
+    const date = earnedAt > 0 ? stampDate(earnedAt) : "NOT YET";
+    const authority = (port || "TEMPO").toUpperCase();
 
-    // Ids must be unique per instance or one stamp's arc path is reused by every
-    // other stamp on the page, and they all take the first one's curve.
-    const arcId = `arc-${countryCode}-${month || "none"}`;
-
-    // Radius of the curve the name is set on. Per frame, because an oval is
-    // shorter than it is wide and a dome shorter still: one shared radius sat
-    // the name outside the very outline it was supposed to follow.
-    const ARC_RADIUS: { [key: string]: number } = {
-        circle: 32, scallop: 30, oval: 22, arch: 27,
-    };
-
+    // Ids must be unique per instance, or every stamp on the page reuses the
+    // first one's arc and they all take its curve.
+    const key = `${countryCode}-${earnedAt || "none"}`;
     const arcR = ARC_RADIUS[design.frame] ?? 30;
+    const footR = FOOT_RADIUS[design.frame] ?? 30;
 
-    // An ellipse curves away under the date and a dome has more room below it,
-    // so the baseline follows the frame rather than sitting at one height.
-    const DATE_Y: { [key: string]: number } = { oval: 74, arch: 84 };
-    const dateY = DATE_Y[design.frame] ?? 80;
+    const name = countryName.length <= 20 ? countryName.toUpperCase() : code;
+    const ring = design.layout === "ring";
 
-
-    // A name too long for the arc is dropped rather than squashed illegibly.
-    const name = countryName.length <= 18 ? countryName.toUpperCase() : "";
-
-    // A long name set at the same size as a short one runs into the frame it is
-    // written across. Ten characters fits comfortably; past that it tightens.
-    const straightSize = name.length > 12 ? 6.4 : (name.length > 9 ? 7 : 7.5);
-    const straightTracking = name.length > 12 ? 0.85 : 1.4;
+    // A long name set at the size of a short one runs off the end of the arc it
+    // is written on, or into the frame it is written across.
+    const nameSize = name.length > 13 ? 5.6 : (name.length > 10 ? 6.3 : 7);
+    const nameTracking = name.length > 13 ? 0.6 : (name.length > 10 ? 0.9 : 1.2);
+    const dash = design.inkBreaks;
 
     return (
         <Box width={size} position="relative" lineHeight="0">
@@ -212,44 +230,74 @@ export default function PassportStamp({
                 width="100%"
                 style={{ transform: `rotate(${design.rotation}deg)`, overflow: "visible" }}
                 role="img"
-                aria-label={month
-                    ? `${countryName}, stamped ${stampDate(month)}`
+                aria-label={earnedAt > 0
+                    ? `${countryName}, stamped ${stampDate(earnedAt)}`
                     : `${countryName}, not yet visited`}
             >
                 <defs>
                     <path
-                        id={arcId}
+                        id={`t-${key}`}
                         d={`M${C - arcR},${C} A${arcR},${arcR} 0 0 1 ${C + arcR},${C}`}
+                        fill="none"
+                    />
+                    {/* Swept the other way, so the letters underneath stand up */}
+                    <path
+                        id={`b-${key}`}
+                        d={`M${C - footR},${C} A${footR},${footR} 0 0 0 ${C + footR},${C}`}
                         fill="none"
                     />
                 </defs>
 
-                <g opacity={0.92}>
-                    <FrameShape frame={design.frame} stroke={colour} width={1.8} inset={7} />
+                <g opacity={design.weight}>
+                    <FrameShape frame={design.frame} stroke={ink} width={1.7} inset={4} dash={dash} />
 
                     {design.innerRule && (
-                        <FrameShape frame={design.frame} stroke={colour} width={0.7} inset={11.5} />
+                        <FrameShape
+                            frame={design.frame} stroke={ink} width={0.6} inset={8.5} dash={dash}
+                        />
                     )}
 
-                    {name !== "" && design.layout === "arc" && (
-                        <text
-                            fill={colour}
-                            fontSize="7.5"
-                            letterSpacing="1.2"
-                            fontFamily="'IBM Plex Mono', ui-monospace, monospace"
-                        >
-                            <textPath href={`#${arcId}`} startOffset="50%" textAnchor="middle">
-                                {name}
-                            </textPath>
-                        </text>
+                    {design.frame === "rectBox" && (
+                        <>
+                            <rect
+                                x={9} y={16} width={17} height={9} rx={1}
+                                fill="none" stroke={ink} strokeWidth={0.6}
+                            />
+                            <text
+                                x={17.5} y={22.6} fill={ink} fontSize="6" textAnchor="middle"
+                                letterSpacing="0.6"
+                                fontFamily="'IBM Plex Mono', ui-monospace, monospace"
+                            >
+                                {countryCode.toUpperCase()}
+                            </text>
+                        </>
                     )}
 
-                    {name !== "" && design.layout === "straight" && (
+                    {ring ? (
+                        <>
+                            <text
+                                fill={ink} fontSize={nameSize}
+                                letterSpacing={nameTracking}
+                                fontFamily="'IBM Plex Mono', ui-monospace, monospace"
+                            >
+                                <textPath href={`#t-${key}`} startOffset="50%" textAnchor="middle">
+                                    {name}
+                                </textPath>
+                            </text>
+                            <text
+                                fill={ink} fontSize="5.6" opacity={0.85}
+                                letterSpacing="1"
+                                fontFamily="'IBM Plex Mono', ui-monospace, monospace"
+                            >
+                                <textPath href={`#b-${key}`} startOffset="50%" textAnchor="middle">
+                                    {authority}
+                                </textPath>
+                            </text>
+                        </>
+                    ) : (
                         <text
-                            x={C} y={28}
-                            fill={colour}
-                            fontSize={straightSize}
-                            letterSpacing={straightTracking}
+                            x={C} y={design.frame === "rectBox" ? ROW.name + 8 : ROW.name}
+                            fill={ink} fontSize={nameSize} letterSpacing={nameTracking}
                             textAnchor="middle"
                             fontFamily="'IBM Plex Mono', ui-monospace, monospace"
                         >
@@ -258,34 +306,38 @@ export default function PassportStamp({
                     )}
 
                     <text
-                        x={C} y={design.glyph === "none" ? 55 : 51}
-                        fill={colour}
-                        fontSize="19"
-                        fontWeight="500"
-                        letterSpacing="1.5"
+                        x={C} y={ROW.code}
+                        fill={ink} fontSize="17" fontWeight="500" letterSpacing="1.3"
                         textAnchor="middle"
                         fontFamily="'IBM Plex Mono', ui-monospace, monospace"
                     >
                         {code}
                     </text>
 
-                    {design.underline && (
-                        <path
-                            d={`M${C - 14},${design.glyph === "none" ? 60 : 56} L${C + 14},${design.glyph === "none" ? 60 : 56}`}
-                            stroke={colour} strokeWidth={0.7} opacity={0.7}
-                        />
+                    {/* The date, ruled off the way a date wheel prints between two lines */}
+                    {design.dateBand && (
+                        <>
+                            <path
+                                d={`M${C - 19},${ROW.date - 7} L${C + 19},${ROW.date - 7}`}
+                                stroke={ink} strokeWidth={0.5} opacity={0.7}
+                            />
+                            <path
+                                d={`M${C - 19},${ROW.date + 2.8} L${C + 19},${ROW.date + 2.8}`}
+                                stroke={ink} strokeWidth={0.5} opacity={0.7}
+                            />
+                        </>
                     )}
 
-                    <Glyph design={design} colour={colour} y={dateY - 12} />
-
                     <text
-                        x={C} y={dateY}
-                        fill={colour} fontSize="7" letterSpacing="1.3"
-                        textAnchor="middle" opacity={0.85}
+                        x={C} y={ROW.date}
+                        fill={ink} fontSize="5.8" letterSpacing="0.7"
+                        textAnchor="middle"
                         fontFamily="'IBM Plex Mono', ui-monospace, monospace"
                     >
                         {date}
                     </text>
+
+                    {!ring && <Glyph glyph={design.glyph} colour={ink} y={ROW.foot} />}
                 </g>
             </svg>
 
@@ -295,8 +347,8 @@ export default function PassportStamp({
                     top="-2px"
                     right="-2px"
                     background="#0D0D0E"
-                    border={`1px solid ${colour}`}
-                    color={colour}
+                    border={`1px solid ${ink}`}
+                    color={ink}
                     borderRadius="full"
                     fontFamily="'IBM Plex Mono', monospace"
                     fontSize="9px"

@@ -131,6 +131,7 @@ export default function PassportGlobe({
     height = 226,
     pinColour = "#A480FF",
     targetColour = "#E3B341",
+    pinned = true,
 }: Readonly<{
     pins: GlobePin[];
     /** Where to spin to. Null leaves it turning where it is. */
@@ -138,10 +139,23 @@ export default function PassportGlobe({
     height?: number;
     pinColour?: string;
     targetColour?: string;
+    /**
+     * Whether the horizon belongs to the screen or to its container.
+     *
+     * The page wants it fixed to the bottom of the viewport. The development
+     * bench wants it inside a box it can put next to other things, and without
+     * this the bench's globe escaped its frame and covered the page.
+     */
+    pinned?: boolean;
 }>) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const pinsRef = useRef(pins);
     const targetRef = useRef(target);
+
+    // The draw loop lives inside an effect that must not be torn down when the
+    // destination changes, so the effect hands its flyTo out through a ref for
+    // the destination effect below to call.
+    const flyToRef = useRef<((to: { lat: number; lon: number } | null) => void) | null>(null);
 
     // The draw loop reads these rather than closing over them, so new props do
     // not tear down and rebuild the canvas.
@@ -431,7 +445,14 @@ export default function PassportGlobe({
             } else {
                 animT = 0;
             }
+
+            // Paint once straight away. A backgrounded tab is never given an
+            // animation frame, so without this a globe that changed destination
+            // while hidden would still be showing the old one on return.
+            draw(0);
         }
+
+        flyToRef.current = flyTo;
 
         const onResize = () => { resize(); draw(0); };
         const onVisibility = () => { visible = !document.hidden; sync(); };
@@ -485,6 +506,7 @@ export default function PassportGlobe({
 
         return () => {
             cancelled = true;
+            flyToRef.current = null;
 
             if (raf !== null)
                 cancelAnimationFrame(raf);
@@ -495,14 +517,27 @@ export default function PassportGlobe({
         };
     }, [pinColour, targetColour]);
 
-    // Kept out of the effect above so changing destination spins the globe
-    // rather than rebuilding it.
+    // Changing destination spins the globe rather than rebuilding it. The ref
+    // is what the draw loop reads; the call is what makes it actually move --
+    // updating the ref alone left the globe pointing wherever it first landed.
     useEffect(() => {
         targetRef.current = target;
+        flyToRef.current?.(target);
     }, [target]);
 
     return (
-        <Box position="absolute" left="0" right="0" bottom="0" height={`${height}px`} zIndex={1}>
+        <Box
+            // Fixed rather than absolute on the page: the horizon belongs to the
+            // bottom of the screen, not to the bottom of a scrolling column.
+            // Above the scrim either way, so the sphere is never painted over by
+            // the fade that hides the text.
+            position={pinned ? "fixed" : "absolute"}
+            left="0"
+            right="0"
+            bottom="0"
+            height={`${height}px`}
+            zIndex={3}
+        >
             <canvas ref={canvasRef} style={{ display: "block", width: "100%", height: "100%" }} />
         </Box>
     );
