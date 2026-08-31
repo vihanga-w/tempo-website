@@ -278,6 +278,19 @@ export default function PassportPage({ user }: Readonly<{ user: User }>) {
         [data],
     );
 
+    /*
+     * The destination is chosen from countries you have brushed against, which
+     * is exactly what Close to lists, so the two bands would otherwise open with
+     * the same country twice — once as somewhere to go and again as somewhere
+     * you nearly have. The card above says it better, so the nudge stands down.
+     */
+    const closeTo = useMemo(
+        () => (data?.passport.closeTo ?? []).filter(
+            entry => entry.countryCode !== data?.destination?.countryCode,
+        ),
+        [data],
+    );
+
     const stampCount = useCountUp(data?.passport.totalStamps ?? 0);
 
     if (error !== "") {
@@ -297,7 +310,6 @@ export default function PassportPage({ user }: Readonly<{ user: User }>) {
     }
 
     const { passport, destination, pendingArtists } = data;
-    const hasAnything = passport.totalStamps > 0 || passport.closeTo.length > 0 || !!destination;
 
     return (
         <>
@@ -458,19 +470,19 @@ export default function PassportPage({ user }: Readonly<{ user: User }>) {
                     )}
                 </Box>
 
-                {passport.closeTo.length > 0 && (
+                {closeTo.length > 0 && (
                     <Box mb="22px">
                         <Text fontSize="15px" fontWeight="bold" color="#F5F5F5" mb="3px">
                             Close to
                         </Text>
                         <Text fontSize="12.5px" color="#6B6B6B" mb="10px">
-                            {passport.closeTo.length === 1
+                            {closeTo.length === 1
                                 ? "One country is nearly yours."
-                                : `${passport.closeTo.length} countries are nearly yours.`}
+                                : `${closeTo.length} countries are nearly yours.`}
                         </Text>
 
                         <Stack gap="8px">
-                            {passport.closeTo.map((entry, i) => (
+                            {closeTo.map((entry, i) => (
                                 <NudgeRow key={entry.countryCode} entry={entry} index={i} />
                             ))}
                         </Stack>
