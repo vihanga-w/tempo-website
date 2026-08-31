@@ -164,16 +164,57 @@ function Empty({ children }: Readonly<{ children: React.ReactNode }>) {
     );
 }
 
-function NudgeRow({ entry, index }: { entry: CloseTo; index: number }) {
+/** What is left to do, in words. Shared by the destination card and the nudges. */
+function nudgeWording(entry: CloseTo): string {
+    const left = entry.need - entry.have;
+
+    if (entry.path === "artists") {
+        return left === 1
+            ? `One more artist and ${entry.name} is yours.`
+            : `${left} more artists from ${entry.name}.`;
+    }
+
+    return left === 1
+        ? `One more day with them and ${entry.name} is yours.`
+        : `${left} more days and ${entry.name} is yours.`;
+}
+
+/** The sentence and the bar under it, for the destination card. */
+function Progress({ entry }: { entry: CloseTo }) {
     const share = Math.max(0.04, entry.have / entry.need);
 
-    const wording = entry.path === "artists"
-        ? (entry.need - entry.have === 1
-            ? `One more artist and ${entry.name} is yours.`
-            : `${entry.need - entry.have} more artists from ${entry.name}.`)
-        : (entry.need - entry.have === 1
-            ? `One more day with them and ${entry.name} is yours.`
-            : `${entry.need - entry.have} more days and ${entry.name} is yours.`);
+    return (
+        <Box mt="11px">
+            <HStack justify="space-between" mb="7px" gap="8px">
+                <Text fontSize="11.5px" color="#8B8B8B" noOfLines={1}>
+                    {nudgeWording(entry)}
+                </Text>
+                <Text
+                    fontSize="11px"
+                    color={ACCENT}
+                    fontFamily="'IBM Plex Mono', monospace"
+                    flexShrink={0}
+                >
+                    {entry.have} of {entry.need}
+                </Text>
+            </HStack>
+
+            <Box height="4px" borderRadius="4px" bg="#232326" overflow="hidden">
+                <Box
+                    height="100%"
+                    width={`${share * 100}%`}
+                    bg={ACCENT}
+                    borderRadius="4px"
+                    transition="width .8s ease-out"
+                />
+            </Box>
+        </Box>
+    );
+}
+
+function NudgeRow({ entry, index }: { entry: CloseTo; index: number }) {
+    const share = Math.max(0.04, entry.have / entry.need);
+    const wording = nudgeWording(entry);
 
     return (
         <Box
@@ -284,6 +325,22 @@ export default function PassportPage({ user }: Readonly<{ user: User }>) {
      * the same country twice — once as somewhere to go and again as somewhere
      * you nearly have. The card above says it better, so the nudge stands down.
      */
+    /*
+     * How close they already are to the place being suggested.
+     *
+     * Filtering the destination out of Close to stopped the page opening two
+     * bands with the same country, but it also threw away the one thing the
+     * card could not say: that France is one artist away from being stamped.
+     * That is the most actionable line on the page, so it moves onto the card
+     * rather than disappearing with the row.
+     */
+    const destinationProgress = useMemo(
+        () => (data?.passport.closeTo ?? []).find(
+            entry => entry.countryCode === data?.destination?.countryCode,
+        ) ?? null,
+        [data],
+    );
+
     const closeTo = useMemo(
         () => (data?.passport.closeTo ?? []).filter(
             entry => entry.countryCode !== data?.destination?.countryCode,
@@ -353,41 +410,61 @@ export default function PassportPage({ user }: Readonly<{ user: User }>) {
                         px="15px"
                         py="14px"
                     >
-                        <HStack justify="space-between" align="baseline" mb="9px" gap="8px">
-                            <Text
-                                fontFamily="'IBM Plex Mono', monospace"
-                                fontSize="9.5px"
-                                letterSpacing="0.14em"
-                                textTransform="uppercase"
-                                color={GOLD}
-                            >
-                                Destination
-                            </Text>
-                            <Text
-                                fontFamily="'IBM Plex Mono', monospace"
-                                fontSize="9.5px"
-                                color="#4A4A4A"
-                            >
-                                this week
-                            </Text>
+                        <HStack align="flex-start" gap="12px" mb="9px">
+                            <Box flex="1" minW="0">
+                                <HStack gap="8px" mb="9px">
+                                    <Text
+                                        fontFamily="'IBM Plex Mono', monospace"
+                                        fontSize="9.5px"
+                                        letterSpacing="0.14em"
+                                        textTransform="uppercase"
+                                        color={GOLD}
+                                    >
+                                        Next destination
+                                    </Text>
+                                    <Text
+                                        fontFamily="'IBM Plex Mono', monospace"
+                                        fontSize="9.5px"
+                                        color="#4A4A4A"
+                                    >
+                                        this week
+                                    </Text>
+                                </HStack>
+
+                                <Text
+                                    fontFamily="Libre Franklin"
+                                    fontWeight="black"
+                                    fontStyle="italic"
+                                    fontSize="25px"
+                                    lineHeight="1"
+                                    letterSpacing="-0.02em"
+                                    color="#F5F5F5"
+                                    mb="9px"
+                                >
+                                    {destination.name}
+                                </Text>
+
+                                <Text fontSize="12.5px" lineHeight="1.5" color="#A0A0A0">
+                                    {destination.why}
+                                </Text>
+                            </Box>
+
+                            {/*
+                              * The impression they would collect, pressed into the
+                              * corner of the card that is offering it. It used to
+                              * sit in the stamp grid, where it was counted by eye
+                              * as a sixth stamp under a heading that said five --
+                              * and where it was, plainly, not one.
+                              */}
+                            <Box flexShrink={0} width="78px" mt="2px">
+                                <PassportStamp
+                                    countryCode={destination.countryCode}
+                                    countryName={destination.name}
+                                    earnedAt={0}
+                                    colour={GOLD}
+                                />
+                            </Box>
                         </HStack>
-
-                        <Text
-                            fontFamily="Libre Franklin"
-                            fontWeight="black"
-                            fontStyle="italic"
-                            fontSize="25px"
-                            lineHeight="1"
-                            letterSpacing="-0.02em"
-                            color="#F5F5F5"
-                            mb="9px"
-                        >
-                            {destination.name}
-                        </Text>
-
-                        <Text fontSize="12.5px" lineHeight="1.5" color="#A0A0A0" mb="9px">
-                            {destination.why}
-                        </Text>
 
                         <HStack flexWrap="wrap" gap="5px">
                             <Text
@@ -399,7 +476,7 @@ export default function PassportPage({ user }: Readonly<{ user: User }>) {
                                 color={ACCENT}
                                 whiteSpace="nowrap"
                             >
-                                {destination.bridge.name} &middot; yours
+                                {destination.bridge.name}
                             </Text>
 
                             {destination.fresh.map(artist => (
@@ -417,6 +494,8 @@ export default function PassportPage({ user }: Readonly<{ user: User }>) {
                                 </Text>
                             ))}
                         </HStack>
+
+                        {destinationProgress && <Progress entry={destinationProgress} />}
                     </Box>
                 )}
 
@@ -447,15 +526,6 @@ export default function PassportPage({ user }: Readonly<{ user: User }>) {
                             gap="11px 8px"
                             mt="12px"
                         >
-                            {destination && (
-                                <PassportStamp
-                                    countryCode={destination.countryCode}
-                                    countryName={destination.name}
-                                    earnedAt={0}
-                                    colour={GOLD}
-                                />
-                            )}
-
                             {passport.countries.map(country => (
                                 <PassportStamp
                                     key={country.countryCode}

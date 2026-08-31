@@ -55,8 +55,8 @@ export const GLOBE_RADIUS_RATIO = 0.98;
  */
 export const GLOBE_CENTRE_DROP_RATIO = 0.63;
 
-/** How long the globe holds still after arriving before it drifts again. */
-const HOLD_MS = 2800;
+/** How long the globe rests on a place before moving to the next one. */
+const HOLD_MS = 2600;
 
 export interface GlobePin {
     lat: number;
@@ -179,7 +179,7 @@ export default function PassportGlobe({
     // The draw loop lives inside an effect that must not be torn down when the
     // destination changes, so the effect hands its flyTo out through a ref for
     // the destination effect below to call.
-    const flyToRef = useRef<((to: { lat: number; lon: number } | null) => void) | null>(null);
+    const restartRef = useRef<(() => void) | null>(null);
 
     // The draw loop reads these rather than closing over them, so new props do
     // not tear down and rebuild the canvas.
@@ -217,6 +217,7 @@ export default function PassportGlobe({
         let toPitch = 0;
         let animT = 1;
         let holdUntil = 0;
+        let stop = 0;
 
         let cosY = 1;
         let sinY = 0;
@@ -439,7 +440,18 @@ export default function PassportGlobe({
                 if (animT === 1)
                     holdUntil = now + HOLD_MS;
             } else if (!reduced && now > holdUntil) {
-                yaw += 0.026;
+                /*
+                 * On to the next place rather than spinning on the spot.
+                 *
+                 * Drifting the yaw only turned the globe about its axis, so it
+                 * showed one band of latitude for ever and a listener whose
+                 * stamps are in Canada and Australia never saw one of them. The
+                 * globe walks the passport instead, and every pin comes round.
+                 */
+                if (stops().length > 1)
+                    goToStop(stop + 1);
+                else
+                    holdUntil = now + HOLD_MS;
             }
 
             draw(now);
@@ -460,6 +472,38 @@ export default function PassportGlobe({
                 cancelAnimationFrame(raf);
                 raf = null;
             }
+        }
+
+        /*
+         * Everywhere worth showing, in the order it is worth showing.
+         *
+         * Read fresh each time rather than captured, so a stamp earned while
+         * the page is open joins the tour without the canvas being rebuilt.
+         * The destination leads; the countries follow in the order the page
+         * gave them, which is most-stamped first.
+         */
+        function stops(): { lat: number; lon: number }[] {
+            const list: { lat: number; lon: number }[] = [];
+            const t = targetRef.current;
+
+            if (t)
+                list.push({ lat: t.lat, lon: t.lon });
+
+            for (const pin of pinsRef.current)
+                list.push({ lat: pin.lat, lon: pin.lon });
+
+            return list;
+        }
+
+        function goToStop(index: number) {
+            const list = stops();
+
+            if (list.length === 0)
+                return;
+
+            stop = ((index % list.length) + list.length) % list.length;
+
+            flyTo(list[stop]);
         }
 
         function flyTo(to: { lat: number; lon: number } | null) {
@@ -491,7 +535,7 @@ export default function PassportGlobe({
             draw(0);
         }
 
-        flyToRef.current = flyTo;
+        restartRef.current = () => goToStop(0);
 
         const onResize = () => { resize(); draw(0); };
         const onVisibility = () => { visible = !document.hidden; sync(); };
@@ -534,7 +578,7 @@ export default function PassportGlobe({
             ];
 
             resize();
-            flyTo(targetRef.current);
+            goToStop(0);
             // One frame immediately, so the globe is there before the loop is
             // allowed to run — a backgrounded tab never gets an animation frame.
             draw(0);
@@ -545,7 +589,7 @@ export default function PassportGlobe({
 
         return () => {
             cancelled = true;
-            flyToRef.current = null;
+            restartRef.current = null;
 
             if (raf !== null)
                 cancelAnimationFrame(raf);
@@ -561,7 +605,8 @@ export default function PassportGlobe({
     // updating the ref alone left the globe pointing wherever it first landed.
     useEffect(() => {
         targetRef.current = target;
-        flyToRef.current?.(target);
+        // A new destination restarts the tour rather than joining it mid-way
+        restartRef.current?.();
     }, [target]);
 
     return (
