@@ -5,7 +5,9 @@ import User from "@/lib/usrlib";
 import { Box, Center, HStack, Spinner, Stack, Text } from "@chakra-ui/react";
 import { useEffect, useMemo, useState } from "react";
 import { keyframes } from "@emotion/react";
-import PassportGlobe, { GlobePin } from "./passport-globe";
+import PassportGlobe, {
+    GlobePin, GLOBE_RADIUS_RATIO, GLOBE_CENTRE_DROP,
+} from "./passport-globe";
 import PassportStamp from "./passport-stamp";
 import { useCountUp } from "@/lib/use-count-up";
 
@@ -28,9 +30,11 @@ const ACCENT = "#A480FF";
 const GOLD = "#E3B341";
 const PAGE_BG = "#0D0D0E";
 
-/** Height of the globe band. The content area stops short of it. */
+/** Height of the globe band. */
 const GLOBE_HEIGHT = 226;
-const CONTENT_INSET = 104;
+
+/** How far above the sphere's rim the scrim has finished fading. */
+const SCRIM_FADE = 132;
 
 const slideIn = keyframes`
     from { transform: translateY(10px); opacity: 0; }
@@ -99,11 +103,12 @@ interface PassportPayload {
  * smoothstepped so neither end has a corner, then cubed to undo the eye's
  * cube-root response — a three-stop fade over a dark ground bands visibly.
  */
-function globeScrim(width: number, screenHeight: number): string {
-    const R = width * 0.98;
+function globeGeometry(width: number, screenHeight: number): { scrim: string; clearance: number } {
+    const R = width * GLOBE_RADIUS_RATIO;
     const cx = width / 2;
-    const cy = (screenHeight - GLOBE_HEIGHT) + GLOBE_HEIGHT + 164;
-    const outer = R + 132;
+    // The sphere's centre sits below the bottom of the screen
+    const cy = screenHeight + GLOBE_CENTRE_DROP;
+    const outer = R + SCRIM_FADE;
     const inner = (R / outer) * 100;
 
     const stops = [`${PAGE_BG} 0%`, `${PAGE_BG} ${inner.toFixed(2)}%`];
@@ -116,7 +121,28 @@ function globeScrim(width: number, screenHeight: number): string {
         stops.push(`rgba(13,13,14,${alpha.toFixed(4)}) ${(inner + (100 - inner) * t).toFixed(2)}%`);
     }
 
-    return `radial-gradient(circle ${outer.toFixed(1)}px at ${cx.toFixed(1)}px ${cy.toFixed(1)}px, ${stops.join(",")})`;
+    /*
+     * How much room the page has to leave at its foot.
+     *
+     * The globe's band is 226 tall, but the scrim is what actually hides
+     * things and it reaches much further up: the sphere is centred below the
+     * screen, so a point h above the bottom is (h + drop) from the centre and
+     * stays fully covered until that passes R, and partly covered until it
+     * passes R + the fade. Measured down the middle, where the globe bulges
+     * highest and the scrim therefore reaches highest.
+     *
+     * Padding short of this does not merely crowd the last item, it makes it
+     * unreachable: no amount of scrolling can lift it into clear air.
+     */
+    const clearance = Math.max(
+        GLOBE_HEIGHT,
+        Math.ceil(R + SCRIM_FADE - GLOBE_CENTRE_DROP),
+    );
+
+    return {
+        scrim: `radial-gradient(circle ${outer.toFixed(1)}px at ${cx.toFixed(1)}px ${cy.toFixed(1)}px, ${stops.join(",")})`,
+        clearance,
+    };
 }
 
 /** Says nothing is here yet, and what would put something here. */
@@ -186,7 +212,9 @@ function NudgeRow({ entry, index }: { entry: CloseTo; index: number }) {
 export default function PassportPage({ user }: Readonly<{ user: User }>) {
     const [data, setData] = useState<PassportPayload | null>(null);
     const [error, setError] = useState<string>("");
-    const [scrim, setScrim] = useState<string>("");
+    const [globe, setGlobe] = useState<{ scrim: string; clearance: number }>(
+        { scrim: "", clearance: GLOBE_HEIGHT },
+    );
 
     useEffect(() => {
         let cancelled = false;
@@ -226,7 +254,7 @@ export default function PassportPage({ user }: Readonly<{ user: User }>) {
     // The scrim's geometry follows the viewport, so it is measured rather than
     // guessed and recomputed when the window changes.
     useEffect(() => {
-        const measure = () => setScrim(globeScrim(window.innerWidth, window.innerHeight));
+        const measure = () => setGlobe(globeGeometry(window.innerWidth, window.innerHeight));
 
         measure();
         window.addEventListener("resize", measure);
@@ -285,7 +313,7 @@ export default function PassportPage({ user }: Readonly<{ user: User }>) {
                 inset="0"
                 zIndex={2}
                 pointerEvents="none"
-                background={scrim}
+                background={globe.scrim}
             />
 
             <PassportGlobe
@@ -301,7 +329,7 @@ export default function PassportPage({ user }: Readonly<{ user: User }>) {
                 px="20px"
                 position="relative"
                 zIndex={1}
-                paddingBottom={`${CONTENT_INSET}px`}
+                paddingBottom={`${globe.clearance}px`}
             >
                 {destination && (
                     <Box

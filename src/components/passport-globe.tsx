@@ -31,6 +31,19 @@ const LIFT_DEGREES = Math.asin(LIFT_FRACTION) / RAD;
 
 const FLY_MS = 1700;
 
+/**
+ * How the sphere sits relative to the band it is drawn in.
+ *
+ * Wider than the screen and centred well below it, so what shows is an arc of
+ * something large rather than a small ball. Exported because the page has to
+ * agree: the scrim that dissolves text into the globe is concentric with this
+ * sphere, and the space kept clear at the foot of the page is measured from it.
+ * Both were separately hard-coded to the same two numbers once, and that is
+ * exactly how they come to disagree.
+ */
+export const GLOBE_RADIUS_RATIO = 0.98;
+export const GLOBE_CENTRE_DROP = 200;
+
 /** How long the globe holds still after arriving before it drifts again. */
 const HOLD_MS = 2800;
 
@@ -218,9 +231,9 @@ export default function PassportGlobe({
 
             // Wider than the screen and centred well below it, so what shows is
             // an arc of a large sphere rather than a small ball.
-            R = W * 0.98;
+            R = W * GLOBE_RADIUS_RATIO;
             cx = W / 2;
-            cy = H + 164;
+            cy = H + GLOBE_CENTRE_DROP;
         }
 
         function strokeLines(set: Line[], style: string, width: number) {

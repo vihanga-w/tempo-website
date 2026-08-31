@@ -115,11 +115,12 @@ export default function DevPassport() {
                 ))}
             </div>
 
+            {/* Sized as the page sizes it, so the arc here is the arc there */}
             <div style={{
-                position: "relative", height: 300, width: 360, border: "1px solid #1E1E1E",
+                position: "relative", height: 226, width: 390, border: "1px solid #1E1E1E",
                 borderRadius: 18, overflow: "hidden", background: "#0D0D0E",
             }}>
-                <PassportGlobe pins={PINS} target={target} height={300} pinned={false} />
+                <PassportGlobe pins={PINS} target={target} height={226} pinned={false} />
             </div>
         </div>
     );
