@@ -32,6 +32,7 @@ const FriendsPage = lazy(() => import("./friends-page"));
 const LeaderboardPage = lazy(() => import("./leaderboard-page"));
 const AddFriendsPage = lazy(() => import("./add-friends-page"));
 const ProfilePage = lazy(() => import("./profile-page"));
+const PassportPage = lazy(() => import("./passport-page"));
 const ReactionDrawer = lazy(() => import("./reaction-drawer"));
 
 const updateMutex = new Mutex();
@@ -525,6 +526,11 @@ export default React.memo(function UIApp({
             indexed: true,
         },
         {
+            name: "Passport",
+            id: "passport",
+            indexed: true,
+        },
+        {
             name: "Playlists",
             id: "playlists",
             indexed: true,
@@ -944,6 +950,12 @@ export default React.memo(function UIApp({
                     {currentPage == "leaderboard" && (
                         <Suspense fallback={<SuspenseSpinner />}>
                             <LeaderboardPage user={user} />
+                        </Suspense>
+                    )}
+
+                    {currentPage == "passport" && (
+                        <Suspense fallback={<SuspenseSpinner />}>
+                            <PassportPage user={user} />
                         </Suspense>
                     )}
 

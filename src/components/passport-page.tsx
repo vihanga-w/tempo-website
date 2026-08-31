@@ -1,0 +1,458 @@
+"use client";
+
+import { API_URL } from "@/lib/const";
+import User from "@/lib/usrlib";
+import { Box, Center, HStack, Spinner, Stack, Text } from "@chakra-ui/react";
+import { useEffect, useMemo, useState } from "react";
+import { keyframes } from "@emotion/react";
+import PassportGlobe, { GlobePin } from "./passport-globe";
+import PassportStamp from "./passport-stamp";
+import { useCountUp } from "@/lib/use-count-up";
+
+/**
+ * Where your music comes from, and one place a week to go next.
+ *
+ * The page is four bands. The destination leads because it is the only part
+ * that changes weekly and the only part worth a notification. The stamps are the
+ * record underneath it. "Close to" is third and is the most important element
+ * here: it is the only one that works on the first day, when there is nothing
+ * to show yet, and it turns an empty page into a specific next action.
+ *
+ * The globe is fixed to the bottom edge and drawn larger than the screen, so it
+ * reads as a horizon rather than a ball. Content dissolves into it along its own
+ * curve — a straight-edged fade against a curved horizon reads as a seam.
+ */
+
+const INK = "#E9E7FB";
+const ACCENT = "#A480FF";
+const GOLD = "#E3B341";
+const PAGE_BG = "#0D0D0E";
+
+/** Height of the globe band. The content area stops short of it. */
+const GLOBE_HEIGHT = 226;
+const CONTENT_INSET = 104;
+
+const slideIn = keyframes`
+    from { transform: translateY(10px); opacity: 0; }
+    to   { transform: translateY(0); opacity: 1; }
+`;
+
+interface Stamp {
+    countryCode: string;
+    name: string;
+    lat: number;
+    lon: number;
+    continent: string;
+    month: string;
+    earnedAt: number;
+}
+
+interface CountryEntry {
+    countryCode: string;
+    name: string;
+    lat: number;
+    lon: number;
+    continent: string;
+    stampCount: number;
+    firstAt: number;
+    lastAt: number;
+}
+
+interface CloseTo {
+    countryCode: string;
+    name: string;
+    have: number;
+    need: number;
+    path: "artists" | "days";
+}
+
+interface DestinationPayload {
+    countryCode: string;
+    name: string;
+    lat: number;
+    lon: number;
+    why: string;
+    bridge: { artistId: string; name: string };
+    fresh: { artistId: string; name: string }[];
+}
+
+interface PassportPayload {
+    passport: {
+        stamps: Stamp[];
+        countries: CountryEntry[];
+        totalStamps: number;
+        totalCountries: number;
+        closeTo: CloseTo[];
+        unplacedPlays: number;
+        placedPlays: number;
+    };
+    destination: DestinationPayload | null;
+    pendingArtists: number;
+}
+
+/**
+ * The perceptual falloff from artwork-wash, run around the globe.
+ *
+ * Concentric with the sphere rather than a straight line down the page, so text
+ * disappears along the curve of the horizon it is disappearing behind: earlier
+ * in the middle where the globe bulges up, later at the edges. Eighteen stops,
+ * smoothstepped so neither end has a corner, then cubed to undo the eye's
+ * cube-root response — a three-stop fade over a dark ground bands visibly.
+ */
+function globeScrim(width: number, screenHeight: number): string {
+    const R = width * 0.98;
+    const cx = width / 2;
+    const cy = (screenHeight - GLOBE_HEIGHT) + GLOBE_HEIGHT + 164;
+    const outer = R + 132;
+    const inner = (R / outer) * 100;
+
+    const stops = [`${PAGE_BG} 0%`, `${PAGE_BG} ${inner.toFixed(2)}%`];
+
+    for (let i = 1; i <= 18; i++) {
+        const t = i / 18;
+        const eased = t * t * (3 - 2 * t);
+        const alpha = Math.pow(1 - eased, 3);
+
+        stops.push(`rgba(13,13,14,${alpha.toFixed(4)}) ${(inner + (100 - inner) * t).toFixed(2)}%`);
+    }
+
+    return `radial-gradient(circle ${outer.toFixed(1)}px at ${cx.toFixed(1)}px ${cy.toFixed(1)}px, ${stops.join(",")})`;
+}
+
+/** Says nothing is here yet, and what would put something here. */
+function Empty({ children }: Readonly<{ children: React.ReactNode }>) {
+    return (
+        <Text fontSize="14px" color="#4A4A4A" lineHeight="1.55" paddingY="10px" maxWidth="34ch">
+            {children}
+        </Text>
+    );
+}
+
+function NudgeRow({ entry, index }: { entry: CloseTo; index: number }) {
+    const share = Math.max(0.04, entry.have / entry.need);
+
+    const wording = entry.path === "artists"
+        ? (entry.need - entry.have === 1
+            ? `One more artist and ${entry.name} is yours.`
+            : `${entry.need - entry.have} more artists from ${entry.name}.`)
+        : (entry.need - entry.have === 1
+            ? `One more day with them and ${entry.name} is yours.`
+            : `${entry.need - entry.have} more days and ${entry.name} is yours.`);
+
+    return (
+        <Box
+            borderRadius="12px"
+            border="1px solid #1E1E1E"
+            bg="#131313"
+            px="13px"
+            py="12px"
+            animation={`${slideIn} .35s ease-out both`}
+            style={{ animationDelay: `${Math.min(index, 6) * 45}ms` }}
+        >
+            <HStack justify="space-between" mb="8px" gap="8px">
+                <Text fontSize="13px" fontWeight="semibold" color="#F5F5F5" noOfLines={1}>
+                    {entry.name}
+                </Text>
+                <Text fontSize="11px" color={ACCENT} fontFamily="'IBM Plex Mono', monospace" flexShrink={0}>
+                    {entry.have} of {entry.need}
+                </Text>
+            </HStack>
+
+            <Box height="4px" borderRadius="4px" bg="#232326" overflow="hidden" mb="8px">
+                <Box
+                    height="100%"
+                    width={`${share * 100}%`}
+                    bg={ACCENT}
+                    borderRadius="4px"
+                    transition="width .8s ease-out"
+                />
+            </Box>
+
+            <Text fontSize="11.5px" color="#6B6B6B">{wording}</Text>
+        </Box>
+    );
+}
+
+export default function PassportPage({ user }: Readonly<{ user: User }>) {
+    const [data, setData] = useState<PassportPayload | null>(null);
+    const [error, setError] = useState<string>("");
+    const [scrim, setScrim] = useState<string>("");
+
+    useEffect(() => {
+        let cancelled = false;
+
+        (async () => {
+            try {
+                const req = await fetch(API_URL + "/me/passport", {
+                    headers: { ...(user.getAuthHeaders()) },
+                    credentials: "include",
+                });
+
+                const res = await req.json() as {
+                    error: boolean;
+                    message?: string;
+                    data?: PassportPayload;
+                };
+
+                if (cancelled)
+                    return;
+
+                if (res.error || !res.data) {
+                    setError(res.message ?? "Couldn't load your passport.");
+
+                    return;
+                }
+
+                setData(res.data);
+            } catch {
+                if (!cancelled)
+                    setError("Couldn't reach Tempo. Check your connection and try again.");
+            }
+        })();
+
+        return () => { cancelled = true; };
+    }, [user]);
+
+    // The scrim's geometry follows the viewport, so it is measured rather than
+    // guessed and recomputed when the window changes.
+    useEffect(() => {
+        const measure = () => setScrim(globeScrim(window.innerWidth, window.innerHeight));
+
+        measure();
+        window.addEventListener("resize", measure);
+
+        return () => window.removeEventListener("resize", measure);
+    }, []);
+
+    const pins: GlobePin[] = useMemo(
+        () => (data?.passport.countries ?? []).map(c => ({
+            lat: c.lat, lon: c.lon, weight: c.stampCount,
+        })),
+        [data],
+    );
+
+    const target = useMemo(
+        () => (data?.destination
+            ? { lat: data.destination.lat, lon: data.destination.lon }
+            : (data?.passport.countries[0]
+                ? { lat: data.passport.countries[0].lat, lon: data.passport.countries[0].lon }
+                : null)),
+        [data],
+    );
+
+    const stampCount = useCountUp(data?.passport.totalStamps ?? 0);
+
+    if (error !== "") {
+        return (
+            <Center position="absolute" top="0" left="0" width="100vw" height="100vh" px="8">
+                <Text fontSize="15px" color="#ff8a8a" textAlign="center">{error}</Text>
+            </Center>
+        );
+    }
+
+    if (!data) {
+        return (
+            <Center position="absolute" top="0" left="0" width="100vw" height="100vh">
+                <Spinner size="lg" />
+            </Center>
+        );
+    }
+
+    const { passport, destination, pendingArtists } = data;
+    const hasAnything = passport.totalStamps > 0 || passport.closeTo.length > 0 || !!destination;
+
+    return (
+        <>
+            <PassportGlobe
+                pins={pins}
+                target={target}
+                height={GLOBE_HEIGHT}
+                pinColour={ACCENT}
+                targetColour={GOLD}
+            />
+
+            {/* Content dissolves along the globe's curve rather than into a line */}
+            <Box
+                position="fixed"
+                inset="0"
+                zIndex={2}
+                pointerEvents="none"
+                background={scrim}
+            />
+
+            <Box
+                width="100%"
+                px="20px"
+                position="relative"
+                zIndex={1}
+                paddingBottom={`${CONTENT_INSET}px`}
+            >
+                {destination && (
+                    <Box
+                        mb="22px"
+                        mt="2"
+                        borderRadius="14px"
+                        border="1px solid #2A2340"
+                        bg="#17141F"
+                        px="15px"
+                        py="14px"
+                    >
+                        <HStack justify="space-between" align="baseline" mb="9px" gap="8px">
+                            <Text
+                                fontFamily="'IBM Plex Mono', monospace"
+                                fontSize="9.5px"
+                                letterSpacing="0.14em"
+                                textTransform="uppercase"
+                                color={GOLD}
+                            >
+                                Destination
+                            </Text>
+                            <Text
+                                fontFamily="'IBM Plex Mono', monospace"
+                                fontSize="9.5px"
+                                color="#4A4A4A"
+                            >
+                                this week
+                            </Text>
+                        </HStack>
+
+                        <Text
+                            fontFamily="Libre Franklin"
+                            fontWeight="black"
+                            fontStyle="italic"
+                            fontSize="25px"
+                            lineHeight="1"
+                            letterSpacing="-0.02em"
+                            color="#F5F5F5"
+                            mb="9px"
+                        >
+                            {destination.name}
+                        </Text>
+
+                        <Text fontSize="12.5px" lineHeight="1.5" color="#A0A0A0" mb="9px">
+                            {destination.why}
+                        </Text>
+
+                        <HStack flexWrap="wrap" gap="5px">
+                            <Text
+                                fontSize="11px"
+                                px="8px"
+                                py="3px"
+                                borderRadius="full"
+                                border={`1px solid ${ACCENT}8C`}
+                                color={ACCENT}
+                                whiteSpace="nowrap"
+                            >
+                                {destination.bridge.name} &middot; yours
+                            </Text>
+
+                            {destination.fresh.map(artist => (
+                                <Text
+                                    key={artist.artistId}
+                                    fontSize="11px"
+                                    px="8px"
+                                    py="3px"
+                                    borderRadius="full"
+                                    border="1px solid #2E2E33"
+                                    color="#C9C6D6"
+                                    whiteSpace="nowrap"
+                                >
+                                    {artist.name}
+                                </Text>
+                            ))}
+                        </HStack>
+                    </Box>
+                )}
+
+                <Box mb="22px">
+                    <Text fontSize="15px" fontWeight="bold" color="#F5F5F5" mb="3px">
+                        Your stamps
+                    </Text>
+                    <Text fontSize="12.5px" color="#6B6B6B" lineHeight="1.45">
+                        {passport.totalStamps === 0
+                            ? "Nothing stamped yet."
+                            : `${Math.round(stampCount)} stamp${passport.totalStamps === 1 ? "" : "s"} `
+                              + `across ${passport.totalCountries} `
+                              + `countr${passport.totalCountries === 1 ? "y" : "ies"}`}
+                    </Text>
+
+                    {passport.totalStamps === 0 ? (
+                        <Empty>
+                            A country is stamped once you have played three of its artists,
+                            or one of them on three separate days.
+                        </Empty>
+                    ) : (
+                        <Box
+                            display="grid"
+                            gridTemplateColumns="repeat(3, 1fr)"
+                            gap="11px 8px"
+                            mt="12px"
+                        >
+                            {destination && (
+                                <PassportStamp
+                                    countryCode={destination.countryCode}
+                                    countryName={destination.name}
+                                    month=""
+                                    colour={GOLD}
+                                />
+                            )}
+
+                            {passport.countries.map(country => (
+                                <PassportStamp
+                                    key={country.countryCode}
+                                    countryCode={country.countryCode}
+                                    countryName={country.name}
+                                    month={
+                                        passport.stamps.find(s => s.countryCode === country.countryCode)
+                                            ?.month ?? ""
+                                    }
+                                    colour={ACCENT}
+                                    count={country.stampCount}
+                                />
+                            ))}
+                        </Box>
+                    )}
+                </Box>
+
+                {passport.closeTo.length > 0 && (
+                    <Box mb="22px">
+                        <Text fontSize="15px" fontWeight="bold" color="#F5F5F5" mb="3px">
+                            Close to
+                        </Text>
+                        <Text fontSize="12.5px" color="#6B6B6B" mb="10px">
+                            {passport.closeTo.length === 1
+                                ? "One country is nearly yours."
+                                : `${passport.closeTo.length} countries are nearly yours.`}
+                        </Text>
+
+                        <Stack gap="8px">
+                            {passport.closeTo.map((entry, i) => (
+                                <NudgeRow key={entry.countryCode} entry={entry} index={i} />
+                            ))}
+                        </Stack>
+                    </Box>
+                )}
+
+                {!hasAnything && (
+                    <Empty>
+                        Tempo is still working out where your music comes from. Keep listening
+                        and the map will fill in.
+                    </Empty>
+                )}
+
+                {/*
+                  * Said out loud rather than hidden. A map that silently omits a
+                  * third of somebody's listening is lying by omission, and while
+                  * origins are still resolving that is exactly what it is doing.
+                  */}
+                {(pendingArtists > 0 || passport.unplacedPlays > 0) && (
+                    <Text fontSize="12px" color="#4A4A4A" textAlign="center" mt="4">
+                        {pendingArtists > 0
+                            ? `Still placing ${pendingArtists} artist${pendingArtists === 1 ? "" : "s"}`
+                            : `${passport.unplacedPlays} play${passport.unplacedPlays === 1 ? "" : "s"} couldn't be placed`}
+                    </Text>
+                )}
+            </Box>
+        </>
+    );
+}
