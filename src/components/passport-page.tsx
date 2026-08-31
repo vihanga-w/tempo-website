@@ -16,9 +16,11 @@ import { useCountUp } from "@/lib/use-count-up";
  *
  * The page is four bands. The destination leads because it is the only part
  * that changes weekly and the only part worth a notification. The stamps are the
- * record underneath it. "Close to" is third and is the most important element
+ * record underneath it. Stopovers is third and is the most important element
  * here: it is the only one that works on the first day, when there is nothing
- * to show yet, and it turns an empty page into a specific next action.
+ * to show yet, and it turns an empty page into a specific next action. A
+ * stopover is somewhere the listening touched without staying, which is exactly
+ * what one or two artists from a country amounts to.
  *
  * The globe is fixed to the bottom edge and drawn larger than the screen, so it
  * reads as a horizon rather than a ball. Content dissolves into it along its own
@@ -144,6 +146,14 @@ function globeGeometry(width: number, screenHeight: number): { scrim: string; cl
         clearance,
     };
 }
+
+/**
+ * Spelled out, because the list is never longer than four.
+ *
+ * "Two you passed through" reads as a sentence; "2 you passed through" reads as
+ * a count, and this line is doing the work of explaining what a stopover is.
+ */
+const COUNT_WORDS = ["", "One", "Two", "Three", "Four"];
 
 /** Says nothing is here yet, and what would put something here. */
 function Empty({ children }: Readonly<{ children: React.ReactNode }>) {
@@ -321,14 +331,14 @@ export default function PassportPage({ user }: Readonly<{ user: User }>) {
 
     /*
      * The destination is chosen from countries you have brushed against, which
-     * is exactly what Close to lists, so the two bands would otherwise open with
+     * is exactly what Stopovers lists, so the two bands would otherwise open with
      * the same country twice — once as somewhere to go and again as somewhere
      * you nearly have. The card above says it better, so the nudge stands down.
      */
     /*
      * How close they already are to the place being suggested.
      *
-     * Filtering the destination out of Close to stopped the page opening two
+     * Filtering the destination out of Stopovers stopped the page opening two
      * bands with the same country, but it also threw away the one thing the
      * card could not say: that France is one artist away from being stamped.
      * That is the most actionable line on the page, so it moves onto the card
@@ -412,25 +422,14 @@ export default function PassportPage({ user }: Readonly<{ user: User }>) {
                     >
                         <HStack align="flex-start" gap="12px" mb="9px">
                             <Box flex="1" minW="0">
-                                <HStack gap="8px" mb="9px">
-                                    <Text
-                                        fontFamily="'IBM Plex Mono', monospace"
-                                        fontSize="9.5px"
-                                        letterSpacing="0.14em"
-                                        textTransform="uppercase"
-                                        color={GOLD}
-                                    >
-                                        Next destination
-                                    </Text>
-                                    <Text
-                                        fontFamily="'IBM Plex Mono', monospace"
-                                        fontSize="9.5px"
-                                        color="#4A4A4A"
-                                    >
-                                        this week
-                                    </Text>
-                                </HStack>
-
+                                {/*
+                                  * No label above the name. The gold stamp beside
+                                  * it reads NOT YET, the sentence under it says
+                                  * what the place is for, and it sits above a
+                                  * heading that says "Your stamps" -- three things
+                                  * already establishing what this card is, which
+                                  * made a fourth an announcement rather than help.
+                                  */}
                                 <Text
                                     fontFamily="Libre Franklin"
                                     fontWeight="black"
@@ -543,12 +542,11 @@ export default function PassportPage({ user }: Readonly<{ user: User }>) {
                 {closeTo.length > 0 && (
                     <Box mb="22px">
                         <Text fontSize="15px" fontWeight="bold" color="#F5F5F5" mb="3px">
-                            Close to
+                            Stopovers
                         </Text>
                         <Text fontSize="12.5px" color="#6B6B6B" mb="10px">
-                            {closeTo.length === 1
-                                ? "One country is nearly yours."
-                                : `${closeTo.length} countries are nearly yours.`}
+                            {`${COUNT_WORDS[closeTo.length] ?? closeTo.length} you passed `
+                                + "through without staying."}
                         </Text>
 
                         <Stack gap="8px">
