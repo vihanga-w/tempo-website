@@ -30,6 +30,18 @@ const BLOBS = [
     "WHhgaI5wXoBmRF5McJh4irSSdp5+VHJcYIJoeJ6AZopuSGRQQFhITmpWRF5MMkY6",
 ];
 
+/**
+ * BlurHashes for the same three pictures the grids above stand for.
+ *
+ * Here so the two can be compared side by side, which is the only way to judge
+ * whether the replacement is worth the change.
+ */
+const HASHES = [
+    "UWJayD0K4o%M~qV@-oRj?a%1kDIoV?xvxaoe",
+    "U6C?ZQ00~q9F00%M-;IU00~q4nD%00%M-;M{",
+    "U5Ees[00~qxu00Rj-;of00xu4nRj00Rj-;of",
+];
+
 const NAMES = ["Vonga", "Sorcha", "dylan", "Luke", "Vidhu", "Ricky2009"];
 
 function board() {
@@ -44,6 +56,8 @@ function board() {
                 // A host that never answers, so the placeholder is what shows
                 imageUrl: i === 4 ? undefined : `https://never.invalid/pic${i}.jpg`,
                 imageColourBlob: i === 5 ? undefined : BLOBS[i % BLOBS.length],
+                // Odd rows keep only the grid, so both paths are on screen
+                imageBlurHash: (i === 5 || i % 2 === 1) ? undefined : HASHES[i % HASHES.length],
                 listeningMs: (6 - i) * 3600e3,
                 uniqueSongs: (6 - i) * 12,
                 position: i + 1,

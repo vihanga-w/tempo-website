@@ -157,6 +157,7 @@ export function FriendRecentActivityRow({
                             borderRadius="5px"
                             src={getSizedImageUrl(pfp, 16, 16)}
                             colourBlob={activity.pfpColourBlob}
+                            blurHash={activity.pfpBlurHash}
                         />
                     </Box>
                 ) : (

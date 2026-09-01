@@ -15,6 +15,8 @@ interface LeaderboardEntry {
     imageUrl?: string;
     /** Their picture reduced to sixteen colours; see lib/colour-blob.ts. */
     imageColourBlob?: string;
+    /** The same picture as a BlurHash; preferred when present. */
+    imageBlurHash?: string;
     listeningMs: number;
     uniqueSongs: number;
     position: number;
@@ -180,6 +182,7 @@ function Podium({ entries }: { entries: LeaderboardEntry[] }) {
                                             borderRadius="full"
                                             src={getSizedImageUrl(entry.imageUrl, 96, 96)}
                                             colourBlob={entry.imageColourBlob}
+                                            blurHash={entry.imageBlurHash}
                                         />
                                     ) : (
                                         <InitialAvatar

@@ -17,6 +17,7 @@ export function FriendNowPlayingCard({
     username,
     pfpUrl,
     pfpColourBlob,
+    pfpBlurHash,
     streamer,
     openPubProfile,
 }: Readonly<{
@@ -24,6 +25,8 @@ export function FriendNowPlayingCard({
     username: string;
     pfpUrl?: string;
     pfpColourBlob?: string;
+    /** The same picture as a BlurHash; preferred when present. */
+    pfpBlurHash?: string;
     streamer?: DataStreamer | null;
     openPubProfile?: (id: string) => void;
 }>) {
@@ -259,6 +262,7 @@ export function FriendNowPlayingCard({
                                     borderRadius="5px"
                                     src={getSizedImageUrl(pfpUrl, 16, 16)}
                                     colourBlob={pfpColourBlob}
+                                    blurHash={pfpBlurHash}
                                     loading="lazy"
                                 />
                             </Box>

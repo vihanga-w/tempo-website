@@ -31,6 +31,8 @@ interface PlaybackState {
     pfpUrl: string;
     /** Drawn until pfpUrl loads; see lib/colour-blob.ts. */
     pfpColourBlob?: string;
+    /** The same picture as a BlurHash; preferred when present. */
+    pfpBlurHash?: string;
     username: string;
     explicit: boolean;
     replayCount: number;

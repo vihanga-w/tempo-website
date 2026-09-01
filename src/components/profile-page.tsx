@@ -1731,6 +1731,7 @@ export default function ProfilePage({
                             borderRadius="18px"
                             src={getSizedImageUrl(findBestSCDNImageSize(profileData?.images ?? [], 120, 120) ?? "", 120, 120)}
                             colourBlob={profileData?.profilePictureColourBlob}
+                            blurHash={profileData?.profilePictureBlurHash}
                             onError={() => setPfpLoadFailed(true)}
                         />
                     ) : (
