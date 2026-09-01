@@ -43,6 +43,7 @@
     "apca-w3": "^0.1.9",
     "apcach": "^0.6.4",
     "async-mutex": "^0.5.0",
+    "blurhash": "^2.0.5",
     "canvas-confetti": "^1.9.3",
     "chakra-react-select": "^4.7.6",
     "color-alpha": "^2.0.0",

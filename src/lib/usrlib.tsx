@@ -1,5 +1,8 @@
 import EventEmitter from "events";
-import { API_URL, ME_CACHE_KEY, ME_FRIENDS_CACHE_KEY, PROFILE_STATS_CACHE_MS, KNOWN_USER_KEY } from "./const";
+import {
+    API_URL, ME_CACHE_KEY, ME_FRIENDS_CACHE_KEY, PROFILE_STATS_CACHE_MS, KNOWN_USER_KEY,
+    APP_CLIENT_VERSION,
+} from "./const";
 import { Recap } from "@/components/recap-drawer";
 import { FaF } from "react-icons/fa6";
 import { DataStreamer } from "./live-ingest";
@@ -29,6 +32,8 @@ export interface FeedItemHistory {
      * dev` went on serving the page quite happily.
      */
     pfpColourBlob?: string;
+    /** The same picture as a BlurHash; preferred when present. */
+    pfpBlurHash?: string;
     previewUrl?: string;
     item: {
         track: SongData;
@@ -74,6 +79,8 @@ export type ClientUserAccount = {
     listenerTypeClassification: string
     /** The picture reduced to a 4x4 grid of colours; see lib/colour-blob.ts. */
     profilePictureColourBlob?: string
+    /** The same picture as a BlurHash; preferred when present. */
+    profilePictureBlurHash?: string
     href: string
     id: string
     images: Array<{
@@ -124,6 +131,8 @@ export interface FriendRecentActivity {
     username: string;
     pfpUrl?: string;
     pfpColourBlob?: string;
+    /** The same picture as a BlurHash; preferred when present. */
+    pfpBlurHash?: string;
     /** Newest first, capped by the server. */
     tracks: RecentActivityTrack[];
     lastPlayedAt: number;
@@ -137,6 +146,8 @@ export interface FriendListenershipItem {
     username: string;
     pfpUrl: string;
     pfpColourBlob?: string;
+    /** The same picture as a BlurHash; preferred when present. */
+    pfpBlurHash?: string;
     item: {
         track: SongData;
         sessionDuration: number;
@@ -198,12 +209,17 @@ export default class User extends EventEmitter {
     }
 
     public getAuthHeaders() {
-        console.log("usrlib gAH")
-        const headers: {[key: string]: string} = {};
+        const headers: {[key: string]: string} = {
+            // Every authenticated request carries it, so the server learns what
+            // this account is running without the app having to announce it.
+            // See APP_CLIENT_VERSION — it is what lets a field be retired on
+            // evidence rather than on a guess.
+            "x-tempo-client": String(APP_CLIENT_VERSION),
+        };
 
         if (this.storedToken)
             headers["x-api-token"] = this.storedToken;
-        
+
         return headers;
     }
 

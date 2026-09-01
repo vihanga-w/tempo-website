@@ -5,7 +5,7 @@ import { ReactEventHandler, useEffect, useRef, useState } from "react";
 import { keyframes } from "@emotion/react";
 import { getSizedImageUrl } from "@/lib/sized-img";
 import { InitialAvatar } from "./initial-avatar";
-import { colourBlobToBackground } from "@/lib/colour-blob";
+import { placeholderBackground } from "@/lib/colour-blob";
 
 function formatTime(ms: number) {
     if (ms < 0)
@@ -56,6 +56,7 @@ export const SkeletonImage = ({
     border,
     loading,
     colourBlob,
+    blurHash,
 }: {
     src: string;
     onError?: ReactEventHandler<HTMLImageElement>;
@@ -71,12 +72,18 @@ export const SkeletonImage = ({
      * instead of pulsing grey.
      */
     colourBlob?: string;
+    /**
+     * The same picture as a BlurHash, which keeps far more of it than the grid.
+     * Preferred when present; the grid is what an account resolved by an older
+     * server still carries.
+     */
+    blurHash?: string;
 }) => {
     const [isLoaded, setIsLoaded] = useState<boolean>(false);
 
     // A plain string, so it is the same on the server and the client and is
     // there in the first paint rather than a frame later
-    const placeholder = colourBlobToBackground(colourBlob);
+    const placeholder = placeholderBackground(blurHash, colourBlob);
 
     const imageRef = useRef<HTMLImageElement>(null);
 
@@ -115,7 +122,13 @@ export const SkeletonImage = ({
                 // Inline rather than through the style props: the value is a
                 // data URI, and handing base64 to the style system produced no
                 // background at all
-                style={{ backgroundImage: placeholder }}
+                style={{
+                    backgroundImage: placeholder,
+                    // The gradients filled the box on their own; a decoded
+                    // BlurHash is a twenty pixel image and would otherwise tile
+                    backgroundSize: "cover",
+                    backgroundRepeat: "no-repeat",
+                }}
             />
         ) : (
             <Skeleton pos="absolute" height={height} width={width} borderRadius={borderRadius} />
@@ -298,6 +311,7 @@ export function PlaybackState({
                                     borderRadius="6px"
                                     src={getSizedImageUrl(data?.state?.pfpUrl ?? "null", 36, 36)}
                                     colourBlob={data?.state?.pfpColourBlob}
+                                    blurHash={data?.state?.pfpBlurHash}
                                     key={data?.state?.pfpUrl ?? "null"}
                                     onError={() => {
                                         setPfpLoadFailed(true);

@@ -79,3 +79,18 @@ export function isNativeApp(): boolean {
         return false;
     }
 }
+
+/**
+ * What this build of the app understands, as a number the server records.
+ *
+ * Not a marketing version and not a build number — a capability version. It
+ * exists so a field can be retired on evidence rather than on a guess: the
+ * server stores both a colour blob and a BlurHash for every profile picture at
+ * the moment, and the only way to know when the older one has stopped being
+ * read is to know what everybody is running.
+ *
+ * Raise it when this app starts or stops relying on something the server sends.
+ *
+ *   1  reads a BlurHash placeholder, and no longer needs the 4x4 colour blob
+ */
+export const APP_CLIENT_VERSION = 1;

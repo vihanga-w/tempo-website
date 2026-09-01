@@ -1,9 +1,10 @@
 import { API_URL } from "@/lib/const";
 import { getSizedImageUrl } from "@/lib/sized-img";
 import User from "@/lib/usrlib";
-import { Avatar, Box, Center, HStack, Spinner, Stack, Text } from "@chakra-ui/react";
+import { Box, Center, HStack, Spinner, Stack, Text } from "@chakra-ui/react";
 import { keyframes } from "@emotion/react";
 import { InitialAvatar } from "./initial-avatar";
+import { SkeletonImage } from "./playback-state";
 import { useEffect, useState } from "react";
 import { formatListening } from "@/lib/utils";
 import { useCountUp } from "@/lib/use-count-up";
@@ -12,6 +13,10 @@ interface LeaderboardEntry {
     userId: string;
     displayName: string;
     imageUrl?: string;
+    /** Their picture reduced to sixteen colours; see lib/colour-blob.ts. */
+    imageColourBlob?: string;
+    /** The same picture as a BlurHash; preferred when present. */
+    imageBlurHash?: string;
     listeningMs: number;
     uniqueSongs: number;
     position: number;
@@ -171,10 +176,13 @@ function Podium({ entries }: { entries: LeaderboardEntry[] }) {
                                     border={`3px solid ${PLACING_COLOURS[entry.position - 1]?.rim ?? "transparent"}`}
                                 >
                                     {entry.imageUrl ? (
-                                        <Avatar
-                                            size={isFirst ? "lg" : "md"}
-                                            name={entry.displayName}
+                                        <SkeletonImage
+                                            width={isFirst ? "64px" : "48px"}
+                                            height={isFirst ? "64px" : "48px"}
+                                            borderRadius="full"
                                             src={getSizedImageUrl(entry.imageUrl, 96, 96)}
+                                            colourBlob={entry.imageColourBlob}
+                                            blurHash={entry.imageBlurHash}
                                         />
                                     ) : (
                                         <InitialAvatar
@@ -301,10 +309,13 @@ function Row({ entry, leader, index }: { entry: LeaderboardEntry; leader: number
                     border={entry.isViewer ? "2px solid #c4a8ff" : "2px solid transparent"}
                 >
                     {entry.imageUrl ? (
-                        <Avatar
-                            size="sm"
-                            name={entry.displayName}
+                        <SkeletonImage
+                            width="32px"
+                            height="32px"
+                            borderRadius="full"
                             src={getSizedImageUrl(entry.imageUrl, 64, 64)}
+                            colourBlob={entry.imageColourBlob}
+                            blurHash={entry.imageBlurHash}
                         />
                     ) : (
                         <InitialAvatar
