@@ -19,6 +19,10 @@
  * which is what a picture looks like out of focus.
  */
 
+import { decode as decodeBlurHash, isBlurhashValid } from "blurhash";
+
+import { rgbaToPngDataUrl } from "./tiny-png";
+
 const GRID = 4;
 const BYTES = GRID * GRID * 3;
 
@@ -27,6 +31,70 @@ const BLOB_PATTERN = /^[A-Za-z0-9+/]{64}$/;
 
 /** The same few accounts are drawn over and over as lists re-render. */
 const built = new Map<string, string>();
+
+/**
+ * How wide the BlurHash is decoded before being drawn.
+ *
+ * A four by four hash holds sixteen wave components, so there is nothing past
+ * about this size to recover — and the browser smooths it on the way up, which
+ * is the blur. Larger only costs bytes in the markup: twenty square comes to
+ * roughly two kilobytes as a data URI, thirty two to five and a half.
+ */
+const BLURHASH_DECODE = 20;
+
+/** Decoded hashes, for the same reason as above. */
+const hashed = new Map<string, string>();
+
+/**
+ * A CSS background from a BlurHash.
+ *
+ * Kept beside the colour blob rather than replacing it: an app already on
+ * somebody's phone only understands the blob, so the server sends both until
+ * the recorded client versions say nobody needs the older one. See
+ * APP_CLIENT_VERSION.
+ */
+export function blurHashToBackground(hash: string | undefined | null): string | undefined {
+    if (!hash)
+        return undefined;
+
+    const cached = hashed.get(hash);
+
+    if (cached)
+        return cached;
+
+    try {
+        if (!isBlurhashValid(hash).result)
+            return undefined;
+
+        const pixels = decodeBlurHash(hash, BLURHASH_DECODE, BLURHASH_DECODE);
+        const uri = rgbaToPngDataUrl(pixels, BLURHASH_DECODE, BLURHASH_DECODE);
+
+        if (!uri)
+            return undefined;
+
+        const background = `url("${uri}")`;
+
+        hashed.set(hash, background);
+
+        return background;
+    } catch {
+        // A placeholder is never worth throwing over
+        return undefined;
+    }
+}
+
+/**
+ * Whichever placeholder this account has, best first.
+ *
+ * The BlurHash keeps far more of the picture, so it wins wherever it is there;
+ * the grid is what accounts resolved by an older server still carry.
+ */
+export function placeholderBackground(
+    hash: string | undefined | null,
+    blob: string | undefined | null,
+): string | undefined {
+    return blurHashToBackground(hash) ?? colourBlobToBackground(blob);
+}
 
 /** Decodes base64 without needing a DOM, so this works during SSR too. */
 function decodeBase64(value: string): number[] | null {

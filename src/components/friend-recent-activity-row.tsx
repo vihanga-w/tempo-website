@@ -1,5 +1,6 @@
 import { Box, HStack, Image, Stack, Text } from "@chakra-ui/react";
 import { InitialAvatar } from "./initial-avatar";
+import { SkeletonImage } from "./playback-state";
 import { FriendRecentActivity } from "@/lib/usrlib";
 import { getSizedImageUrl } from "@/lib/sized-img";
 import { findBestSCDNImageSize } from "@/lib/utils";
@@ -147,16 +148,18 @@ export function FriendRecentActivityRow({
                   * name there is nothing to confuse it with.
                   */}
                 {pfp ? (
-                    <Image
-                        width="15px"
-                        height="15px"
-                        borderRadius="5px"
-                        objectFit="cover"
-                        src={getSizedImageUrl(pfp, 16, 16)}
-                        alt=""
-                        draggable={false}
-                        flexShrink="0"
-                    />
+                    // The blob was already being sent with this row and simply
+                    // not drawn, so a face here appeared out of a hole
+                    <Box flexShrink="0">
+                        <SkeletonImage
+                            width="15px"
+                            height="15px"
+                            borderRadius="5px"
+                            src={getSizedImageUrl(pfp, 16, 16)}
+                            colourBlob={activity.pfpColourBlob}
+                            blurHash={activity.pfpBlurHash}
+                        />
+                    </Box>
                 ) : (
                     <InitialAvatar
                         userId={activity.userId}

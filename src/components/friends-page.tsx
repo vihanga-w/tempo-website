@@ -609,6 +609,7 @@ export default function FriendsPage({
                                 username={friend.user.displayName}
                                 pfpUrl={friend.user.images?.length > 0 ? findBestSCDNImageSize(friend.user.images, 56, 56) ?? undefined : undefined}
                                 pfpColourBlob={friend.user.profilePictureColourBlob}
+                                pfpBlurHash={friend.user.profilePictureBlurHash}
                                 streamer={streamer}
                                 openPubProfile={openPubProfile}
                             />
