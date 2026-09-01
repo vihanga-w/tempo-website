@@ -172,28 +172,67 @@ export function stampDate(earnedAt: number): string {
 /**
  * The country's three letter code, for the middle of the stamp.
  *
- * Passport stamps use ISO alpha-3 and we hold alpha-2, so this is a lookup of
- * the codes that differ rather than a full table — most alpha-3 codes are the
- * alpha-2 plus a letter, and where they are not, the country is usually one
- * somebody would notice getting wrong.
+ * Passport stamps use ISO alpha-3 and the passport hands us alpha-2, so this is
+ * the whole mapping rather than a shortlist. It started as a shortlist of "the
+ * ones that differ", on the theory that most alpha-3 codes are the alpha-2 plus
+ * a letter — which is true and useless, because the letter is not predictable.
+ * Every country left out fell through to its two-letter code and printed a
+ * two-letter stamp among three-letter ones. Argentina was the one that got
+ * noticed; there were about a hundred and eighty others.
+ *
+ * Generated from the same Natural Earth release as the coordinates the server
+ * places countries with, so anything the passport can return has a code here.
  */
 const ALPHA3: { [alpha2: string]: string } = {
-    AE: "ARE", AT: "AUT", AU: "AUS", BE: "BEL", BR: "BRA", CA: "CAN", CH: "CHE",
-    CL: "CHL", CN: "CHN", CO: "COL", CZ: "CZE", DE: "DEU", DK: "DNK", EG: "EGY",
-    ES: "ESP", ET: "ETH", FI: "FIN", FR: "FRA", GB: "GBR", GH: "GHA", GR: "GRC",
-    GP: "GLP", HR: "HRV", HU: "HUN", ID: "IDN", IE: "IRL", IL: "ISR", IN: "IND",
-    IS: "ISL", IT: "ITA", JM: "JAM", JP: "JPN", KE: "KEN", KR: "KOR", MA: "MAR",
-    MQ: "MTQ", MX: "MEX", ML: "MLI", MY: "MYS", NG: "NGA", NL: "NLD", NO: "NOR",
-    NZ: "NZL", PE: "PER", PH: "PHL", PL: "POL", PR: "PRI", PT: "PRT", RE: "REU",
-    RO: "ROU", RS: "SRB", RU: "RUS", SE: "SWE", SG: "SGP", SN: "SEN", TH: "THA",
-    TR: "TUR", TW: "TWN", TZ: "TZA", UA: "UKR", US: "USA", VN: "VNM", ZA: "ZAF",
+    AD: "AND", AE: "ARE", AF: "AFG", AG: "ATG", AI: "AIA", AL: "ALB",
+    AM: "ARM", AO: "AGO", AQ: "ATA", AR: "ARG", AS: "ASM", AT: "AUT",
+    AU: "AUS", AW: "ABW", AX: "ALA", AZ: "AZE", BA: "BIH", BB: "BRB",
+    BD: "BGD", BE: "BEL", BF: "BFA", BG: "BGR", BH: "BHR", BI: "BDI",
+    BJ: "BEN", BL: "BLM", BM: "BMU", BN: "BRN", BO: "BOL", BQ: "BES",
+    BR: "BRA", BS: "BHS", BT: "BTN", BV: "BVT", BW: "BWA", BY: "BLR",
+    BZ: "BLZ", CA: "CAN", CC: "CCK", CD: "COD", CF: "CAF", CG: "COG",
+    CH: "CHE", CI: "CIV", CK: "COK", CL: "CHL", CM: "CMR", CN: "CHN",
+    CO: "COL", CR: "CRI", CU: "CUB", CV: "CPV", CW: "CUW", CX: "CXR",
+    CY: "CYP", CZ: "CZE", DE: "DEU", DJ: "DJI", DK: "DNK", DM: "DMA",
+    DO: "DOM", DZ: "DZA", EC: "ECU", EE: "EST", EG: "EGY", EH: "ESH",
+    ER: "ERI", ES: "ESP", ET: "ETH", FI: "FIN", FJ: "FJI", FK: "FLK",
+    FM: "FSM", FO: "FRO", FR: "FRA", GA: "GAB", GB: "GBR", GD: "GRD",
+    GE: "GEO", GF: "GUF", GG: "GGY", GH: "GHA", GI: "GIB", GL: "GRL",
+    GM: "GMB", GN: "GIN", GP: "GLP", GQ: "GNQ", GR: "GRC", GS: "SGS",
+    GT: "GTM", GU: "GUM", GW: "GNB", GY: "GUY", HK: "HKG", HM: "HMD",
+    HN: "HND", HR: "HRV", HT: "HTI", HU: "HUN", ID: "IDN", IE: "IRL",
+    IL: "ISR", IM: "IMN", IN: "IND", IO: "IOT", IQ: "IRQ", IR: "IRN",
+    IS: "ISL", IT: "ITA", JE: "JEY", JM: "JAM", JO: "JOR", JP: "JPN",
+    KE: "KEN", KG: "KGZ", KH: "KHM", KI: "KIR", KM: "COM", KN: "KNA",
+    KP: "PRK", KR: "KOR", KW: "KWT", KY: "CYM", KZ: "KAZ", LA: "LAO",
+    LB: "LBN", LC: "LCA", LI: "LIE", LK: "LKA", LR: "LBR", LS: "LSO",
+    LT: "LTU", LU: "LUX", LV: "LVA", LY: "LBY", MA: "MAR", MC: "MCO",
+    MD: "MDA", ME: "MNE", MF: "MAF", MG: "MDG", MH: "MHL", MK: "MKD",
+    ML: "MLI", MM: "MMR", MN: "MNG", MO: "MAC", MP: "MNP", MQ: "MTQ",
+    MR: "MRT", MS: "MSR", MT: "MLT", MU: "MUS", MV: "MDV", MW: "MWI",
+    MX: "MEX", MY: "MYS", MZ: "MOZ", NA: "NAM", NC: "NCL", NE: "NER",
+    NF: "NFK", NG: "NGA", NI: "NIC", NL: "NLD", NO: "NOR", NP: "NPL",
+    NR: "NRU", NU: "NIU", NZ: "NZL", OM: "OMN", PA: "PAN", PE: "PER",
+    PF: "PYF", PG: "PNG", PH: "PHL", PK: "PAK", PL: "POL", PM: "SPM",
+    PN: "PCN", PR: "PRI", PS: "PSE", PT: "PRT", PW: "PLW", PY: "PRY",
+    QA: "QAT", RE: "REU", RO: "ROU", RS: "SRB", RU: "RUS", RW: "RWA",
+    SA: "SAU", SB: "SLB", SC: "SYC", SD: "SDN", SE: "SWE", SG: "SGP",
+    SH: "SHN", SI: "SVN", SJ: "SJM", SK: "SVK", SL: "SLE", SM: "SMR",
+    SN: "SEN", SO: "SOM", SR: "SUR", SS: "SSD", ST: "STP", SV: "SLV",
+    SX: "SXM", SY: "SYR", SZ: "SWZ", TC: "TCA", TD: "TCD", TF: "ATF",
+    TG: "TGO", TH: "THA", TJ: "TJK", TK: "TKL", TL: "TLS", TM: "TKM",
+    TN: "TUN", TO: "TON", TR: "TUR", TT: "TTO", TV: "TUV", TW: "TWN",
+    TZ: "TZA", UA: "UKR", UG: "UGA", UM: "UMI", US: "USA", UY: "URY",
+    UZ: "UZB", VA: "VAT", VC: "VCT", VE: "VEN", VG: "VGB", VI: "VIR",
+    VN: "VNM", VU: "VUT", WF: "WLF", WS: "WSM", YE: "YEM", YT: "MYT",
+    ZA: "ZAF", ZM: "ZMB", ZW: "ZWE",
 };
 
 export function stampCode(countryCode: string): string {
     const code = countryCode.toUpperCase();
 
-    // A country not in the table keeps its two letters rather than being given
-    // a third that might belong to somebody else.
+    // Should never fire now the table is complete, but a country keeps its own
+    // two letters rather than being handed a third that belongs to somebody else.
     return ALPHA3[code] ?? code;
 }
 
