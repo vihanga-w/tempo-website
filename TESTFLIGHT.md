@@ -32,9 +32,11 @@ never in both Stopovers and Next Destination.
 Tell us if it says anything untrue, names an artist you've never played, or
 just reads oddly.
 
-• **Spin the globe.** Drag it. It should turn smoothly and settle with your
-stamps somewhere you can actually see them, not tucked behind the edge. On an
-older device especially, tell us if it stutters or gets hot.
+• **Watch the globe.** It runs its own tour: it turns to one of your stamps,
+holds it a couple of seconds, then moves on to the next. Each one should come
+to rest somewhere you can actually see it rather than round the edge, and the
+turn should be smooth. On an older device especially, tell us if it stutters or
+if the phone gets warm. It isn't something you can drag — that's not a bug.
 
 • **Scroll to the very bottom.** Nothing should end up stranded behind the
 globe where you can't read or tap it.
