@@ -268,6 +268,12 @@ export default function PassportPage({ user }: Readonly<{ user: User }>) {
     );
 
     useEffect(() => {
+        // A new attempt must not be shown the last one's failure. The error
+        // branch below wins over loaded data, so an effect that re-ran after a
+        // failure and succeeded would set the passport and still render the
+        // error over it, until something unmounted the page.
+        setError("");
+
         let cancelled = false;
 
         (async () => {
