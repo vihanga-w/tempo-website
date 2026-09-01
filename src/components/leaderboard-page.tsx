@@ -315,6 +315,7 @@ function Row({ entry, leader, index }: { entry: LeaderboardEntry; leader: number
                             borderRadius="full"
                             src={getSizedImageUrl(entry.imageUrl, 64, 64)}
                             colourBlob={entry.imageColourBlob}
+                            blurHash={entry.imageBlurHash}
                         />
                     ) : (
                         <InitialAvatar
