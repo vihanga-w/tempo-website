@@ -23,6 +23,38 @@ import { API_URL } from "@/lib/const";
 const TERMS_URL = "https://developer.spotify.com/terms";
 const DESIGN_URL = "https://developer.spotify.com/documentation/design";
 
+/**
+ * Tells the server why set-up stopped.
+ *
+ * All of this was already known here and warned to the console - but that
+ * console is on the phone of the one person who cannot get in, so every failure
+ * was diagnosed by guessing from server logs that had never seen it. Reported
+ * so the reason lands beside the 403 that sent them to this screen.
+ *
+ * Deliberately unawaited and never throwing: somebody is already stuck, and a
+ * failed report must not become the second thing that goes wrong in front of
+ * them. The server takes only the fields below and bounds them all.
+ */
+function reportGaveUp(stage: "prepare" | "create" | "credentials", reason: string | undefined, extra?: {
+    diagnostics?: Record<string, unknown>;
+    message?: string;
+}) {
+    const diagnostics = extra?.diagnostics ?? {};
+
+    void fetch(API_URL + "/diag/app-form", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            stage,
+            reason: reason ?? "unknown",
+            href: diagnostics.href,
+            status: diagnostics.status,
+            fields: diagnostics.fields,
+            message: extra?.message,
+        }),
+    }).catch(() => { });
+}
+
 export function SpotifyAppSetup({ redirectUri, swapToken, onReady, onCancel }: {
     redirectUri: string;
     /** The sign-in session waiting on this, so the app is told when it finishes. */
@@ -72,6 +104,8 @@ export function SpotifyAppSetup({ redirectUri, swapToken, onReady, onCancel }: {
             }
 
             console.warn("Could not prepare the Spotify connection:", result.reason, result.diagnostics);
+
+            reportGaveUp("prepare", result.reason, { diagnostics: result.diagnostics });
 
             if (result.reason === "premiumRequired") {
                 started.close();
@@ -124,6 +158,8 @@ export function SpotifyAppSetup({ redirectUri, swapToken, onReady, onCancel }: {
         if (!result.ok) {
             console.warn("Could not finish the Spotify connection:", result.status, result.message);
 
+            reportGaveUp("create", result.status, { message: result.message });
+
             /*
              * Spotify's own words, when it gave any.
              *
@@ -158,6 +194,8 @@ export function SpotifyAppSetup({ redirectUri, swapToken, onReady, onCancel }: {
 
         if (!creds.clientId || !creds.clientSecret) {
             console.warn("Could not read the new connection's details:", creds.status, creds.diagnostics);
+
+            reportGaveUp("credentials", creds.status, { diagnostics: creds.diagnostics });
 
             giveUp("Your profile was set up, but Tempo could not finish connecting it. Please try again in a moment.");
 
