@@ -1,5 +1,52 @@
 # Changelog
 
+## Passport
+
+### 🌍 Your listening, as somewhere you've been
+
+There's a new tab. Tempo works out where the music you play actually comes
+from, and gives you a stamp for each country you've spent real time in.
+
+A country is stamped once you've played three of its artists, or one of them
+on three separate days, inside the last month. So there are two ways to earn
+one — spread yourself across a country's music, or stay with one artist a
+while — and both are the kind of listening you were going to do anyway.
+
+The stamps are pressed rather than printed. Every country gets its own design,
+picked from its name and code, so yours look like a passport that's been
+somewhere rather than a row of identical badges.
+
+### 🛬 Stopovers, and where to go next
+
+Underneath your stamps are the countries you passed through without staying —
+how close you got, and what it would take to finish the job.
+
+Next Destination is the one we'd send you to. It's picked from what you've
+been playing lately, with a couple of artists to start on, and the reason is
+written for you rather than filled into a template.
+
+### 🌑 A globe you can actually read
+
+The globe at the foot of the page has real coastlines and real borders, drawn
+faintly enough to stay out of the way. It tours your stamps — turning to one,
+holding it a moment, then moving on — and each one comes to rest where you can
+see it rather than sliding round the edge.
+
+### 🔔 We'll tell you when one lands
+
+Stamp a country for the first time and you'll hear about it. After that we
+stay quiet until you've been back ten times, because a country you already
+love isn't news.
+
+## Profile pictures
+
+### 🖼️ Faces arrive as themselves
+
+A profile picture that hasn't loaded yet now shows a blurred version of the
+picture itself, rather than an empty circle. It resolves into focus as the
+real one arrives, so a slow connection looks like a photograph turning up
+instead of a grey box being swapped out.
+
 ## The friends tab
 
 ### 👀 See what your friends have been listening to
