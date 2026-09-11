@@ -24,7 +24,7 @@ import {
 } from "@/lib/discover-feed";
 import { readCoverTones, type CoverTones } from "@/lib/cover-tone";
 import { decideSwipe, ratingStrength } from "@/lib/swipe";
-import { feedback, feelPattern } from "@/lib/native-haptics";
+import { feelPattern } from "@/lib/native-haptics";
 import { useCalm } from "@/lib/use-calm";
 import { ArtworkWash } from "./artwork-wash";
 import { getSpotifyDeeplink, SkeletonImage } from "./playback-state";
@@ -955,8 +955,9 @@ export default function DiscoverPage({
                 return next;
             });
 
-            // The menu's own thunk for undoing something
-            feedback("close");
+            // One tap, and it cancels whatever the rating's own pattern still
+            // had queued — otherwise a quick take-back arrives as a buzz
+            feelPattern("undone");
         }
 
         if (away)
