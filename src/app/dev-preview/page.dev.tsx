@@ -10,8 +10,10 @@ import "@fontsource/inter/800.css";
 import { ChakraProvider, DarkMode } from "@chakra-ui/react";
 import { theme } from "../theme";
 import ProfilePage from "@/components/profile-page";
+import BenchChrome, { SHELL_CONTENT_OFFSET } from "@/components/bench-chrome.dev";
+import { History, Settings as SettingsIcon } from "lucide-react";
 import { useSearchParams } from "next/navigation";
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
 import TimeAgo from "javascript-time-ago";
 import en from "javascript-time-ago/locale/en";
 TimeAgo.addDefaultLocale(en);
@@ -95,6 +97,7 @@ function makeUser(variant: string, ART: string, durMs: number, streakMs: number,
             isFinalPage: page >= 1 }) };
 }
 function Preview() {
+    const [scrolled, setScrolled] = useState(false);
     const params = useSearchParams();
     const variant = params.get("v") ?? "playing";
     const ART = COVERS[params.get("art") ?? "inrainbows"] ?? COVERS.inrainbows;
@@ -104,10 +107,20 @@ function Preview() {
     // "?name=..." to see what an unbreakable display name does to the header
     const displayName = params.get("name") ?? "Vihanga Weerasinghe";
     return (<ChakraProvider theme={theme}><DarkMode>
-        <div style={{ background: "#0D0D0E", height: "100vh", overflow: "auto", WebkitOverflowScrolling: "touch", touchAction: "pan-y", color: "#ffffff" }} data-profile-scroll-container>
+        <div style={{ background: "#0D0D0E", height: "100vh", overflow: "auto", WebkitOverflowScrolling: "touch", touchAction: "pan-y", color: "#ffffff", paddingTop: SHELL_CONTENT_OFFSET }} data-profile-scroll-container>
             <ProfilePage key={variant + ART + durMs + displayName} user={makeUser(variant, ART, durMs, streakMs, displayName) as any} pageChanger={() => {}}
-                hideTopGradientCb={() => {}} setComplementaryColour={() => {}} setRecaps={() => {}}
+                hideTopGradientCb={setScrolled} setComplementaryColour={() => {}} setRecaps={() => {}}
                 openRecapDrawer={() => {}} streamer={makeStreamer(variant === "playing", ART) as any} />
+            <BenchChrome
+                title="Your Profile"
+                page="settings"
+                scrolled={scrolled}
+                // The profile's own floating cluster, as the shell gives it: recaps
+                // pinned above, settings beside, and the song's colours as a halo.
+                pinned={{ id: "view-recap", label: "View Recap", icon: History, run: () => {} }}
+                beside={{ id: "settings", label: "Settings", icon: SettingsIcon, run: () => {} }}
+                glow={["#9ce3f7", "#1b2a5c"]}
+            />
         </div>
     </DarkMode></ChakraProvider>);
 }
