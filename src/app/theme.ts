@@ -27,5 +27,39 @@ export const theme = extendTheme({
     body: {
       height: "100%",
       background: "#0D0D0E",
-    }
+    },
+    styles: {
+      global: {
+        /*
+         * Nothing on screen is text to be selected. A long press in the web view
+         * otherwise starts a selection that floods the whole page — and with
+         * buttons that act on release, pressing and holding is an ordinary thing
+         * to do. The body did ask for this, but as an inline style, which React
+         * writes unprefixed and the iOS web view ignores; here it goes through
+         * Emotion, which adds the -webkit- form WebKit actually reads. The
+         * long-press callout (copy, look up, share) goes with it.
+         */
+        "html, body, *": {
+          WebkitUserSelect: "none",
+          userSelect: "none",
+          WebkitTouchCallout: "none",
+        },
+        /* Except where there is something to type: those still select and paste. */
+        "input, textarea, [contenteditable='true'], [contenteditable='']": {
+          WebkitUserSelect: "text",
+          userSelect: "text",
+          WebkitTouchCallout: "default",
+        },
+        /*
+         * And where the page asks for something to be copied by hand - the
+         * Spotify redirect address, when the clipboard will not take it. Such a
+         * value says so with data-selectable.
+         */
+        "[data-selectable], [data-selectable] *": {
+          WebkitUserSelect: "text",
+          userSelect: "text",
+          WebkitTouchCallout: "default",
+        },
+      },
+    },
 });

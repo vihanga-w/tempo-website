@@ -14,6 +14,7 @@ import "@fontsource/inter/700.css";
 
 import { useEffect, useState } from "react";
 import LeaderboardPage from "@/components/leaderboard-page";
+import BenchChrome, { SHELL_CONTENT_OFFSET } from "@/components/bench-chrome.dev";
 import { API_URL } from "@/lib/const";
 
 /**
@@ -69,7 +70,6 @@ function board() {
 
 export default function DevLeaderboard() {
     const [ready, setReady] = useState(false);
-
     useEffect(() => {
         const real = window.fetch.bind(window);
 
@@ -93,8 +93,10 @@ export default function DevLeaderboard() {
     const user = { getAuthHeaders: () => ({}) } as any;
 
     return (
-        <div style={{ background: "#0D0D0E", minHeight: "100vh", paddingTop: 8 }}>
+        <div style={{ background: "#0D0D0E", minHeight: "100vh", paddingTop: SHELL_CONTENT_OFFSET }}>
             {ready && <LeaderboardPage user={user} />}
+
+            <BenchChrome title="Leaderboard" page="leaderboard" />
         </div>
     );
 }

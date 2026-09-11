@@ -18,6 +18,7 @@ import "@fontsource/inter/700.css";
 
 import { useEffect, useState } from "react";
 import PassportPage from "@/components/passport-page";
+import BenchChrome, { SHELL_CONTENT_OFFSET } from "@/components/bench-chrome.dev";
 import { API_URL } from "@/lib/const";
 
 const DAY = 86400000;
@@ -106,7 +107,7 @@ export default function DevPassportPage() {
     const user = { getAuthHeaders: () => ({}) } as any;
 
     return (
-        <div style={{ background: "#0D0D0E", minHeight: "100vh" }}>
+        <div style={{ background: "#0D0D0E", minHeight: "100vh", paddingTop: SHELL_CONTENT_OFFSET }}>
             <div style={{
                 // Bottom left, over the globe's empty ocean: at the top they
                 // sat on the card and the stamps heading.
@@ -131,6 +132,8 @@ export default function DevPassportPage() {
 
             {/* Remounted per state so the page refetches rather than caching the first answer */}
             {ready && <PassportPage key={state} user={user} />}
+
+            <BenchChrome title="Passport" page="passport" />
         </div>
     );
 }

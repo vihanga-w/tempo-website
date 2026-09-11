@@ -2,10 +2,8 @@ import PageRouter from "@/lib/page-router";
 import User, { FeedItem, FeedItemAlert, FriendListenershipItem } from "@/lib/usrlib";
 import {
     Text,
-    Image,
     Box,
     HStack,
-    VStack,
     useDisclosure,
     Stack,
     Center,
@@ -13,9 +11,11 @@ import {
 } from "@chakra-ui/react";
 import { useEffect, useRef, useState, useCallback } from "react";
 import React, { lazy, Suspense } from "react";
-import { SmallAddButton } from "./small-add-btn";
-import { Loader } from "./loader";
+import GlassActionMenu from "./glass-action-menu";
 import { PlaybackState } from "./playback-state";
+import { History, Settings as SettingsIcon } from "lucide-react";
+import { GlassTopBar } from "./glass-top-bar";
+import { Loader } from "./loader";
 import { DataStreamer, UpdateEvent } from "@/lib/live-ingest";
 import { Mutex } from "async-mutex";
 import { API_URL } from "@/lib/const";
@@ -78,7 +78,19 @@ export default React.memo(function UIApp({
     const [currentPage, setCurrentPage] = useState<string>("friends");
     const [currentPageTitle, setCurrentPageTitle] = useState<string>("Friends");
     const [prevPage, setPrevPage] = useState<string>("");
-    const [pageSwitcherActive, setPageSwitcherActive] = useState<boolean>(false);
+    const [actionMenuOpen, setActionMenuOpen] = useState<boolean>(false);
+    /*
+     * The recaps the profile page has found, if any, so the shell can pin a
+     * "View Recap" button above the menu while that page is showing. The page
+     * owns the fetch; this only hears about the result.
+     */
+    const [profileRecaps, setProfileRecaps] = useState<{ daily: Recap | null; weekly: Recap | null } | null>(null);
+    /*
+     * The colours of the song a profile page is showing, for the floating
+     * controls' halo. Set by whichever profile is on screen, and cleared by it
+     * when it goes; every other page leaves it empty.
+     */
+    const [pagePalette, setPagePalette] = useState<string[] | null>(null);
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [activityPageLoading, setActivityPageLoading] = useState<boolean>(true);
     const [showLivePlaybackStates, setShowLivePlaybackStates] = useState<boolean>(false);
@@ -176,8 +188,6 @@ export default React.memo(function UIApp({
 
             if (weeklyRecap?.id !== recaps.weekly?.id)
                 setWeeklyRecap(recaps.weekly);
-
-            setPageSwitcherActive(false);
 
             if (!isRecapDrawerVisible && (recaps.daily || recaps.weekly))
                 openRecapDrawer();
@@ -500,24 +510,25 @@ export default React.memo(function UIApp({
     }, [streamer, streamerReset]);
 
     const pages: { name: string; menuName?: string; id: string; indexed: boolean }[] = [
-        // Discover is hidden for now. Its rendering and data loading are left in
-        // place below, so restoring it is a matter of putting this entry back:
-        // {
-        //     name: "Discover",
-        //     id: "discover",
-        //     indexed: true,
-        // },
-        // For You is hidden alongside Discover: its feed mixes friend activity
-        // with recommendations, which need the embeddings pipeline to have run.
+        // For You is still hidden. It went with Discover, and comes back the same
+        // way — by putting this entry back:
         // {
         //     name: "For You",
         //     id: "activity",
         //     indexed: true,
         // },
         {
-            // Landing page
+            // Landing page. First, because the first indexed page is also where
+            // a stale page id falls back to.
             name: "Friends",
             id: "friends",
+            indexed: true,
+        },
+        {
+            // Back now that its taste picks come from the song model, which
+            // describes every song anybody here plays.
+            name: "Discover",
+            id: "discover",
             indexed: true,
         },
         {
@@ -617,12 +628,14 @@ export default React.memo(function UIApp({
         setPrevPage(prevPage ?? "");
     }, [closeReactionDrawer]);
 
-    const handlePageMenuClick = useCallback(() => {
-        if (prevPage !== "") return pageChanger(prevPage);
-        setPageSwitcherActive(!pageSwitcherActive);
-    }, [prevPage, pageSwitcherActive]);
-
-    const ADD_NEW_ITEM_POSSIBLE_PAGES = ["friends", "playlists"];
+    /*
+     * The title used to open a page switcher. Getting around is the action
+     * button's job now, so the only thing left for the title to do is take a
+     * sub-page back to where it was opened from.
+     */
+    const handleBack = useCallback(() => {
+        if (prevPage !== "") pageChanger(prevPage);
+    }, [prevPage, pageChanger]);
 
     return (
         <>
@@ -653,67 +666,7 @@ export default React.memo(function UIApp({
 
             {/* The main user interface */}
             <Box width="100%" opacity={isRecapDrawerVisible ? 0 : 1} pointerEvents={isRecapDrawerVisible ? "none" : "all"}>
-                <Image
-                    src="/menu-bg.webp"
-                    position="absolute"
-                    zIndex="999999998"
-                    width="100%"
-                    height="100%"
-                    top={pageSwitcherActive ? "0px" : "-15px"}
-                    left={pageSwitcherActive ? "0px" : "-25px"}
-                    overflow="hidden"
-                    transition=".3s"
-                    userSelect="none"
-                    opacity={pageSwitcherActive ? "1" : "0"}
-                    style={{
-                        WebkitTouchCallout: "none",
-                    }}
-                    backdropFilter="blur(6px)"
-                    draggable={false}
-                    pointerEvents="none"
-                />
-
-                <Box
-                    position="fixed"
-                    width="100vw"
-                    height="100vh"
-                    top="0"
-                    left="0"
-                    zIndex="8"
-                    background="rgba(0, 0, 0, 0.2)"
-                    opacity={pageSwitcherActive ? "1" : "0"}
-                    transition=".3s"
-                    pointerEvents="none"
-                    overflow="hidden"
-                />
-
-                <Box
-                    width="100vw"
-                    height="calc(85px + env(safe-area-inset-top, 0px))"
-                    pos="fixed"
-                    top="0"
-                    left="0"
-                    opacity={hideTopGradient ? "0" : "1"}
-                    background="linear-gradient(180deg,rgb(13, 13, 14) 15%, rgba(13,13,14,0) 100%)"
-                    zIndex="999"
-                    pointerEvents="none"
-                    transition=".3s"
-                />
-
-                <Box
-                    width="100vw"
-                    height="calc(75px + env(safe-area-inset-top, 0px))"
-                    pos="fixed"
-                    top="0"
-                    left="0"
-                    opacity={!hideTopGradient ? "0" : "1"}
-                    style={{ WebkitMask: "linear-gradient(180deg,rgb(0,0,0) 25%, rgba(0,0,0,0) 100%)" }}
-                    background="linear-gradient(180deg,rgba(13, 13, 14, 0.2) 0%, rgba(13,13,14,0) 100%)"
-                    backdropFilter="blur(12px)"
-                    zIndex="999"
-                    pointerEvents="none"
-                    transition=".3s"
-                />
+                <GlassTopBar scrolled={hideTopGradient} />
 
                 <HStack
                     width="100%"
@@ -728,24 +681,12 @@ export default React.memo(function UIApp({
                     opacity={(dailyRecap || weeklyRecap || (currentPage == "activity" && activityPageLoading)) ? 0 : 1}
                 >
                     <Box position="fixed" overflow="hidden" zIndex={(isReactionDrawerVisible || isRecapDrawerVisible) ? "999" : "999999999"} top="env(safe-area-inset-top)">
-                        <HStack gap="10px" onClick={handlePageMenuClick}>
-                            <Box
-                                transform={
-                                    pageSwitcherActive
-                                        ? "rotate(180deg)"
-                                        : prevPage !== ""
-                                        ? "rotate(90deg)"
-                                        : "rotate(0deg)"
-                                }
-                                transition=".3s"
-                                zIndex="10"
-                            >
-                                <svg width="30" height="19" viewBox="0 0 30 19" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M15 18.5294C15.4315 18.5294 15.863 18.34 16.1565 17.98L29.534 2.95558C29.8274 2.63352 30 2.21673 30 1.74302C30 0.75785 29.3096 0 28.4119 0C27.9977 0 27.5834 0.189482 27.29 0.492542L15 14.2854L2.71002 0.492542C2.41653 0.189482 2.01957 0 1.58807 0C0.690448 0 0 0.75785 0 1.74302C0 2.21673 0.172631 2.63352 0.466044 2.9745L13.8435 17.98C14.1715 18.34 14.5512 18.5294 15 18.5294Z" fill={complementaryColour} style={{
-                                        transition: ".3s"
-                                    }} />
-                                </svg>
-                            </Box>
+                        {/*
+                          * Just the title. It used to open a page switcher, then
+                          * to carry the way back from a sub-page; the button at
+                          * the bottom-right does both of those now.
+                          */}
+                        <HStack gap="10px">
                             <Text
                                 fontFamily="Libre Franklin"
                                 fontWeight="black"
@@ -755,78 +696,60 @@ export default React.memo(function UIApp({
                                 zIndex="10"
                                 transition=".3s"
                                 whiteSpace="nowrap"
-                                opacity={pageSwitcherActive ? "0" : "1"}
-                                marginLeft={pageSwitcherActive ? "-10px" : ""}
                             >
                                 {currentPageTitle}
                             </Text>
                         </HStack>
                     </Box>
-                    <VStack
-                        position="absolute"
-                        top="75px"
-                        marginTop="env(safe-area-inset-top)"
-                        alignItems="normal"
-                        pointerEvents={pageSwitcherActive ? "all" : "none"}
-                    >
-                        {pages.filter((v) => {
-                            return v.indexed;
-                        })
-                        .map((v, i) => {
-                            if (!v.indexed) return;
-                            return (
-                                <>
-                                    <Text
-                                        float="left"
-                                        fontFamily="Inter"
-                                        fontWeight={currentPage == v.id ? "bold" : "medium"}
-                                        fontSize="36px"
-                                        color={complementaryColour ?? "text.color"}
-                                        zIndex="999999998"
-                                        transition="margin .25s ease-out, opacity .2s"
-                                        whiteSpace="nowrap"
-                                        marginLeft={pageSwitcherActive ? "0" : "-75px"}
-                                        opacity={pageSwitcherActive ? (currentPage == v.id ? "1" : "0.75") : "0"}
-                                        // Increase transition delay as we go further down the list
-                                        transitionDelay={
-                                            pageSwitcherActive ? 0 + (i + 1) / 12 + "s" : "0"
-                                        }
-                                        onClick={
-                                            currentPage == v.id
-                                                ? handlePageMenuClick
-                                                : () => {
-                                                        pageChanger(v.id);
-                                                        handlePageMenuClick();
-                                                    }
-                                        }
-                                        userSelect="none"
-                                    >
-                                        {v.menuName ?? v.name}
-                                    </Text>
-                                </>
-                            );
-                        })}
-                    </VStack>
-                    <Box
-                        width="100vw"
-                        pos="fixed"
-                        bottom="0px"
-                        left="0px"
-                        paddingBottom="52px"
-                        paddingLeft="20px"
-                        paddingRight="20px"
-                        paddingTop="18px"
-                        zIndex="999999998"
-                        transform={
-                            pageSwitcherActive && user.object?.id && streamer?.getPrevState(user.object.id) ?
-                            "translateY(0px)" : "translateY(160%)"
-                        }
-                        opacity={
-                            pageSwitcherActive && user.object?.id && streamer?.getPrevState(user.object.id) ?
-                            1 : 0
-                        }
-                        transition="transform .5s, opacity .75s"
-                    >
+                </HStack>
+
+                {/*
+                  * Adding something used to be a small "+" in the top-right
+                  * corner, which could only ever mean one thing per page and
+                  * meant nothing at all on the three pages it was hidden on.
+                  *
+                  * It is now a glass button at the bottom-right that opens
+                  * upwards into everything worth reaching from here, actions
+                  * and pages alike, and sits where a thumb already rests.
+                  */}
+                <GlassActionMenu
+                    open={actionMenuOpen}
+                    setOpen={setActionMenuOpen}
+                    currentPage={currentPage}
+                    /*
+                     * On a sub-page the button is the way back rather than a
+                     * menu. It used to be hidden there, leaving the title's
+                     * chevron as the only exit; now it is the exit.
+                     */
+                    onBack={prevPage !== "" ? handleBack : undefined}
+                    /*
+                     * The page's own colour — the one its title is set in — for
+                     * the glass to reflect. Your Profile sets it from the
+                     * artwork; everywhere else it is the app's lavender.
+                     */
+                    tint={complementaryColour}
+                    glow={pagePalette ?? undefined}
+                    /*
+                     * On your profile, settings: beside the menu button, where
+                     * the cog in the profile's header used to be.
+                     */
+                    beside={currentPage === "settings" ? {
+                        id: "settings",
+                        label: "Settings",
+                        icon: SettingsIcon,
+                        run: () => pageChanger("preferences", "settings"),
+                    } : undefined}
+                    /*
+                     * What you are playing, dropped in from the top while the
+                     * menu is open — the old page switcher's card, which slid
+                     * up from the bottom before the menu took the bottom over.
+                     * Only when there is something playing, as before — and
+                     * not when playback has stopped, when the card draws
+                     * nothing and would leave an empty pane of glass.
+                     */
+                    topCard={user.object?.id
+                        && streamer?.getPrevState(user.object.id)
+                        && streamer.getPrevState(user.object.id)?.data.action.type !== "STOPPED" ? (
                         <PlaybackState
                             key={user.object?.id + "self" + (streamer?.getPrevState(user.object?.id ?? "")?.data.state?.songId ?? "")}
                             stream={streamer}
@@ -834,28 +757,46 @@ export default React.memo(function UIApp({
                             hideReaction
                             hideSpotifyCallout
                         />
-                    </Box>
-                    <Box pos="fixed" zIndex="9999999" top="-4px" marginTop="env(safe-area-inset-top)" right="20px" width="100vw" pointerEvents={prevPage || !ADD_NEW_ITEM_POSSIBLE_PAGES.includes(currentPage) ? "none" : "all"}>
-                        <SmallAddButton
-                            onClick={() => {
-                                if (pageSwitcherActive) return;
+                    ) : undefined}
+                    /*
+                     * On the profile, the recaps: in place of the history icon
+                     * that used to sit in its header, and only when there is a
+                     * recap to see — the same rule that icon followed. It does
+                     * what the icon did: hands the recaps up and opens the
+                     * drawer, which in turn hides the menu.
+                     */
+                    pinned={currentPage === "settings" && profileRecaps ? {
+                        id: "view-recap",
+                        label: "View Recap",
+                        icon: History,
+                        run: () => {
+                            if (profileRecaps.daily)
+                                setDailyRecap(profileRecaps.daily);
 
-                                if (currentPage == "friends") 
-                                    pageChanger("add-friends", "friends");
+                            if (profileRecaps.weekly)
+                                setWeeklyRecap(profileRecaps.weekly);
 
-                                if (currentPage == "playlists") 
-                                    pageChanger("create-playlist", "playlists");
-                            }}
-                            isCross={false}
-                            scale={prevPage || !ADD_NEW_ITEM_POSSIBLE_PAGES.includes(currentPage) ? 0.65 : 1}
-                            opacity={prevPage || !ADD_NEW_ITEM_POSSIBLE_PAGES.includes(currentPage) ? "0" : "1"}
-                            active={prevPage == "" || !ADD_NEW_ITEM_POSSIBLE_PAGES.includes(currentPage)}
-                        />
-                    </Box>
-                </HStack>
+                            openRecapDrawer();
+                        },
+                    } : undefined}
+                    onNavigate={(id, kind) => {
+                        /*
+                         * An action is somewhere you are sent and then come
+                         * back from, so it remembers where you were rather
+                         * than a fixed home: opening Add Friends from the
+                         * leaderboard now returns you to the leaderboard.
+                         * A page is just where you now are.
+                         */
+                        pageChanger(id, kind === "action" ? currentPage : undefined);
+                    }}
+                    hidden={
+                        !!dailyRecap
+                        || !!weeklyRecap
+                        || isRecapDrawerVisible
+                    }
+                />
 
                 <Box
-                    pointerEvents={pageSwitcherActive ? "none" : "all"}
                     zIndex="5"
                     overflow="hidden"
                     height="100%"
@@ -1022,6 +963,7 @@ export default React.memo(function UIApp({
                         <Suspense fallback={<SuspenseSpinner />}>
                             <ProfilePage
                                 user={user}
+                                onPaletteChange={setPagePalette}
                                 pageChanger={pageChanger}
                                 hideTopGradientCb={(hide: boolean) => {
                                     setHideTopGradient(hide);
@@ -1034,6 +976,7 @@ export default React.memo(function UIApp({
                                         setWeeklyRecap(recap.weekly);
                                 }}
                                 openRecapDrawer={openRecapDrawer}
+                                onRecapsAvailable={setProfileRecaps}
                                 setComplementaryColour={(colour: string) => {
                                     setComplementaryColour(colour);
                                 }}
@@ -1064,6 +1007,7 @@ export default React.memo(function UIApp({
                         <Suspense fallback={<SuspenseSpinner />}>
                             <ProfilePage
                                 user={user}
+                                onPaletteChange={setPagePalette}
                                 targetUserId={pubProfileUserId}
                                 pageChanger={pageChanger}
                                 hideTopGradientCb={(hide: boolean) => {

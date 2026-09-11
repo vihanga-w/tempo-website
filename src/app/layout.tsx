@@ -1,8 +1,28 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Providers } from './providers';
 import { Analytics } from "@vercel/analytics/react";
 
 import { InitialColorMode } from './color-mode-script';
+
+/*
+ * The viewport, declared rather than written into the head by hand.
+ *
+ * A `<meta name="viewport">` in the head did not replace the one the App
+ * Router emits, it was appended alongside it — and WebKit takes the last, which
+ * is Next's, which has no `viewport-fit`. Without that, `env(safe-area-inset-*)`
+ * is zero everywhere, and because the safe-area plugin defines its own
+ * variables as `max(0px, env(...))` they came out zero too. So nothing in the
+ * app knew where the status bar or the home indicator was: fixed chrome
+ * positioned off the top inset sat under the Dynamic Island, and the bottom
+ * reserve on the friends page always fell through to its zero fallback.
+ *
+ * Declaring it is what makes it one tag rather than two.
+ */
+export const viewport: Viewport = {
+    viewportFit: "cover",
+    width: "device-width",
+    initialScale: 1,
+};
 
 export const metadata: Metadata = {
   title: "Tempo.",
@@ -54,8 +74,6 @@ export default function RootLayout({
         <meta property="og:site_name" content="Tempo." />
         <meta property="og:url" content="https://tempo.vihangaw.xyz" />
         <meta property="og:image" content="https://tempo.vihangaw.xyz/icons/ios/192.png" />
-
-        <meta name="viewport" content="viewport-fit=cover, width=device-width, initial-scale=1" />
 
         {/* Splash Screens */}
         <link rel="apple-touch-startup-image" media="screen and (device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)" href="splash_screens/iPhone_16_Pro_Max_landscape.png" />

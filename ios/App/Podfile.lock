@@ -6,6 +6,8 @@ PODS:
   - CapacitorCommunitySafeArea (7.0.0-alpha.1):
     - Capacitor
   - CapacitorCordova (7.0.1)
+  - CapacitorHaptics (7.0.5):
+    - Capacitor
   - CapacitorPreferences (7.0.0):
     - Capacitor
   - CapacitorPushNotifications (7.0.7):
@@ -24,6 +26,7 @@ DEPENDENCIES:
   - "CapacitorBrowser (from `../../node_modules/.pnpm/@capacitor+browser@7.0.0_@capacitor+core@7.0.1/node_modules/@capacitor/browser`)"
   - "CapacitorCommunitySafeArea (from `../../node_modules/.pnpm/@capacitor-community+safe-area@7.0.0-alpha.1_@capacitor+core@7.0.1/node_modules/@capacitor-community/safe-area`)"
   - "CapacitorCordova (from `../../node_modules/.pnpm/@capacitor+ios@7.0.1_@capacitor+core@7.0.1/node_modules/@capacitor/ios`)"
+  - "CapacitorHaptics (from `../../node_modules/.pnpm/@capacitor+haptics@7.0.5_@capacitor+core@7.0.1/node_modules/@capacitor/haptics`)"
   - "CapacitorPreferences (from `../../node_modules/.pnpm/@capacitor+preferences@7.0.0_@capacitor+core@7.0.1/node_modules/@capacitor/preferences`)"
   - "CapacitorPushNotifications (from `../../node_modules/.pnpm/@capacitor+push-notifications@7.0.7_@capacitor+core@7.0.1/node_modules/@capacitor/push-notifications`)"
   - "CapacitorSplashScreen (from `../../node_modules/.pnpm/@capacitor+splash-screen@7.0.0_@capacitor+core@7.0.1/node_modules/@capacitor/splash-screen`)"
@@ -40,6 +43,8 @@ EXTERNAL SOURCES:
     :path: "../../node_modules/.pnpm/@capacitor-community+safe-area@7.0.0-alpha.1_@capacitor+core@7.0.1/node_modules/@capacitor-community/safe-area"
   CapacitorCordova:
     :path: "../../node_modules/.pnpm/@capacitor+ios@7.0.1_@capacitor+core@7.0.1/node_modules/@capacitor/ios"
+  CapacitorHaptics:
+    :path: "../../node_modules/.pnpm/@capacitor+haptics@7.0.5_@capacitor+core@7.0.1/node_modules/@capacitor/haptics"
   CapacitorPreferences:
     :path: "../../node_modules/.pnpm/@capacitor+preferences@7.0.0_@capacitor+core@7.0.1/node_modules/@capacitor/preferences"
   CapacitorPushNotifications:
@@ -58,6 +63,7 @@ SPEC CHECKSUMS:
   CapacitorBrowser: 55c21db47416dcc8fc3b623e18fd7d09acb26081
   CapacitorCommunitySafeArea: 3f049619072ab5d0da2529bcb05b358ff6c13dc1
   CapacitorCordova: 63d476958d5022d76f197031e8b7ea3519988c64
+  CapacitorHaptics: 1b145fa83c622e5383a3bac04ea81e2514f0b0f5
   CapacitorPreferences: 8e4bef1f937fc991a19d7ea99330c36a62edd24b
   CapacitorPushNotifications: 0527809a9619ed775439d5ab2c2d996122b48319
   CapacitorSplashScreen: 7e7a0a1113833032f196b3af6fa437baccacf5bc
@@ -65,6 +71,6 @@ SPEC CHECKSUMS:
   CapgoInappbrowser: eab1573369dc798af28f37201b97e6fd738a5dde
   CordovaPlugins: c1b07aa5a30eeff293189f83d40c92b3d3e2c448
 
-PODFILE CHECKSUM: be32488f160f9ba6b6a588408e60aa7c40e1411c
+PODFILE CHECKSUM: d7a42215cab1d80bd8f6c3c3784e34196367750b
 
 COCOAPODS: 1.16.2

@@ -26,7 +26,6 @@ import { findBestSCDNImageSize, formatListening } from "@/lib/utils";
 import { shortName, weekLine } from "@/lib/profile-copy";
 import { useListeningFact } from "@/lib/listening-facts";
 import { useCountUp } from "@/lib/use-count-up";
-import { FaCog, FaHistory } from "react-icons/fa";
 import { Recap } from "./recap-drawer";
 import FriendHistoryFeed from "./friend-history-feed";
 import { InitialAvatar } from "./initial-avatar";
@@ -969,50 +968,6 @@ function Empty({ children }: Readonly<{ children: ReactNode }>) {
     );
 }
 
-/**
- * A tappable icon with a target big enough to hit.
- *
- * The icons used to be bare glyphs with a click handler, which on a phone is a
- * 26 pixel target sitting under the top edge of the screen.
- */
-function HeaderAction({
-    label,
-    colour,
-    onClick,
-    children,
-}: Readonly<{
-    label: string;
-    colour: string;
-    onClick: () => void;
-    children: ReactNode;
-}>) {
-    return (
-        <Center
-            role="button"
-            aria-label={label}
-            tabIndex={0}
-            width="38px"
-            height="38px"
-            borderRadius="full"
-            color={colour}
-            transition="color .45s, background .15s"
-            cursor="pointer"
-            _active={{ background: "rgba(255,255,255,0.09)" }}
-            onClick={onClick}
-            onKeyDown={e => {
-                if (e.key !== "Enter" && e.key !== " ")
-                    return;
-
-                // Space scrolls the page as well as activating the control
-                e.preventDefault();
-                onClick();
-            }}
-        >
-            {children}
-        </Center>
-    );
-}
-
 export default function ProfilePage({
     user,
     targetUserId,
@@ -1021,6 +976,8 @@ export default function ProfilePage({
     setComplementaryColour,
     setRecaps,
     openRecapDrawer,
+    onRecapsAvailable,
+    onPaletteChange,
     streamer,
 }: Readonly<{
     user: User;
@@ -1033,6 +990,19 @@ export default function ProfilePage({
         weekly: Recap | null;
     }) => void;
     openRecapDrawer: () => void;
+    /**
+     * Told whenever the recaps this page has found change — the recaps, or
+     * null when there are none (or the page is going). The shell uses it to pin
+     * a "View Recap" button above the menu, which is where the history icon in
+     * this page's header used to be.
+     */
+    onRecapsAvailable?: (recaps: { daily: Recap | null; weekly: Recap | null } | null) => void;
+    /**
+     * Told the colours visible at the top of the page — its accent, deep and
+     * lifted — while a song is playing, and null otherwise. The shell hands them
+     * to the floating controls, which wear them as a halo along their top edge.
+     */
+    onPaletteChange?: (palette: string[] | null) => void;
     streamer?: DataStreamer;
 }>) {
     const profileId = targetUserId ?? user.id;
@@ -1091,6 +1061,22 @@ export default function ProfilePage({
         daily: null,
         weekly: null,
     });
+
+    /*
+     * Tell the shell what recaps there are, so its View Recap button appears
+     * exactly when the history icon here used to: on your own profile, with at
+     * least one recap to see. Withdrawn when this changes and when the page
+     * goes, so the button never outlives what it would open.
+     */
+    useEffect(() => {
+        if (!onRecapsAvailable)
+            return;
+
+        const available = isOwnProfile && (recapState.daily || recapState.weekly);
+        onRecapsAvailable(available ? recapState : null);
+
+        return () => onRecapsAvailable(null);
+    }, [onRecapsAvailable, isOwnProfile, recapState]);
 
     /**
      * Bumped whenever the listening history should go back for anything new.
@@ -1459,6 +1445,32 @@ export default function ProfilePage({
         streamer.on("update", onUpdate);
         streamer.on("remove", onRemove);
 
+        /*
+         * Start from what the streamer already knows, rather than waiting to be
+         * told.
+         *
+         * This page was relying on an update arriving after it mounted, and one
+         * usually does — the streamer re-emits a playing user every half second
+         * to move their progress along. But only while they are actively
+         * playing and a socket message has started that timer; a paused track
+         * gets none. Leaving for Settings and coming back mounts the page
+         * afresh, and with no tick due it sat with nothing playing until the
+         * song changed: the whole now-playing section, disc and all, just gone.
+         *
+         * The cache holds a user only while something is playing — a stop
+         * deletes them — so this can never revive a song that has ended. Run
+         * through onUpdate so the artwork colour is read as well, which is what
+         * brings the wash back with the disc.
+         *
+         * (detachedListeningStateQuery above looks as if it asks for this. It
+         * does not: it only reports whether an id is outside the streamer's
+         * targets, and sends nothing.)
+         */
+        const cached = streamer.getPrevState(profileId);
+
+        if (cached)
+            onUpdate(cached);
+
         return () => {
             cancelled = true;
             clearTimeout(failsafe);
@@ -1605,6 +1617,31 @@ export default function ProfilePage({
     const tint = (accentVisible ? committedAccent : null);
     const nowPlaying = playbackState?.data.state ?? null;
     const hasListened = (pastWeekStats?.totalListeningDuration ?? 0) > 0 || (pastWeekStats?.uniqueSongsPlayedCount ?? 0) > 0;
+
+    /*
+     * Hand the colours you can actually see at the top of the page to the
+     * shell while a song is playing, so the floating controls can catch them:
+     * the deep accent the gradient is laid in, and the lifted version of it the
+     * title is set in.
+     *
+     * Not the extracted palette. That is chosen for the few most distinct hues
+     * in a sleeve — an orange highlight on a blue cover, say — which the wash
+     * then blurs almost out of sight. A halo in those colours glowed with
+     * something the page was not showing.
+     *
+     * Here rather than beside the colours themselves because it depends on
+     * nowPlaying, which is only known from this line on. Withdrawn when the
+     * song stops or the page goes, so no halo is left for a song not there.
+     */
+    useEffect(() => {
+        if (!onPaletteChange)
+            return;
+
+        const glowing = nowPlaying && committedArtwork && committedAccent;
+        onPaletteChange(glowing ? [accentInk, rgbToHex(committedAccent)] : null);
+
+        return () => onPaletteChange(null);
+    }, [onPaletteChange, nowPlaying, committedArtwork, committedAccent, accentInk]);
 
     // Unconditional: the tile it belongs to is not always drawn, but a hook
     // cannot come and go with it
@@ -1796,39 +1833,6 @@ export default function ProfilePage({
                         </Box>
                     </Box>
                 </Stack>
-                {/*
-                  * In the header rather than pinned over the page.
-                  *
-                  * Fixed to the viewport these spent most of a session floating
-                  * over the song list, where they needed a scrim behind them to
-                  * stay readable — a control that has to defend itself from the
-                  * content behind it is in the wrong place. They belong to the
-                  * header, so they leave with it.
-                  */}
-                {isOwnProfile && (
-                    <HStack alignSelf="flex-start" alignItems="center" gap="8px" flexShrink={0}>
-                        {(recapState.daily || recapState.weekly) && (
-                            <HeaderAction
-                                label="Your recaps"
-                                colour={accentInk}
-                                onClick={() => {
-                                    setRecaps(recapState);
-                                    openRecapDrawer();
-                                }}
-                            >
-                                <FaHistory size="22px" />
-                            </HeaderAction>
-                        )}
-
-                        <HeaderAction
-                            label="Settings"
-                            colour={accentInk}
-                            onClick={() => pageChanger("preferences", "settings")}
-                        >
-                            <FaCog size="22px" />
-                        </HeaderAction>
-                    </HStack>
-                )}
             </HStack>
 
             {nowPlaying && (
