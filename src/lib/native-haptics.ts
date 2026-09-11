@@ -41,6 +41,21 @@ const STYLES: Record<Feel, ImpactStyle> = {
 };
 
 /**
+ * How firm each tap is, on a scale of three.
+ *
+ * The engine's own styles are an enum with no order to them, and the patterns
+ * below are built out of the order: what makes two of them tell apart is
+ * whether they rise or fall.
+ */
+export const FEEL_WEIGHT: Record<Feel, 1 | 2 | 3> = {
+    press: 1,
+    tick: 1,
+    close: 2,
+    open: 3,
+    choose: 3,
+};
+
+/**
  * The closest two taps can be and still be felt as two taps.
  *
  * The engine needs time to settle between impacts; asked for them faster than
@@ -73,4 +88,43 @@ export function feedback(feel: Feel): void {
 
     Haptics.impact({ style: STYLES[feel] })
         .catch(() => { /* No engine, switched off, or busy. Nothing to do. */ });
+}
+
+/**
+ * Two-tap shapes, for the two answers a song can be given.
+ *
+ * A swipe left and a swipe right are the most consequential gestures in the
+ * app — one tells the recommender to find more like this, the other to leave it
+ * alone — and a single tap cannot say which of the two just happened. So they
+ * are told apart by contour rather than by strength: a like rises, a pass
+ * falls. A direction is legible through a pocket in a way that two taps of
+ * different firmness are not.
+ */
+export type Pattern =
+    /** A like: a small strike and then the ring after it. A ka-ching. */
+    | "reward"
+    /** A pass: the firm part first and its tail after, which is the shape of "no". */
+    | "refuse";
+
+const PATTERNS: Record<Pattern, readonly Feel[]> = {
+    reward: ["tick", "open"],
+    refuse: ["open", "press"],
+};
+
+/** When each tap of a pattern goes, in ms from the first. */
+export function patternTimeline(
+    pattern: Pattern,
+    spacing = MIN_TAP_SPACING_MS,
+): { feel: Feel; at: number }[] {
+    return PATTERNS[pattern].map((feel, tap) => ({ feel, at: tap * spacing }));
+}
+
+/** Plays a pattern, spaced far enough apart that it is felt as separate taps. */
+export function feelPattern(pattern: Pattern): void {
+    for (const { feel, at } of patternTimeline(pattern)) {
+        if (at === 0)
+            feedback(feel);
+        else
+            setTimeout(() => feedback(feel), at);
+    }
 }

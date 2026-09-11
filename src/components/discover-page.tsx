@@ -3,7 +3,7 @@ import { Box, Center, HStack, Skeleton, Stack, Text } from "@chakra-ui/react";
 import { keyframes } from "@emotion/react";
 import {
     animate, motion, motionValue, useMotionValue, useTransform,
-    type MotionValue, type PanInfo,
+    type AnimationPlaybackControls, type MotionValue, type PanInfo,
 } from "framer-motion";
 import { Heart, Pause, Play, Sparkles, Users, X } from "lucide-react";
 import { MdExplicit } from "react-icons/md";
@@ -24,6 +24,7 @@ import {
 } from "@/lib/discover-feed";
 import { readCoverTones, type CoverTones } from "@/lib/cover-tone";
 import { decideSwipe, ratingStrength } from "@/lib/swipe";
+import { feedback, feelPattern } from "@/lib/native-haptics";
 import { useCalm } from "@/lib/use-calm";
 import { ArtworkWash } from "./artwork-wash";
 import { getSpotifyDeeplink, SkeletonImage } from "./playback-state";
@@ -111,6 +112,20 @@ const WARM_AHEAD = 3;
 
 /** How long work put off by a gesture waits, so the settle has the frames to itself. */
 const AFTER_GESTURE_MS = 220;
+
+/**
+ * How long a rating is held before it is sent.
+ *
+ * Rating a song teaches the recommender, and until now a mis-swipe taught it
+ * something wrong for good: sending the opposite afterwards does not undo it,
+ * since both ratings stay in the history for months. Held for a few seconds,
+ * coming back to the card cancels the rating outright rather than arguing with
+ * it. Leaving the page is not undoing, so anything still held is sent then.
+ */
+const RATING_GRACE_MS = 5000;
+
+/** The spring a cancelled card comes back on: loose, so it visibly rebounds. */
+const UNDONE = { type: "spring", stiffness: 300, damping: 12 } as const;
 
 /** How far off screen a rated card is thrown, as a share of the width. */
 const THROW_OUT = 1.25;
@@ -691,6 +706,15 @@ export default function DiscoverPage({
     const dragged = useRef(0);
     /** Cards on their way out, so one cannot be rated twice while it leaves. */
     const flying = useRef(new Set<string>());
+    /** Their throws, so an undo can stop one in mid-air. */
+    const flights = useRef(new Map<string, AnimationPlaybackControls>());
+    /** Ratings waiting out their grace period, by card. */
+    const held = useRef(new Map<string, {
+        songId: string;
+        affinity: number;
+        previous?: Rating;
+        timer: ReturnType<typeof setTimeout>;
+    }>());
 
     const [size, setSize] = useState(() => ({
         width: (typeof window === "undefined" ? 390 : window.innerWidth),
@@ -738,12 +762,40 @@ export default function DiscoverPage({
         setIndex(next);
     }, [calm, cards.length, index, panY, size.height]);
 
+    /** Sends a rating that was not taken back, and puts the card as it was if the server refuses. */
+    const send = useCallback((key: string, songId: string, affinity: number, previous?: Rating) => {
+        held.current.delete(key);
+
+        // Taste picks are ranked away from anything rated down, and towards what is rated up
+        user.setSongAffinity(songId, affinity)
+            .then(ok => {
+                if (!ok)
+                    throw new Error("refused");
+            })
+            .catch(ex => {
+                console.warn("Could not save a rating:", ex);
+                setRatings(r => {
+                    const next = { ...r };
+
+                    if (previous)
+                        next[key] = previous;
+                    else
+                        delete next[key];
+
+                    return next;
+                });
+            });
+    }, [user]);
+
     const rate = useCallback((card: DiscoverCard, rating: Rating, strength = 3) => {
-        if (card.kind !== "song" || flying.current.has(card.key))
+        if (card.kind !== "song" || flying.current.has(card.key) || held.current.has(card.key))
             return;
 
         const previous = ratings[card.key];
         const dir: 1 | -1 = (rating === "liked" ? 1 : -1);
+
+        // A like rises and a pass falls, so a pocket can tell them apart
+        feelPattern(rating === "liked" ? "reward" : "refuse");
 
         flying.current.add(card.key);
         setRatings(r => ({ ...r, [card.key]: rating }));
@@ -758,38 +810,28 @@ export default function DiscoverPage({
          * arrival part of the same movement, while the card carries on out on
          * its own value.
          */
-        animate(xFor(card.key), dir * size.width * THROW_OUT, {
+        flights.current.set(card.key, animate(xFor(card.key), dir * size.width * THROW_OUT, {
             ...(calm ? THROW_CALM : THROW),
             // Parked only once it is out there; parked at the start it would
             // jump to the position instead of flying to it
             onComplete: () => {
                 flying.current.delete(card.key);
+                flights.current.delete(card.key);
                 setThrown(t => ({ ...t, [card.key]: dir }));
             },
-        });
+        }));
 
         go(1);
 
-        // Taste picks are ranked away from anything rated down, and towards what is rated up
-        user.setSongAffinity(card.song.id, dir * strength)
-            .then(ok => {
-                if (!ok)
-                    throw new Error("refused");
-            })
-            .catch(ex => {
-                console.warn("Could not save a rating:", ex);
-                setRatings(r => {
-                    const next = { ...r };
+        const affinity = dir * strength;
 
-                    if (previous)
-                        next[card.key] = previous;
-                    else
-                        delete next[card.key];
-
-                    return next;
-                });
-            });
-    }, [calm, go, ratings, size.width, user, xFor]);
+        held.current.set(card.key, {
+            songId: card.song.id,
+            affinity,
+            previous,
+            timer: setTimeout(() => send(card.key, card.song.id, affinity, previous), RATING_GRACE_MS),
+        });
+    }, [calm, go, ratings, send, size.width, xFor]);
 
     const onPanStart = useCallback(() => {
         panned.current = true;
@@ -876,21 +918,71 @@ export default function DiscoverPage({
         return () => window.removeEventListener("keydown", onKey);
     }, [go, rate, current]);
 
-    // Back on a thrown card: it comes in from the side it went
+    /**
+     * Back on a card that was rated: it comes in from the side it went.
+     *
+     * If the rating is still being held, coming back is an undo — the rating is
+     * dropped before the server ever hears about it, the heart empties, and the
+     * card rebounds on a looser spring than a card that was merely scrolled
+     * past, which is what makes it read as undone rather than as revisited.
+     */
     useEffect(() => {
-        if (!current || !thrown[current.key])
+        if (!current)
             return;
 
-        settle(xFor(current.key));
-        setThrown(t => {
-            const next = { ...t };
+        const key = current.key;
+        const holding = held.current.get(key);
+        const away = thrown[key];
 
-            delete next[current.key];
+        if (!holding && !away)
+            return;
 
-            return next;
-        });
+        if (holding) {
+            clearTimeout(holding.timer);
+            held.current.delete(key);
+            flights.current.get(key)?.stop();
+            flights.current.delete(key);
+            flying.current.delete(key);
+
+            setRatings(r => {
+                const next = { ...r };
+
+                if (holding.previous)
+                    next[key] = holding.previous;
+                else
+                    delete next[key];
+
+                return next;
+            });
+
+            // The menu's own thunk for undoing something
+            feedback("close");
+        }
+
+        if (away)
+            setThrown(t => {
+                const next = { ...t };
+
+                delete next[key];
+
+                return next;
+            });
+
+        animate(xFor(key), 0, holding && !calm ? UNDONE : (calm ? SETTLE_CALM : SETTLE));
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [current?.key]);
+
+    /** Leaving is not undoing: whatever is still held goes now. */
+    useEffect(() => () => {
+        for (const [, holding] of held.current) {
+            clearTimeout(holding.timer);
+            user.setSongAffinity(holding.songId, holding.affinity)
+                .catch(() => { /* Nothing left on screen to put back. */ });
+        }
+
+        held.current.clear();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const unlessPanned = useCallback((run: () => void) => () => {
         if (!panned.current)
