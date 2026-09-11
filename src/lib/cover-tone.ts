@@ -1,4 +1,4 @@
-import { getSizedImageUrl } from "./sized-img";
+import { readCoverPixels } from "./cover-pixels";
 
 /**
  * Whether a mark drawn on a cover should be light or dark.
@@ -99,51 +99,18 @@ export function regionLuminances(pixels: Uint8ClampedArray, size: number, region
     return out;
 }
 
-/** The same small variant artwork-colour.ts reads, so it is usually already cached. */
-const SAMPLE_SIZE = 96;
-
-function loadImage(src: string): Promise<HTMLImageElement | null> {
-    return new Promise(resolve => {
-        const img = new Image();
-
-        img.crossOrigin = "anonymous";
-        img.onload = () => resolve(img);
-        img.onerror = () => resolve(null);
-        img.src = src;
-    });
-}
-
 /** How the parts of a cover under Discover's controls read, or null if it cannot be read. */
 export async function readCoverTones(src: string): Promise<CoverTones | null> {
-    const sized = getSizedImageUrl(src, SAMPLE_SIZE, SAMPLE_SIZE);
-    const image = (await loadImage(sized)) ?? (sized === src ? null : await loadImage(src));
+    // The read the accent and the palette already did, so a cover is decoded once
+    const read = await readCoverPixels(src);
 
-    if (!image)
+    if (!read)
         return null;
 
-    const canvas = document.createElement("canvas");
-
-    canvas.width = SAMPLE_SIZE;
-    canvas.height = SAMPLE_SIZE;
-
-    const ctx = canvas.getContext("2d", { willReadFrequently: true });
-
-    if (!ctx)
-        return null;
-
-    ctx.drawImage(image, 0, 0, SAMPLE_SIZE, SAMPLE_SIZE);
-
-    let pixels: Uint8ClampedArray;
-
-    try {
-        pixels = ctx.getImageData(0, 0, SAMPLE_SIZE, SAMPLE_SIZE).data;
-    } catch {
-        // Tainted by a cover served without CORS; the controls keep their default
-        return null;
-    }
+    const { data: pixels, size } = read;
 
     return {
-        corner: backdropOf(regionLuminances(pixels, SAMPLE_SIZE, REGIONS.corner)),
-        foot: backdropOf(regionLuminances(pixels, SAMPLE_SIZE, REGIONS.foot)),
+        corner: backdropOf(regionLuminances(pixels, size, REGIONS.corner)),
+        foot: backdropOf(regionLuminances(pixels, size, REGIONS.foot)),
     };
 }

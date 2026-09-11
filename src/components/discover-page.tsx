@@ -84,10 +84,28 @@ const TOP_CLEAR = "calc(var(--safe-area-inset-top, 0px) + 60px)";
 /** Clear of the menu button: its inset, its size, and a gap. */
 const BOTTOM_CLEAR = "calc(var(--safe-area-inset-bottom, 0px) + 22px + 52px + 22px)";
 
-/** Load the next page while this many cards are still ahead. */
-const PREFETCH_AHEAD = 4;
-/** A page that only repeats songs already shown is not the end; this many in a row is. */
-const MAX_EMPTY_PAGES = 3;
+/**
+ * How much runway to keep, in cards.
+ *
+ * A page is asked for once there are fewer than LOAD_WHEN_AHEAD_UNDER ahead,
+ * and pages keep coming until there are KEEP_AHEAD: neither the fetch nor the
+ * render that follows it should ever land in the middle of a swipe. One page is
+ * twenty items, so usually one fetch covers it.
+ */
+const LOAD_WHEN_AHEAD_UNDER = 8;
+const KEEP_AHEAD = 12;
+/** How many pages one round may fetch, so a reshuffling server cannot hold the loop. */
+const PAGES_PER_LOAD = 3;
+
+/**
+ * How many cards ahead are made ready: colour read, cover decoded, preview
+ * found. Three is about as far ahead as a fast scroll gets before the next
+ * quiet moment.
+ */
+const WARM_AHEAD = 3;
+
+/** How long work put off by a gesture waits, so the settle has the frames to itself. */
+const AFTER_GESTURE_MS = 220;
 
 /** How far off screen a rated card is thrown, as a share of the width. */
 const THROW_OUT = 1.25;
@@ -187,6 +205,19 @@ export default function DiscoverPage({
     const loadingRef = useRef(false);
     /** What has been shown, for the loader: it runs across awaits, and state would be stale by then. */
     const cardsRef = useRef<DiscoverCard[]>([]);
+    /** Where the reader is, for the same reason. */
+    const indexRef = useRef(0);
+    /**
+     * Whether anything is moving: a finger, a throw, or a card settling.
+     *
+     * A ref, because everything that reads it is avoiding a render. Work that
+     * can wait — fetching a page, reading a cover — waits for this to clear.
+     */
+    const moving = useRef(false);
+    /** Bumped when the page comes to rest, to let the waiting work run. */
+    const [settleTick, setSettleTick] = useState(0);
+    /** Covers already handed to the decoder. */
+    const decoded = useRef(new Set<string>());
 
     const load = useCallback(async () => {
         if (loadingRef.current)
@@ -198,16 +229,20 @@ export default function DiscoverPage({
         const get = fetchPage ?? ((page: number) => user.getMyFYP(page));
 
         try {
-            // A page that only repeats songs already shown has not reached the
-            // end — the server reshuffles every quarter hour — so keep going,
-            // but not for ever
-            for (let empty = 0; empty < MAX_EMPTY_PAGES; empty++) {
+            /*
+             * Keep fetching until there is runway.
+             *
+             * A page can also come back holding only songs already shown, since
+             * the server reshuffles its pool every quarter of an hour, so
+             * "added nothing" is not the end either — but the loop is bounded,
+             * or a busy reshuffle could hold it all day.
+             */
+            for (let round = 0; round < PAGES_PER_LOAD; round++) {
                 const items = (await get(nextPage.current)) ?? [];
 
                 nextPage.current += 1;
 
-                const shown = cardsRef.current;
-                const next = appendPage(shown, items);
+                const next = appendPage(cardsRef.current, items);
 
                 cardsRef.current = next;
                 setCards(next);
@@ -218,7 +253,7 @@ export default function DiscoverPage({
                     break;
                 }
 
-                if (next.length > shown.length)
+                if (next.length - indexRef.current >= KEEP_AHEAD)
                     break;
             }
         } catch (ex) {
@@ -235,9 +270,15 @@ export default function DiscoverPage({
     }, [load]);
 
     useEffect(() => {
-        if (!ended && loadedOnce && cards.length - index <= PREFETCH_AHEAD)
+        indexRef.current = index;
+    }, [index]);
+
+    // Never while anything is moving: the settle after a swipe gets the frames,
+    // and the tick from coming to rest brings this straight back
+    useEffect(() => {
+        if (!ended && loadedOnce && !moving.current && cards.length - index < LOAD_WHEN_AHEAD_UNDER)
             load();
-    }, [index, cards.length, ended, loadedOnce, load]);
+    }, [index, cards.length, ended, loadedOnce, load, settleTick]);
 
     const current = cards[index] ?? null;
     const atEnd = loadedOnce && index >= cards.length;
@@ -254,23 +295,26 @@ export default function DiscoverPage({
      * there is the thing being avoided. The rules are in the page's own sx.
      */
     const holdStill = useCallback((down: boolean) => {
-        const el = page.current;
-
-        if (!el)
-            return;
-
         if (easeOff.current)
             clearTimeout(easeOff.current);
 
         if (down) {
-            el.dataset.moving = "true";
+            moving.current = true;
+
+            if (page.current)
+                page.current.dataset.moving = "true";
 
             return;
         }
 
         easeOff.current = setTimeout(() => {
+            moving.current = false;
+
             if (page.current)
                 delete page.current.dataset.moving;
+
+            // Whatever was waiting for the page to be still can go now
+            setSettleTick(tick => tick + 1);
         }, CALM_AFTER_GESTURE_MS);
     }, []);
 
@@ -323,34 +367,11 @@ export default function DiscoverPage({
                 setColour(previous => (previous.art === currentArt ? previous : { art: currentArt, ...read }));
         });
 
-        // The next cover too, so its colour is ready when it arrives
-        const upcoming = artOf(cards[index + 1]);
-
-        if (upcoming)
-            readColour(upcoming).then(read => rememberTones(upcoming, read));
-
-        /*
-         * And decoded, not merely fetched.
-         *
-         * A card change was the one moment that still stuttered, and most of it
-         * was the next sleeve being decoded as it arrived — at the size the card
-         * shows, which is not the small copy the colour is read from. decode()
-         * does that work now, while nothing is moving.
-         */
-        const nextSleeve = sleeveOf(cards[index + 1]);
-
-        if (nextSleeve) {
-            const warm = new Image();
-
-            warm.src = nextSleeve;
-            warm.decode?.().catch(() => { /* A cover that will not decode is the loader's problem. */ });
-        }
-
         return () => {
             cancelled = true;
         };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [currentArt, cards, index]);
+    }, [currentArt]);
 
     useEffect(() => {
         // The cross-fade is two blurred layers at once, so it counts as movement
@@ -394,6 +415,8 @@ export default function DiscoverPage({
 
     const audio = useRef<HTMLAudioElement | null>(null);
     const previews = useRef(new Map<string, string | null>());
+    /** Previews being looked for, so the same song is not asked about twice. */
+    const asking = useRef(new Set<string>());
     const [playing, setPlaying] = useState(false);
     /** Whether this card's preview has been started, which is when the line appears. */
     const [started, setStarted] = useState(false);
@@ -470,6 +493,7 @@ export default function DiscoverPage({
 
         const { id, previewUrl } = current.song;
         let cancelled = false;
+        let startAfter: ReturnType<typeof setTimeout> | null = null;
 
         const resolved = (url: string | null) => {
             if (cancelled)
@@ -478,8 +502,13 @@ export default function DiscoverPage({
             previews.current.set(id, url);
             setPreview({ songId: id, url });
 
+            /*
+             * Carrying on playing waits for the card to have arrived. Opening a
+             * stream takes a frame or two, and during the settle those are the
+             * frames somebody is watching.
+             */
             if (url && wantsSound.current)
-                start(url);
+                startAfter = setTimeout(() => start(url), AFTER_GESTURE_MS);
         };
 
         if (previewUrl) {
@@ -495,6 +524,9 @@ export default function DiscoverPage({
 
         return () => {
             cancelled = true;
+
+            if (startAfter)
+                clearTimeout(startAfter);
         };
     // The song, not the card object: a new page re-creates every card
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -504,6 +536,86 @@ export default function DiscoverPage({
         audio.current?.pause();
         audio.current = null;
     }, []);
+
+    /** Finds a song's preview and keeps the URL, without going near the player. */
+    const warmPreview = useCallback((songId: string, url?: string) => {
+        if (url) {
+            previews.current.set(songId, url);
+
+            return;
+        }
+
+        if (previews.current.has(songId) || asking.current.has(songId))
+            return;
+
+        asking.current.add(songId);
+
+        fetch(API_URL + `/audio/preview/${songId}`, { headers: { ...user.getAuthHeaders() }, credentials: "include" })
+            .then(res => (res.status === 200 ? res.text() : null))
+            .then(found => previews.current.set(songId, found && found.startsWith("http") ? found : null))
+            .catch(() => { /* The card asks again when it arrives. */ })
+            .finally(() => asking.current.delete(songId));
+    }, [user]);
+
+    /**
+     * Everything the cards ahead will need, done while nothing is moving.
+     *
+     * This is the answer to a swipe that stutters: by the time a card arrives
+     * its cover is decoded, its colours are read and its preview is found, so
+     * the change itself is a transform and nothing else. Held back while a
+     * finger is down, and brought back by the tick when the page rests.
+     */
+    useEffect(() => {
+        if (moving.current)
+            return;
+
+        let cancelled = false;
+
+        const warm = () => {
+            if (cancelled)
+                return;
+
+            for (let ahead = 1; ahead <= WARM_AHEAD; ahead++) {
+                const card = cards[index + ahead];
+
+                if (!card || card.kind !== "song")
+                    continue;
+
+                const art = artOf(card);
+
+                if (art)
+                    readColour(art).then(read => rememberTones(art, read));
+
+                const sleeve = sleeveOf(card);
+
+                if (sleeve && !decoded.current.has(sleeve)) {
+                    decoded.current.add(sleeve);
+
+                    const image = new Image();
+
+                    image.src = sleeve;
+                    image.decode?.().catch(() => { /* The loader will show what it can. */ });
+                }
+
+                warmPreview(card.song.id, card.song.previewUrl);
+            }
+        };
+
+        // Idle time if the browser offers it, and a short wait if it does not
+        const idle = window.requestIdleCallback?.(warm, { timeout: 500 });
+        const timer = (idle === undefined ? setTimeout(warm, 120) : null);
+
+        return () => {
+            cancelled = true;
+
+            if (timer)
+                clearTimeout(timer);
+
+            if (idle !== undefined)
+                window.cancelIdleCallback?.(idle);
+        };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [cards, index, settleTick, artOf, sleeveOf, warmPreview]);
 
     const togglePlay = useCallback(() => {
         const url = preview?.url;
