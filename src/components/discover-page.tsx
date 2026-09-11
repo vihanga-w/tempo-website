@@ -59,6 +59,11 @@ import { InitialAvatar } from "./initial-avatar";
  *   - Each card owns its horizontal value. A card thrown away keeps its own
  *     position for good, so there is no moment where a card that has been
  *     dealt with reads as being back in the middle.
+ *   - A rating is one movement: the card leaves as the next one rises, rather
+ *     than the feed waiting for the throw's spring to be declared over.
+ *   - One release decides once, the stack's offset is absolute rather than
+ *     added to, and it is jumped rather than set — a set would report the jump
+ *     as speed and the spring would sail a screen past before returning.
  *   - The progress line is a motion value too, or the card would re-render four
  *     times a second for the whole of a preview.
  *   - While a finger is down the wash stops drifting and the glass stops
@@ -674,7 +679,18 @@ export default function DiscoverPage({
     const axis = useRef<"x" | "y" | null>(null);
     /** A pan ends in a pointerup, which is a click too; this keeps one from being both. */
     const panned = useRef(false);
-    const throwing = useRef(false);
+    /**
+     * One release, one decision.
+     *
+     * A release could be seen twice — a pointerup and whatever follows it — and
+     * the second one moved the feed on again: the stack was sent two screens
+     * for a single swipe, so two cards flew past while the index moved by one.
+     */
+    const released = useRef(false);
+    /** Where the finger had got to vertically, so a repeated release cannot add twice. */
+    const dragged = useRef(0);
+    /** Cards on their way out, so one cannot be rated twice while it leaves. */
+    const flying = useRef(new Set<string>());
 
     const [size, setSize] = useState(() => ({
         width: (typeof window === "undefined" ? 390 : window.innerWidth),
@@ -698,31 +714,61 @@ export default function DiscoverPage({
         if (next === index)
             return;
 
-        // The card arriving is placed where it was — a screen below or above —
-        // and the whole stack slides from there, so the change is one movement
-        panY.set(panY.get() + (next - index) * size.height);
-        settle(panY);
+        /*
+         * The card arriving is placed where it already was — a screen below or
+         * above — and the whole stack slides from there, so the change is one
+         * movement.
+         *
+         * Jumped, not set, and settled from a standstill. A set records the
+         * distance as speed: a whole screen inside one frame, which is tens of
+         * thousands of pixels a second, and the spring then carried on in that
+         * direction before turning round. The stack overshot by a screen and a
+         * half, and those cards flying past were the second swipe nobody asked
+         * for. jump() moves the value without claiming it travelled.
+         *
+         * Absolute, too, off the offset the finger left: a release seen twice
+         * then lands on the same place rather than adding another screen.
+         */
+        panY.jump(dragged.current + (next - index) * size.height);
+        animate(panY, 0, {
+            ...(calm ? SETTLE_CALM : SETTLE),
+            velocity: 0,
+            onComplete: () => { dragged.current = 0; },
+        });
         setIndex(next);
-    }, [cards.length, index, panY, settle, size.height]);
+    }, [calm, cards.length, index, panY, size.height]);
 
     const rate = useCallback((card: DiscoverCard, rating: Rating, strength = 3) => {
-        if (card.kind !== "song" || throwing.current)
+        if (card.kind !== "song" || flying.current.has(card.key))
             return;
 
         const previous = ratings[card.key];
         const dir: 1 | -1 = (rating === "liked" ? 1 : -1);
 
-        throwing.current = true;
+        flying.current.add(card.key);
         setRatings(r => ({ ...r, [card.key]: rating }));
 
+        /*
+         * The card leaves and the next one rises together.
+         *
+         * They used to run one after the other, and not even promptly: the feed
+         * moved on when the throw's spring was declared finished, which is long
+         * after the card is out of sight. A rating read as two swipes — the
+         * second a whole card arriving by itself. Advancing now makes the
+         * arrival part of the same movement, while the card carries on out on
+         * its own value.
+         */
         animate(xFor(card.key), dir * size.width * THROW_OUT, {
             ...(calm ? THROW_CALM : THROW),
+            // Parked only once it is out there; parked at the start it would
+            // jump to the position instead of flying to it
             onComplete: () => {
-                throwing.current = false;
+                flying.current.delete(card.key);
                 setThrown(t => ({ ...t, [card.key]: dir }));
-                go(1);
             },
         });
+
+        go(1);
 
         // Taste picks are ranked away from anything rated down, and towards what is rated up
         user.setSongAffinity(card.song.id, dir * strength)
@@ -747,17 +793,20 @@ export default function DiscoverPage({
 
     const onPanStart = useCallback(() => {
         panned.current = true;
+        released.current = false;
+        dragged.current = 0;
         holdStill(true);
     }, [holdStill]);
 
     const onPan = useCallback((_: unknown, info: PanInfo) => {
-        if (throwing.current)
+        if (released.current)
             return;
 
         if (!axis.current && Math.hypot(info.offset.x, info.offset.y) > 8)
             axis.current = (Math.abs(info.offset.x) > Math.abs(info.offset.y) ? "x" : "y");
 
         if (axis.current === "y") {
+            dragged.current = info.offset.y;
             panY.set(info.offset.y);
 
             return;
@@ -769,14 +818,17 @@ export default function DiscoverPage({
     }, [current, panY, xFor]);
 
     const onPanEnd = useCallback((_: unknown, info: PanInfo) => {
+        // Whatever else arrives for this gesture, it has been dealt with
+        if (released.current)
+            return;
+
+        released.current = true;
+
         const locked = axis.current;
 
         axis.current = null;
         holdStill(false);
         setTimeout(() => { panned.current = false; }, 80);
-
-        if (throwing.current)
-            return;
 
         if (locked === "x" && current?.kind === "song") {
             const outcome = decideSwipe(info.offset.x, info.velocity.x, size.width);
