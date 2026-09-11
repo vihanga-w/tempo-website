@@ -6,8 +6,18 @@ import {
 import { Recap } from "@/components/recap-drawer";
 import { FaF } from "react-icons/fa6";
 import { DataStreamer } from "./live-ingest";
-import { Song } from "@/components/music-discovery-feed";
 import { getCachedObject, setCachedObject } from "./client-cache";
+
+/** A pick, as the feed sends it: a taste pick, or a friends' pick with likeness over 1. See lib/discover-feed.ts. */
+export interface Song {
+    id: string;
+    title: string;
+    artists: string[];
+    album: string;
+    imageUrl: string;
+    previewUrl?: string;
+    likeness: number;
+}
 
 export interface UserSettings {
     shareListeningActivity: boolean;
