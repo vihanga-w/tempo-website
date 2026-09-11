@@ -2,7 +2,7 @@
 
 import { Box, Center, HStack, Text, type BoxProps } from "@chakra-ui/react";
 import { AnimatePresence, motion, type TargetAndTransition } from "framer-motion";
-import { CircleUser, Compass, Globe, ListMusic, ListPlus, Plus, Trophy, UserPlus, Users, type LucideIcon } from "lucide-react";
+import { CircleUser, Compass, Globe, ListMusic, ListPlus, Plus, Sparkles, Trophy, UserPlus, Users, type LucideIcon } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { GLASS_TRANSITION, glassPress, glassSurface } from "@/lib/liquid-glass";
 import { GlassHalo } from "./glass-halo";
@@ -57,6 +57,7 @@ export const ACTION_MENU_ITEMS: ActionMenuItem[] = [
     { id: "create-playlist", label: "New Playlist", icon: ListPlus, kind: "action" },
     { id: "friends", label: "Friends", icon: Users, kind: "page" },
     { id: "discover", label: "Discover", icon: Compass, kind: "page" },
+    { id: "activity", label: "For You", icon: Sparkles, kind: "page" },
     { id: "leaderboard", label: "Leaderboard", icon: Trophy, kind: "page" },
     { id: "passport", label: "Passport", icon: Globe, kind: "page" },
     { id: "playlists", label: "Playlists", icon: ListMusic, kind: "page" },
@@ -318,10 +319,14 @@ const RECEDE = { duration: FALL_S, ease: FALL_EASE };
  * still to go sat at full strength waiting their turn, a menu that looked as
  * though it had not heard the close. The wave going out is far tighter than
  * the one coming in, so the whole stack is gone in about a third of a second.
+ *
+ * The stagger is set by the longest list: every item at once must still be
+ * out inside 0.4s. It was 0.028 until For You came back and made the list
+ * nine long.
  */
 export const CLOSE_BASELINE = 0.5;
 export const CLOSE_BASELINE_S = 0.08;
-export const CLOSE_STAGGER_S = 0.028;
+export const CLOSE_STAGGER_S = 0.024;
 const BASELINE_BLUR = "blur(1.5px)";
 
 export function rowExit(fromBottom: number, holding: boolean): TargetAndTransition {
