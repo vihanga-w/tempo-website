@@ -247,7 +247,11 @@ export default function Home() {
             onModalClose();
             resolve(false);
           },
-        })
+        },
+        // Closed without an answer: taken as "not now", and remembered like
+        // one. Without this the question was never answered at all - it hung,
+        // nothing was written down, and it came back on every launch.
+        () => resolve(false))
       });
 
       /*
@@ -257,9 +261,17 @@ export default function Home() {
        * never been able to receive a notification at all.
        */
       if (nativePushSupported()) {
+        /*
+         * Answered before, either way. A yes is restored quietly; a no stands,
+         * and is changed from Settings rather than by asking again. This used
+         * to fall through to the prompt whenever permission was not granted -
+         * which, after a no to us, it never is - so a no was asked again on
+         * every launch.
+         */
         if (window.localStorage.getItem(NOTIF_PROCESSED_KEY)) {
-          if (await restoreNativePush(user.id, user.getAuthHeaders()))
-            return;
+          await restoreNativePush(user.id, user.getAuthHeaders());
+
+          return;
         }
 
         const result = await enableNativePush(user.id, user.getAuthHeaders(), askFirst);
@@ -368,7 +380,9 @@ export default function Home() {
           callback() {
             resolve(false);
           },
-        })
+        },
+        // Closed without an answer counts as "not now", as in the app
+        () => resolve(false))
       });
 
       window.localStorage.setItem(NOTIF_PROCESSED_KEY, "true");

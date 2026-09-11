@@ -2,12 +2,12 @@
 
 import { Box, Center, HStack, Text, type BoxProps } from "@chakra-ui/react";
 import { AnimatePresence, motion, type TargetAndTransition } from "framer-motion";
-import { CircleUser, Compass, Globe, ListMusic, ListPlus, Plus, Trophy, UserPlus, Users, type LucideIcon } from "lucide-react";
+import { CircleUser, Compass, Globe, Plus, Sparkles, Trophy, UserPlus, Users, type LucideIcon } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { GLASS_TRANSITION, glassPress, glassSurface } from "@/lib/liquid-glass";
 import { GlassHalo } from "./glass-halo";
 import { MIN_TAP_SPACING_MS, feedback, type Feel } from "@/lib/native-haptics";
-import { DISSOLVE_MS, fizzle } from "@/lib/fizzle";
+import { BUTTON_FADE_MS, DISSOLVE_MS, fizzle } from "@/lib/fizzle";
 
 const MotionBox = motion.create(Box);
 const MotionText = motion.create(Text);
@@ -54,12 +54,12 @@ export type ActionMenuItem = {
  */
 export const ACTION_MENU_ITEMS: ActionMenuItem[] = [
     { id: "add-friends", label: "Add Friends", icon: UserPlus, kind: "action" },
-    { id: "create-playlist", label: "New Playlist", icon: ListPlus, kind: "action" },
+    // New Playlist and Playlists are left out until playlists work
     { id: "friends", label: "Friends", icon: Users, kind: "page" },
     { id: "discover", label: "Discover", icon: Compass, kind: "page" },
+    { id: "activity", label: "For You", icon: Sparkles, kind: "page" },
     { id: "leaderboard", label: "Leaderboard", icon: Trophy, kind: "page" },
     { id: "passport", label: "Passport", icon: Globe, kind: "page" },
-    { id: "playlists", label: "Playlists", icon: ListMusic, kind: "page" },
     { id: "settings", label: "Profile", icon: CircleUser, kind: "page" },
 ];
 
@@ -86,7 +86,7 @@ export type PinnedAction = {
 
 export const PINNED_ACTIONS: Record<string, string> = {
     friends: "add-friends",
-    playlists: "create-playlist",
+    // Playlists pinned New Playlist; both are out of the menu until playlists work
 };
 
 /**
@@ -318,6 +318,10 @@ const RECEDE = { duration: FALL_S, ease: FALL_EASE };
  * still to go sat at full strength waiting their turn, a menu that looked as
  * though it had not heard the close. The wave going out is far tighter than
  * the one coming in, so the whole stack is gone in about a third of a second.
+ *
+ * The stagger is bounded by the longest list: every item at once must still
+ * be out inside 0.4s. Seven items leave plenty of room at 0.028; nine, when
+ * the playlist options were still in, needed 0.024.
  */
 export const CLOSE_BASELINE = 0.5;
 export const CLOSE_BASELINE_S = 0.08;
@@ -351,6 +355,58 @@ export function rowExit(fromBottom: number, holding: boolean): TargetAndTransiti
             scale: { duration: FALL_S, ease: FALL_EASE, delay: turn },
         },
     };
+}
+
+/*
+ * A row's moves, split between the things that can carry them.
+ *
+ * A row is a glass button with a label, and glass cannot sit inside anything
+ * that fades or blurs: WebKit makes that ancestor a backdrop root, and the glass
+ * shows the page through a bare tint for as long as the fade lasts — which is
+ * every arrival, every recede and every close. So the row itself only moves;
+ * its label fades and blurs in a wrapper of its own; and the glass fades itself,
+ * without a blur, which keeps the number of filters where it was. rowExit and
+ * RECEDE_TARGET stay whole, as the one description of each move, and are cut
+ * up here.
+ */
+export const ROW_MOVE_KEYS = ["y", "scale"];
+export const ROW_FADE_KEYS = ["opacity", "filter"];
+export const GLASS_FADE_KEYS = ["opacity"];
+
+/**
+ * Part of a move: only the properties in `keys`, with their own transitions and
+ * whatever they settle to. A transition shared by every property goes to each
+ * part whole, so the parts stay in step.
+ */
+export function part(target: TargetAndTransition, keys: readonly string[]): TargetAndTransition {
+    const source = target as Record<string, any>;
+    const out: Record<string, any> = {};
+
+    for (const key of keys) {
+        if (key in source)
+            out[key] = source[key];
+    }
+
+    const transition = source.transition;
+
+    if (transition) {
+        const own = keys.filter(key => key in transition);
+
+        out.transition = own.length > 0
+            ? Object.fromEntries(own.map(key => [key, transition[key]]))
+            : transition;
+    }
+
+    if (source.transitionEnd) {
+        const end = Object.fromEntries(
+            Object.entries(source.transitionEnd).filter(([key]) => keys.includes(key)),
+        );
+
+        if (Object.keys(end).length > 0)
+            out.transitionEnd = end;
+    }
+
+    return out as TargetAndTransition;
 }
 
 /**
@@ -897,6 +953,25 @@ export default function GlassActionMenu({
                             delay: arrive,
                         };
 
+                        /*
+                         * During a hold the chosen row lifts a touch and the
+                         * rest fall away and blur — by transform, so nothing
+                         * reflows and the chosen row stays put.
+                         */
+                        const isChosen = holding && item.id === chosen.id;
+                        const state = !holding ? "open" : isChosen ? "chosen" : "recede";
+                        const move = state === "open"
+                            ? { ...SPRING, delay: arrive }
+                            : state === "chosen" ? SPRING : RECEDE;
+
+                        /*
+                         * AnimatePresence plays the exit from the last props a
+                         * row was rendered with, which were set while the menu
+                         * was still open — so the wave position and whether a
+                         * choice was held are both still to hand here.
+                         */
+                        const exit = rowExit(fromBottom, holding);
+
                         return (
                             <MotionBox
                                 key={item.id}
@@ -905,34 +980,15 @@ export default function GlassActionMenu({
                                 display="flex"
                                 alignItems="center"
                                 gap="14px"
-                                initial={{ opacity: 0, y: 14, scale: 0.72 }}
-                                /*
-                                 * During a hold the chosen row lifts a touch and
-                                 * the rest fall away and blur — by transform, so
-                                 * nothing reflows and the chosen row stays put.
-                                 */
+                                // The row only moves; see ROW_MOVE_KEYS
+                                initial={{ y: 14, scale: 0.72 }}
                                 animate={
-                                    !holding
-                                        ? { opacity: 1, y: 0, scale: 1 }
-                                        : item.id === chosen.id
-                                            ? { opacity: 1, y: 0, scale: 1.05 }
-                                            : RECEDE_TARGET
+                                    state === "open" ? { y: 0, scale: 1 }
+                                        : state === "chosen" ? { y: 0, scale: 1.05 }
+                                            : part(RECEDE_TARGET, ROW_MOVE_KEYS)
                                 }
-                                /*
-                                 * AnimatePresence plays the exit from the last
-                                 * props a row was rendered with, which were set
-                                 * while the menu was still open — so the wave
-                                 * position and whether a choice was held are
-                                 * both still to hand here.
-                                 */
-                                exit={rowExit(fromBottom, holding)}
-                                transition={
-                                    !holding
-                                        ? { ...SPRING, delay: arrive }
-                                        : item.id === chosen.id
-                                            ? SPRING
-                                            : RECEDE
-                                }
+                                exit={part(exit, ROW_MOVE_KEYS)}
+                                transition={move}
                                 role="button"
                                 aria-label={item.label}
                                 tabIndex={0}
@@ -960,29 +1016,62 @@ export default function GlassActionMenu({
                                 }}
                                 onPointerCancel={() => { pressed.current = null; }}
                             >
-                                <MotionText
-                                    initial={SLAM_LABEL_REST}
-                                    animate={SLAM_LABEL}
-                                    transition={slam}
-                                    fontFamily="Inter"
-                                    fontWeight="semibold"
-                                    fontSize="15px"
-                                    letterSpacing="0.14em"
-                                    textTransform="uppercase"
-                                    color={ink}
-                                    whiteSpace="nowrap"
-                                    userSelect="none"
+                                {/* The label's fade and blur, in a wrapper that holds no glass */}
+                                <MotionBox
+                                    initial={{ opacity: 0 }}
+                                    animate={state === "recede" ? part(RECEDE_TARGET, ROW_FADE_KEYS) : { opacity: 1 }}
+                                    exit={part(exit, ROW_FADE_KEYS)}
+                                    transition={move}
                                 >
-                                    {item.label}
-                                </MotionText>
-                                <Center
-                                    {...glassSurface({ tier: "regular", tint })}
+                                    <MotionText
+                                        // How the dissolve finds the words it is to take apart
+                                        data-fizzle="label"
+                                        initial={SLAM_LABEL_REST}
+                                        animate={SLAM_LABEL}
+                                        transition={slam}
+                                        fontFamily="Inter"
+                                        fontWeight="semibold"
+                                        fontSize="15px"
+                                        letterSpacing="0.14em"
+                                        textTransform="uppercase"
+                                        color={ink}
+                                        whiteSpace="nowrap"
+                                        userSelect="none"
+                                    >
+                                        {item.label}
+                                    </MotionText>
+                                </MotionBox>
+                                {/* The glass fades itself, and keeps blurring what is behind it */}
+                                <MotionBox
+                                    data-fizzle="button"
+                                    {...motionGlass({ tier: "regular", tint })}
                                     position="relative"
+                                    display="flex"
+                                    alignItems="center"
+                                    justifyContent="center"
                                     width={`${ITEM_SIZE}px`}
                                     height={`${ITEM_SIZE}px`}
                                     flexShrink={0}
-                                    transition={`transform .12s, filter .12s, ${GLASS_TRANSITION}`}
+                                    sx={{ transition: `transform .12s, filter .12s, ${GLASS_TRANSITION}` }}
                                     _active={glassPress}
+                                    initial={{ opacity: 0 }}
+                                    /*
+                                     * The chosen row's glass fades while its
+                                     * label turns to dust, on the dissolve's
+                                     * clock. Here rather than in the dissolve:
+                                     * framer owns this element's opacity, and a
+                                     * style set behind its back does nothing.
+                                     */
+                                    animate={
+                                        isChosen && dissolving
+                                            ? { opacity: 0, transition: { duration: BUTTON_FADE_MS / 1000, ease: "easeIn" } }
+                                            : { opacity: state === "recede" ? 0 : 1 }
+                                    }
+                                    // Already gone by then, and it stays gone
+                                    exit={isChosen && dissolving
+                                        ? { opacity: 0, transition: { duration: 0 } }
+                                        : part(exit, GLASS_FADE_KEYS)}
+                                    transition={move}
                                 >
                                     <Icon size={21} color={ink} strokeWidth={2} />
                                     {/* Over the icon too, so it dims and flares with its glass. */}
@@ -1006,7 +1095,7 @@ export default function GlassActionMenu({
                                         animate={SLAM_WASH}
                                         transition={slam}
                                     />
-                                </Center>
+                                </MotionBox>
                             </MotionBox>
                         );
                     })}
@@ -1049,8 +1138,12 @@ export default function GlassActionMenu({
                         setOpen(!open);
                     }}
                     onPointerCancel={() => { pressed.current = null; }}
-                    tabIndex={0}
+                    // Hidden while a choice is held, and out of reach: closing
+                    // now would cut the chosen row off before it dissolves.
+                    tabIndex={holding ? -1 : 0}
                     onKeyDown={onActivateKey(() => {
+                        if (holding) return;
+
                         if (glyph === "back" && onBack) {
                             onBack();
 

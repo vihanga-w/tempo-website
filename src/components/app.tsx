@@ -510,13 +510,6 @@ export default React.memo(function UIApp({
     }, [streamer, streamerReset]);
 
     const pages: { name: string; menuName?: string; id: string; indexed: boolean }[] = [
-        // For You is still hidden. It went with Discover, and comes back the same
-        // way — by putting this entry back:
-        // {
-        //     name: "For You",
-        //     id: "activity",
-        //     indexed: true,
-        // },
         {
             // Landing page. First, because the first indexed page is also where
             // a stale page id falls back to.
@@ -529,6 +522,13 @@ export default React.memo(function UIApp({
             // describes every song anybody here plays.
             name: "Discover",
             id: "discover",
+            indexed: true,
+        },
+        {
+            // Friends' activity with a few recommendations mixed in. Hidden with
+            // Discover because it needed the same taste picks, and back with it.
+            name: "For You",
+            id: "activity",
             indexed: true,
         },
         {

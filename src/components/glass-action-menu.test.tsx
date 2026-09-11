@@ -25,6 +25,7 @@ const fizzle = vi.fn();
 vi.mock("@/lib/fizzle", () => ({
     fizzle: (el: unknown) => fizzle(el),
     DISSOLVE_MS: 560,
+    BUTTON_FADE_MS: 582,
 }));
 
 /*
@@ -68,6 +69,10 @@ import GlassActionMenu, {
     CLOSE_BASELINE_S,
     CLOSE_STAGGER_S,
     rowExit,
+    part,
+    ROW_MOVE_KEYS,
+    ROW_FADE_KEYS,
+    GLASS_FADE_KEYS,
 } from "./glass-action-menu";
 import { DISSOLVE_MS } from "@/lib/fizzle";
 
@@ -79,6 +84,57 @@ const RELEASE_MS = CHOICE_HOLD_MS + DISSOLVE_MS;
 /** The rows on screen on a page: every item, less the page's own entry. */
 const rowsOn = (page: string) =>
     ACTION_MENU_ITEMS.filter(v => !(v.kind === "page" && v.id === page)).length;
+
+/*
+ * A row's moves are cut between the row (which only moves), its label (which
+ * fades and blurs) and its glass (which only fades), because glass inside
+ * anything that fades or blurs stops blurring the page. What matters is that
+ * the cut loses nothing and keeps every part on the same clock.
+ */
+describe("a row's moves, cut into parts", () => {
+    const close = rowExit(4, false) as any;
+
+    it("gives the row its movement and nothing that would unblur its glass", () => {
+        const move = part(rowExit(4, false), ROW_MOVE_KEYS) as any;
+
+        expect(move.y).toBe(close.y);
+        expect(move.scale).toBe(close.scale);
+        expect(move.opacity).toBeUndefined();
+        expect(move.filter).toBeUndefined();
+        expect(Object.keys(move.transition).sort()).toEqual(["scale", "y"]);
+    });
+
+    it("gives the label the fade and the blur, on their own timing", () => {
+        const fade = part(rowExit(4, false), ROW_FADE_KEYS) as any;
+
+        expect(fade.opacity).toEqual(close.opacity);
+        expect(fade.filter).toEqual(close.filter);
+        expect(fade.transition.opacity).toEqual(close.transition.opacity);
+        expect(fade.y).toBeUndefined();
+    });
+
+    it("gives the glass the fade alone, so it adds no filter", () => {
+        const glass = part(rowExit(4, false), GLASS_FADE_KEYS) as any;
+
+        expect(glass.opacity).toEqual(close.opacity);
+        expect(glass.filter).toBeUndefined();
+        expect(Object.keys(glass.transition)).toEqual(["opacity"]);
+    });
+
+    it("hands a shared transition to every part whole, so they stay in step", () => {
+        const held = rowExit(2, true) as any;
+
+        expect((part(held, GLASS_FADE_KEYS) as any).transition).toEqual(held.transition);
+        expect((part(held, ROW_FADE_KEYS) as any).transition).toEqual(held.transition);
+    });
+
+    it("hands back the blur once the fade that needs it is done", () => {
+        const recede = { opacity: 0, y: 10, filter: "blur(5px)", transitionEnd: { filter: "none" } };
+
+        expect((part(recede, ROW_FADE_KEYS) as any).transitionEnd).toEqual({ filter: "none" });
+        expect((part(recede, ROW_MOVE_KEYS) as any).transitionEnd).toBeUndefined();
+    });
+});
 
 /*
  * The controls are divs acting as buttons, so that they can carry the
@@ -107,6 +163,24 @@ describe("from a keyboard", () => {
 
         fireEvent.keyDown(screen.getByLabelText("Leaderboard"), { key: "Enter" });
         expect(onNavigate).toHaveBeenCalledWith("leaderboard", "page");
+    });
+
+    it("cannot close the menu from under a held choice", () => {
+        // The button is hidden while the chosen row dissolves; still reachable,
+        // Enter on it would close the menu and cut the dissolve short.
+        const setOpen = vi.fn();
+
+        render(<GlassActionMenu open setOpen={setOpen} onNavigate={vi.fn()} currentPage="friends" />);
+
+        fireEvent.keyDown(screen.getByLabelText("Leaderboard"), { key: "Enter" });
+
+        const button = screen.getByLabelText("Close menu");
+        const calls = setOpen.mock.calls.length;
+
+        expect(button.getAttribute("tabindex")).toBe("-1");
+
+        fireEvent.keyDown(button, { key: "Enter" });
+        expect(setOpen.mock.calls.length).toBe(calls);
     });
 
     it("leaves every other key alone", () => {
@@ -621,11 +695,18 @@ describe("the pinned action", () => {
     });
 });
 
-describe("New Playlist, pinned on Playlists", () => {
-    it("floats above the menu button on the Playlists page", () => {
+describe("playlists, left out until they work", () => {
+    it("offers neither Playlists nor New Playlist in the menu", () => {
+        render(<GlassActionMenu open setOpen={vi.fn()} onNavigate={vi.fn()} currentPage="friends" />);
+
+        expect(screen.queryByLabelText("Playlists")).toBeNull();
+        expect(screen.queryByLabelText("New Playlist")).toBeNull();
+    });
+
+    it("pins nothing on the Playlists page", () => {
         render(<GlassActionMenu open={false} setOpen={vi.fn()} onNavigate={vi.fn()} currentPage="playlists" />);
 
-        expect(document.querySelector("[data-pinned]")?.getAttribute("aria-label")).toBe("New Playlist");
+        expect(document.querySelector("[data-pinned]")).toBeNull();
     });
 });
 

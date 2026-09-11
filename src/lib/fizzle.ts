@@ -85,6 +85,15 @@ const SOFT = 0.12;
  */
 export const DISSOLVE_MS = Math.ceil(SWEEP_MS * (1 + SOFT)) + 20;
 
+/**
+ * How long the row's button takes to fade while its label turns to dust.
+ *
+ * The fade is the menu's to run, not the dissolve's: framer owns the button's
+ * opacity, and a style set on it from here does nothing at all — the glass
+ * sat there, lit, until the menu had closed around it.
+ */
+export const BUTTON_FADE_MS = Math.round(SWEEP_MS * (1 + SOFT));
+
 /** The grain of the field, in px: each patch is this size square. */
 const CELL = 2;
 /** The size of the blotches the grain gathers into, in px. */
@@ -445,10 +454,10 @@ const NOTHING = () => {};
  * with a timeout behind the animation in case frames stop arriving (a
  * backgrounded app) before the last mote has gone.
  *
- * Returns what puts the row back. The label and button it hides stay hidden
- * otherwise, and framer can bring the same row back rather than build a new
- * one: a menu reopened before its last exit had finished showed an empty slot
- * where this row had been.
+ * Returns what puts the row back. The label it hides stays hidden otherwise,
+ * and framer can bring the same row back rather than build a new one: a menu
+ * reopened before its last exit had finished showed an empty slot where this
+ * row had been. (The button is framer's, and comes back with the row.)
  *
  * Does nothing for anyone who has asked for less motion; the row then leaves
  * the plain way, with the rest of the menu.
@@ -465,7 +474,10 @@ export function fizzle(target: Element | null): () => void {
     if (row.width === 0)
         return NOTHING;
 
-    const [label, button] = Array.from(target.children) as HTMLElement[];
+    // Found by their tags rather than their places: the label now sits inside a
+    // wrapper of its own, so the row's first child is no longer the words
+    const label = (target.querySelector('[data-fizzle="label"]') ?? target.children[0]) as HTMLElement | undefined;
+    const button = (target.querySelector('[data-fizzle="button"]') ?? target.children[1]) as HTMLElement | undefined;
     const field = makeField(row.width, row.height, Math.random);
     const when = (pt: Point) => fieldAt(field, pt.x - row.left, pt.y - row.top);
 
@@ -539,12 +551,6 @@ export function fizzle(target: Element | null): () => void {
 
         if (label instanceof HTMLElement)
             label.style.visibility = "";
-
-        if (button instanceof HTMLElement) {
-            // Straight back, rather than faded in over the dissolve's length.
-            button.style.transition = "";
-            button.style.opacity = "";
-        }
     };
 
     safety = setTimeout(finish, end + 1000);
@@ -559,18 +565,14 @@ export function fizzle(target: Element | null): () => void {
          * The handover, on the first frame: the real label goes and its drawing
          * takes its place, in the same paint, so there is no frame with neither
          * and none with both. Visibility rather than opacity, because opacity on
-         * the label is framer's to animate. The button fades over the dissolve.
+         * the label is framer's to animate. The button is the menu's to fade,
+         * over BUTTON_FADE_MS; it is only read here, for where the dust starts.
          */
         if (!handedOver) {
             handedOver = true;
 
             if (dissolve && label instanceof HTMLElement)
                 label.style.visibility = "hidden";
-
-            if (button instanceof HTMLElement) {
-                button.style.transition = `opacity ${Math.round(SWEEP_MS * last)}ms ease-in`;
-                button.style.opacity = "0";
-            }
         }
 
         if (dissolve && progress < last)
