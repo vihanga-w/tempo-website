@@ -429,6 +429,9 @@ export default function ConnectSpotify() {
                             align="center"
                         >
                             <Text
+                                // When the clipboard will not take it, this is copied by
+                                // hand, so it is exempt from the app's no-select rule
+                                data-selectable
                                 flex="1"
                                 minW="0"
                                 fontSize="13px"

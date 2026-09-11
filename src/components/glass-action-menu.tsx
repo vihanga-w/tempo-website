@@ -353,6 +353,22 @@ export function rowExit(fromBottom: number, holding: boolean): TargetAndTransiti
     };
 }
 
+/**
+ * Enter and Space, as a native button takes them.
+ *
+ * The controls here are divs acting as buttons, so they can carry the
+ * ker-thunk on pointer down and up; that left them unreachable from a
+ * keyboard, and on a sub-page the menu button is the only way back. A key
+ * press does the same thing without the haptics.
+ */
+const onActivateKey = (run: () => void) => (e: React.KeyboardEvent) => {
+    if (e.key !== "Enter" && e.key !== " ")
+        return;
+
+    e.preventDefault();
+    run();
+};
+
 export default function GlassActionMenu({
     open,
     setOpen,
@@ -755,6 +771,8 @@ export default function GlassActionMenu({
                             exit="leaving"
                             role="button"
                             aria-label={pin.label}
+                            tabIndex={0}
+                            onKeyDown={onActivateKey(() => pin.run())}
                             onPointerDown={(e: React.PointerEvent) => {
                                 e.stopPropagation();
                                 press(`pinned:${pin.id}`);
@@ -827,6 +845,8 @@ export default function GlassActionMenu({
                             exit="leaving"
                             role="button"
                             aria-label={beside.label}
+                            tabIndex={0}
+                            onKeyDown={onActivateKey(() => beside.run())}
                             onPointerDown={(e: React.PointerEvent) => {
                                 e.stopPropagation();
                                 press(`beside:${beside.id}`);
@@ -915,6 +935,11 @@ export default function GlassActionMenu({
                                 }
                                 role="button"
                                 aria-label={item.label}
+                                tabIndex={0}
+                                onKeyDown={onActivateKey(() => {
+                                    if (!holding)
+                                        choose(item);
+                                })}
                                 /*
                                  * Stopped here so the touch does not carry on
                                  * to the scrim underneath, which would close
@@ -1024,6 +1049,16 @@ export default function GlassActionMenu({
                         setOpen(!open);
                     }}
                     onPointerCancel={() => { pressed.current = null; }}
+                    tabIndex={0}
+                    onKeyDown={onActivateKey(() => {
+                        if (glyph === "back" && onBack) {
+                            onBack();
+
+                            return;
+                        }
+
+                        setOpen(!open);
+                    })}
                     aria-label={glyph === "cross" ? "Close menu" : glyph === "back" ? "Back" : "Open menu"}
                     aria-expanded={glyph === "back" ? undefined : open}
                     role="button"
