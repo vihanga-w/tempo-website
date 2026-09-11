@@ -1300,7 +1300,7 @@ const MusicDiscoveryFeed: React.FC<{
                         <Box textAlign="center">
                             <Text fontSize="6xl" mb={6}>🎉</Text>
                             <Text fontSize="lg" fontWeight="medium" color="gray.200" mb={2}>
-                                You reached the end of your For You page
+                                You reached the end of {type === "discover" ? "Discover" : "your For You page"}
                             </Text>
                             <Text fontSize="md" color="gray.400">
                                 Come back later for more!

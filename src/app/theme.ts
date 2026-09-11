@@ -50,6 +50,16 @@ export const theme = extendTheme({
           userSelect: "text",
           WebkitTouchCallout: "default",
         },
+        /*
+         * And where the page asks for something to be copied by hand - the
+         * Spotify redirect address, when the clipboard will not take it. Such a
+         * value says so with data-selectable.
+         */
+        "[data-selectable], [data-selectable] *": {
+          WebkitUserSelect: "text",
+          userSelect: "text",
+          WebkitTouchCallout: "default",
+        },
       },
     },
 });

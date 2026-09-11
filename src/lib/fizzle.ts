@@ -542,6 +542,10 @@ export function fizzle(target: Element | null): () => void {
     };
 
     const restore = () => {
+        // The dust goes too. Left running, it drew over the reopened menu, and a
+        // second choice stacked another canvas on top of it.
+        finish();
+
         // Too late for the first frame to hide anything, if it has yet to run.
         handedOver = true;
 

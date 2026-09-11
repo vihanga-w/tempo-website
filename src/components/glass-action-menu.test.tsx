@@ -52,6 +52,8 @@ vi.mock("framer-motion", () => ({
                 onPointerDown={props.onPointerDown}
                 onPointerUp={props.onPointerUp}
                 onPointerCancel={props.onPointerCancel}
+                tabIndex={props.tabIndex}
+                onKeyDown={props.onKeyDown}
             >
                 {props.children}
             </div>
@@ -131,6 +133,45 @@ describe("a row's moves, cut into parts", () => {
 
         expect((part(recede, ROW_FADE_KEYS) as any).transitionEnd).toEqual({ filter: "none" });
         expect((part(recede, ROW_MOVE_KEYS) as any).transitionEnd).toBeUndefined();
+    });
+});
+
+/*
+ * The controls are divs acting as buttons, so that they can carry the
+ * ker-thunk; a keyboard has to reach them too. Enter and Space do what a tap
+ * does, haptics aside - and on a sub-page the menu button is the only way back.
+ */
+describe("from a keyboard", () => {
+    it("opens the menu with Enter, and goes back with Space on a sub-page", () => {
+        const setOpen = vi.fn();
+        const onBack = vi.fn();
+        const { rerender } = render(<GlassActionMenu open={false} setOpen={setOpen} onNavigate={vi.fn()} currentPage="friends" />);
+
+        fireEvent.keyDown(screen.getByLabelText("Open menu"), { key: "Enter" });
+        expect(setOpen).toHaveBeenCalledWith(true);
+
+        rerender(<GlassActionMenu open={false} setOpen={setOpen} onNavigate={vi.fn()} onBack={onBack} currentPage="add-friends" />);
+
+        fireEvent.keyDown(screen.getByLabelText("Back"), { key: " " });
+        expect(onBack).toHaveBeenCalledTimes(1);
+    });
+
+    it("chooses a row with Enter", () => {
+        const onNavigate = vi.fn();
+
+        render(<GlassActionMenu open setOpen={vi.fn()} onNavigate={onNavigate} currentPage="friends" />);
+
+        fireEvent.keyDown(screen.getByLabelText("Leaderboard"), { key: "Enter" });
+        expect(onNavigate).toHaveBeenCalledWith("leaderboard", "page");
+    });
+
+    it("leaves every other key alone", () => {
+        const setOpen = vi.fn();
+
+        render(<GlassActionMenu open={false} setOpen={setOpen} onNavigate={vi.fn()} currentPage="friends" />);
+
+        fireEvent.keyDown(screen.getByLabelText("Open menu"), { key: "a" });
+        expect(setOpen).not.toHaveBeenCalled();
     });
 });
 
