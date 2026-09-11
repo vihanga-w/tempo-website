@@ -510,24 +510,25 @@ export default React.memo(function UIApp({
     }, [streamer, streamerReset]);
 
     const pages: { name: string; menuName?: string; id: string; indexed: boolean }[] = [
-        // Discover is hidden for now. Its rendering and data loading are left in
-        // place below, so restoring it is a matter of putting this entry back:
-        // {
-        //     name: "Discover",
-        //     id: "discover",
-        //     indexed: true,
-        // },
-        // For You is hidden alongside Discover: its feed mixes friend activity
-        // with recommendations, which need the embeddings pipeline to have run.
+        // For You is still hidden. It went with Discover, and comes back the same
+        // way — by putting this entry back:
         // {
         //     name: "For You",
         //     id: "activity",
         //     indexed: true,
         // },
         {
-            // Landing page
+            // Landing page. First, because the first indexed page is also where
+            // a stale page id falls back to.
             name: "Friends",
             id: "friends",
+            indexed: true,
+        },
+        {
+            // Back now that its taste picks come from the song model, which
+            // describes every song anybody here plays.
+            name: "Discover",
+            id: "discover",
             indexed: true,
         },
         {
