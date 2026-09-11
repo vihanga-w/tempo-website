@@ -165,6 +165,24 @@ describe("from a keyboard", () => {
         expect(onNavigate).toHaveBeenCalledWith("leaderboard", "page");
     });
 
+    it("cannot close the menu from under a held choice", () => {
+        // The button is hidden while the chosen row dissolves; still reachable,
+        // Enter on it would close the menu and cut the dissolve short.
+        const setOpen = vi.fn();
+
+        render(<GlassActionMenu open setOpen={setOpen} onNavigate={vi.fn()} currentPage="friends" />);
+
+        fireEvent.keyDown(screen.getByLabelText("Leaderboard"), { key: "Enter" });
+
+        const button = screen.getByLabelText("Close menu");
+        const calls = setOpen.mock.calls.length;
+
+        expect(button.getAttribute("tabindex")).toBe("-1");
+
+        fireEvent.keyDown(button, { key: "Enter" });
+        expect(setOpen.mock.calls.length).toBe(calls);
+    });
+
     it("leaves every other key alone", () => {
         const setOpen = vi.fn();
 

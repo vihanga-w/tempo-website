@@ -1138,8 +1138,12 @@ export default function GlassActionMenu({
                         setOpen(!open);
                     }}
                     onPointerCancel={() => { pressed.current = null; }}
-                    tabIndex={0}
+                    // Hidden while a choice is held, and out of reach: closing
+                    // now would cut the chosen row off before it dissolves.
+                    tabIndex={holding ? -1 : 0}
                     onKeyDown={onActivateKey(() => {
+                        if (holding) return;
+
                         if (glyph === "back" && onBack) {
                             onBack();
 
