@@ -108,6 +108,21 @@ describe("how long to wait", () => {
         expect(backoffPauseMs(20)).toBe(MAX_RATE_LIMIT_PAUSE_MS);
     });
 
+    it("reads a Retry-After sent as a date", () => {
+        // The header is allowed to be an HTTP date, which as a number is NaN -
+        // and the back-off it fell through to is shorter than any date a server
+        // would name, so the tries were spent while the limit was still on.
+        const in4s = new Date(Date.now() + 4000).toUTCString();
+
+        expect(rateLimitPauseMs(response(429, { "retry-after": in4s }), 1)).toBeGreaterThan(2500);
+    });
+
+    it("ignores a date that has already passed", () => {
+        const gone = new Date(Date.now() - 60e3).toUTCString();
+
+        expect(rateLimitPauseMs(response(429, { "retry-after": gone }), 1)).toBe(1000);
+    });
+
     it("falls back to the back-off when Retry-After is nonsense", () => {
         expect(rateLimitPauseMs(response(429, { "retry-after": "soon" }), 2)).toBe(2000);
     });

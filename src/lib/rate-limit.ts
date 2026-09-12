@@ -24,10 +24,25 @@ export const MAX_RATE_LIMIT_PAUSE_MS = 8000;
  * than one that fails, and the caller can always ask again.
  */
 export function rateLimitPauseMs(req: Response, attempt: number): number {
-    const retryAfter = Number(req.headers.get("retry-after"));
+    const retryAfter = req.headers.get("retry-after");
 
-    if (Number.isFinite(retryAfter) && retryAfter > 0)
-        return Math.min(retryAfter * 1000, MAX_RATE_LIMIT_PAUSE_MS);
+    const seconds = Number(retryAfter);
+
+    if (Number.isFinite(seconds) && seconds > 0)
+        return Math.min(seconds * 1000, MAX_RATE_LIMIT_PAUSE_MS);
+
+    /*
+     * Retry-After is allowed to be an HTTP date rather than a count of
+     * seconds. Read only as a number it came out NaN and fell through to the
+     * back-off below - whose first pause is a second, shorter than any date a
+     * server would name, so the tries were spent while the limit was still on.
+     */
+    if (retryAfter) {
+        const until = Date.parse(retryAfter) - Date.now();
+
+        if (Number.isFinite(until) && until > 0)
+            return Math.min(until, MAX_RATE_LIMIT_PAUSE_MS);
+    }
 
     return backoffPauseMs(attempt);
 }

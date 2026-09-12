@@ -264,18 +264,32 @@ export default class User extends EventEmitter {
      * either way, and the answer says whether the server agreed.
      */
     public async logout() {
-        const req = await fetchThroughRateLimit(API_URL + "/logout", {
-            method: "POST",
-            headers: {
-                ...(this.getAuthHeaders())
-            },
-            credentials: "include",
-        });
+        let confirmed = false;
 
-        const confirmed = req.status == 200;
+        try {
+            const req = await fetchThroughRateLimit(API_URL + "/logout", {
+                method: "POST",
+                headers: {
+                    ...(this.getAuthHeaders())
+                },
+                credentials: "include",
+            });
 
-        if (!confirmed)
-            console.warn("The server did not confirm the sign-out, code:", req.status, "- signing out on this device anyway");
+            confirmed = req.status == 200;
+
+            if (!confirmed)
+                console.warn("The server did not confirm the sign-out, code:", req.status, "- signing out on this device anyway");
+        } catch (ex) {
+            /*
+             * The request could not be sent at all - no network, most likely.
+             *
+             * Caught rather than thrown on, because everything below it is the
+             * part of signing out that is ours to do, and somebody left signed
+             * in because their train went into a tunnel is the exact outcome
+             * this method exists to prevent.
+             */
+            console.warn("The sign-out request could not be sent, error:", ex, "- signing out on this device anyway");
+        }
 
         this.isLoggedIn = false;
         this.object = undefined;
@@ -798,38 +812,44 @@ export default class User extends EventEmitter {
         }
     }
 
+    /**
+     * A page of the feed.
+     *
+     * Raised rather than answered with an empty page, whatever went wrong.
+     * Discover reads an empty page as the end of the feed and stops asking for
+     * more until it is rebuilt, so a page that merely failed to arrive must not
+     * look like one - a rate limit, or a train going into a tunnel, would have
+     * ended somebody's Discover for the rest of the sitting. It used to answer
+     * every failure that way. Discover logs what it catches and comes back for
+     * the page when the reader next runs low, which is the behaviour a
+     * temporary failure should get.
+     */
     public async getMyFYP(page: number, pagePreset?: "activity" | "discover") {
         if (page < 1)
             page = 1;
 
-        try {
-            const req = await fetchThroughRateLimit(API_URL + "/me/feed/" + page + (pagePreset ? "?p=" + pagePreset : ""), {
-                headers: {
-                    ...(this.getAuthHeaders())
-                },
-                credentials: "include"
-            });
+        const url = API_URL + "/me/feed/" + page + (pagePreset ? "?p=" + pagePreset : "");
 
-            /*
-             * A page of the feed that did not arrive, which is how this already
-             * answers every other failure - the page keeps what it has and asks
-             * again when the reader next reaches the end of it.
-             */
-            if (req.status == 429)
-                return [];
+        const req = await fetchThroughRateLimit(url, {
+            headers: {
+                ...(this.getAuthHeaders())
+            },
+            credentials: "include"
+        });
 
-            const res = (await req.json()) as {
-                error: boolean;
-                message?: string;
-                data: FeedItem[];
-            };
+        if (req.status == 429)
+            throw new RateLimitedError(url);
 
-            return res.data;
-        } catch (ex) {
-            console.error("getMyFYP failed with error:", ex);
+        const res = (await req.json()) as {
+            error: boolean;
+            message?: string;
+            data: FeedItem[];
+        };
 
-            return [];
-        }
+        if (res.error || !res.data)
+            throw new Error("Failed to fetch the feed, error: " + (res.message ?? "unknown error (check network logs)"));
+
+        return res.data;
     }
 
     /**
@@ -993,10 +1013,16 @@ export default class User extends EventEmitter {
      *
      * A rate limit is not an answer to that question, and it must not be read
      * as "no": the caller signs the reader out on a false, and the old reload
-     * here returned undefined - falsy - on its way to asking again. Waiting out
-     * the limit answers it properly nearly always; when it does not, the last
-     * answer we had stands until the next check, which is a reader left where
-     * they were rather than tipped out of their account over a busy minute.
+     * here returned undefined - falsy - on its way to asking again.
+     *
+     * Waiting out the limit answers it properly nearly always. When it does
+     * not, the question is passed on rather than guessed at: this endpoint is
+     * only a cheap pre-check, /me is the authority, and the caller already
+     * handles /me having no account to give by offering sign-in. Answering
+     * from what we happened to believe would not do - on a cold start that is
+     * false for everybody, signed in or not, so a busy minute at launch would
+     * put a perfectly good session at the sign-in prompt without so much as
+     * asking /me.
      */
     private async isUserAuthenticated() {
         const req = await fetchThroughRateLimit(API_URL + "/chkauth", {
@@ -1007,9 +1033,9 @@ export default class User extends EventEmitter {
         });
 
         if (req.status == 429) {
-            console.warn("Could not check the session - Tempo is rate limiting; assuming it is as it was");
+            console.warn("Could not check the session - Tempo is rate limiting; leaving it to /me");
 
-            return this.isLoggedIn;
+            return true;
         }
 
         return (req.status == 200);

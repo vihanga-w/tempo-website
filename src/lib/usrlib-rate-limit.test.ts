@@ -54,14 +54,37 @@ describe("a rate-limited Tempo", () => {
     });
 
     it("does not sign somebody out over a session check it could not make", async () => {
-        // A 429 is not an answer to "are you still signed in", and the caller
-        // signs the reader out on a false. The private check is worth reaching
-        // for directly: everything above it is a page going blank.
+        /*
+         * A 429 is not an answer to "are you still signed in", and the caller
+         * signs the reader out on a false. Asserted on a cold start, which is
+         * the case that matters: isLoggedIn is false then for everybody, so
+         * answering from it would have put a perfectly good session at the
+         * sign-in prompt over a busy minute at launch. The private check is
+         * worth reaching for directly - everything above it is a page going
+         * blank.
+         */
         vi.stubGlobal("fetch", vi.fn().mockResolvedValue(busy()));
 
-        user.isLoggedIn = true;
-
+        expect(user.isLoggedIn).toBe(false);
         expect(await (user as any).isUserAuthenticated()).toBe(true);
+    });
+
+    it("signs somebody out here even when the request cannot be sent at all", async () => {
+        // Offline. The local half of signing out is ours to do, and somebody
+        // left signed in because their train went into a tunnel is the exact
+        // outcome this method exists to prevent.
+        vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("network unavailable")));
+
+        user.isLoggedIn = true;
+        user.storedToken = "a-token";
+        localStorage.setItem("tempo.a", "a-token");
+
+        const confirmed = await user.logout();
+
+        expect(confirmed).toBe(false);
+        expect(user.isLoggedIn).toBe(false);
+        expect(user.storedToken).toBeUndefined();
+        expect(localStorage.getItem("tempo.a")).toBeNull();
     });
 
     it("keeps the settings it holds rather than stalling sign-in", async () => {
@@ -115,10 +138,23 @@ describe("a rate-limited Tempo", () => {
         await expect(user.getFriends(["friends"])).rejects.toThrow(/rate limit/i);
     });
 
-    it("leaves the feed as it is when a page of it cannot be fetched", async () => {
+    it("raises rather than handing Discover an empty page", async () => {
+        // Discover reads an empty page as the end of the feed and stops asking
+        // for more, so a page that merely failed to arrive must not look like
+        // one - it would end somebody's Discover for the rest of the sitting.
         vi.stubGlobal("fetch", vi.fn().mockResolvedValue(busy()));
 
-        await expect(user.getMyFYP(1)).resolves.toEqual([]);
+        await expect(user.getMyFYP(1)).rejects.toThrow(/rate limit/i);
+    });
+
+    it("raises when the feed answers with no page at all", async () => {
+        vi.stubGlobal("fetch", vi.fn().mockResolvedValue(
+            new Response(JSON.stringify({ error: true, message: "nope" }), {
+                status: 200, headers: { "content-type": "application/json" },
+            })
+        ));
+
+        await expect(user.getMyFYP(1)).rejects.toThrow(/failed to fetch the feed/i);
     });
 
     it("raises rather than drawing somebody's week as empty", async () => {
