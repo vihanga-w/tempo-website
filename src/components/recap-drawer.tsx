@@ -387,14 +387,26 @@ export default function ReactionDrawer({
                 <DrawerHeader borderBottomWidth='1px' height="64px">
                     <Box display="flex" justifyContent="space-between" alignItems="center" width="100%">
                         <Text>{(daily && weekly) ? "Your Music Recap" : daily ? "Your Daily Recap" : "Your Weekly Recap"}</Text>
-                        {/* Named, since it is the only way out of a drawer
-                            that covers the screen and an unlabelled <svg> is
-                            nothing at all to a screen reader. */}
+                        {/* Named and reachable, since it is the only way out
+                            of a drawer that covers the screen: an unlabelled
+                            <svg> is nothing at all to a screen reader, and a
+                            role on its own is a button that cannot be focused
+                            or pressed - so the tab stop and the keys it
+                            answers to are spelled out, as they are for the
+                            sleeve on Discover. */}
                         <MdClose
                             size="38px"
                             role="button"
                             aria-label="Close recap"
+                            tabIndex={0}
                             onClick={dismiss}
+                            onKeyDown={(e: React.KeyboardEvent) => {
+                                if (e.key === "Enter" || e.key === " ") {
+                                    e.preventDefault();
+                                    dismiss();
+                                }
+                            }}
+                            style={{ cursor: "pointer" }}
                         />
                     </Box>
                 </DrawerHeader>

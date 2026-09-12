@@ -58,6 +58,21 @@ describe("putting a recap away", () => {
         expect(close).toHaveBeenCalled();
     });
 
+    it("can be closed from the keyboard", () => {
+        // A role alone is a button that cannot be focused or pressed, and this
+        // is the only way out of a drawer that covers the screen.
+        const { close, onDismissed } = mount({ daily: recap("daily-id"), weekly: null });
+
+        const button = screen.getByRole("button", { name: "Close recap" });
+
+        expect(button).toHaveProperty("tabIndex", 0);
+
+        fireEvent.keyDown(button, { key: "Enter" });
+
+        expect(close).toHaveBeenCalled();
+        expect(onDismissed).toHaveBeenCalledWith(["daily-id"]);
+    });
+
     it("reports the recap it put away, so the shell stops offering it", () => {
         const { onDismissed } = mount({ daily: recap("daily-id"), weekly: null });
 
