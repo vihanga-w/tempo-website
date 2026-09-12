@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import User from "./usrlib";
+import { ME_CACHE_KEY } from "./const";
+import { setCachedObject } from "./client-cache";
 
 /**
  * What the user library does when the server says it is too busy.
@@ -85,6 +87,38 @@ describe("a rate-limited Tempo", () => {
         expect(user.isLoggedIn).toBe(false);
         expect(user.storedToken).toBeUndefined();
         expect(localStorage.getItem("tempo.a")).toBeNull();
+    });
+
+    it("does not show a signed-in interface nothing has confirmed", async () => {
+        /*
+         * With /chkauth unanswered, /me is the only thing that can confirm the
+         * session - and while it is unanswered too, a cached account is up to
+         * two days old and no evidence of one. Handing it over would draw the
+         * signed-in interface for an expired session, on which nothing the
+         * reader touched would work.
+         */
+        setCachedObject(ME_CACHE_KEY, { id: "someone", display_name: "Someone" });
+
+        vi.stubGlobal("fetch", vi.fn().mockResolvedValue(busy()));
+
+        await (user as any).isUserAuthenticated();
+
+        await expect(user.getDetails()).resolves.toBeUndefined();
+    });
+
+    it("keeps a cached account once the session has been confirmed", async () => {
+        // /chkauth answered, so the account is known to be somebody's; only
+        // the refresh of it was refused, and the copy stands until it lands.
+        setCachedObject(ME_CACHE_KEY, { id: "someone", display_name: "Someone" });
+
+        const fetchMock = vi.fn().mockImplementation((url: string) =>
+            Promise.resolve(url.endsWith("/chkauth") ? new Response(null, { status: 200 }) : busy())
+        );
+        vi.stubGlobal("fetch", fetchMock);
+
+        expect(await (user as any).isUserAuthenticated()).toBe(true);
+
+        await expect(user.getDetails()).resolves.toMatchObject({ id: "someone" });
     });
 
     it("keeps the settings it holds rather than stalling sign-in", async () => {

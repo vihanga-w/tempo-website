@@ -571,8 +571,27 @@ export default function DiscoverPage({
         asking.current.add(songId);
 
         fetch(API_URL + `/audio/preview/${songId}`, { headers: { ...user.getAuthHeaders() }, credentials: "include" })
-            .then(res => (res.status === 200 ? res.text() : null))
-            .then(found => previews.current.set(songId, found && found.startsWith("http") ? found : null))
+            .then(async res => {
+                /*
+                 * A refusal that might not last is not an answer, and must not
+                 * be remembered as one: null here means "this song has no
+                 * preview", and the lookup for the card in front skips anything
+                 * already remembered. So a rate limit or a bad minute from the
+                 * service took the preview off that song for the rest of the
+                 * sitting, however quickly it came back. Undefined leaves the
+                 * question open, and the card asks again when it arrives.
+                 */
+                if (res.status === 429 || res.status >= 500)
+                    return undefined;
+
+                const found = (res.status === 200 ? await res.text() : null);
+
+                return (found && found.startsWith("http") ? found : null);
+            })
+            .then(found => {
+                if (found !== undefined)
+                    previews.current.set(songId, found);
+            })
             .catch(() => { /* The card asks again when it arrives. */ })
             .finally(() => asking.current.delete(songId));
     }, [user]);
@@ -762,9 +781,23 @@ export default function DiscoverPage({
         setIndex(next);
     }, [calm, cards.length, index, panY, size.height]);
 
+    /**
+     * Which rating sent for a card is the newest.
+     *
+     * A reader can come back to a card and rate it again while the first
+     * request is still in the air. Without this, that first one failing put its
+     * own idea of the card back - clearing the choice they had just made, or
+     * showing them the opposite of it.
+     */
+    const sent = useRef(new Map<string, number>());
+
     /** Sends a rating that was not taken back, and puts the card as it was if the server refuses. */
     const send = useCallback((key: string, songId: string, affinity: number, previous?: Rating) => {
         held.current.delete(key);
+
+        const attempt = (sent.current.get(key) ?? 0) + 1;
+
+        sent.current.set(key, attempt);
 
         // Taste picks are ranked away from anything rated down, and towards what is rated up
         user.setSongAffinity(songId, affinity)
@@ -774,6 +807,12 @@ export default function DiscoverPage({
             })
             .catch(ex => {
                 console.warn("Could not save a rating:", ex);
+
+                // Only the newest send may undo itself; anything older has
+                // already been overtaken by a choice the reader can see.
+                if (sent.current.get(key) !== attempt)
+                    return;
+
                 setRatings(r => {
                     const next = { ...r };
 
@@ -1454,7 +1493,15 @@ const SongCard = memo(function SongCard({
     openProfile?: (userId: string) => void;
 }>) {
     const { song } = card;
-    const canPlay = preview !== null;
+    /*
+     * Playable only with a URL in hand. While the lookup is still out the
+     * sleeve was focusable and announced as "Play preview", and its handlers
+     * returned without playing anything - an action offered to keyboard and
+     * screen-reader users that could not work.
+     */
+    const canPlay = (typeof preview === "string");
+    /** Whether to draw the control at all: faded while the preview is looked for, gone if there is none. */
+    const mayHavePreview = preview !== null;
     const glass = glassSurface({ tier: "regular", tint: tint ? rgbToHex(tint) : FALLBACK_ACCENT });
 
     /*
@@ -1527,7 +1574,7 @@ const SongCard = memo(function SongCard({
                       * preview is being found, not a wrapper round it, or it would
                       * stop blurring for the length of the fade.
                       */}
-                    {canPlay && (
+                    {mayHavePreview && (
                         <Center
                             data-glass
                             position="absolute"

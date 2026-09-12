@@ -176,6 +176,16 @@ export type EncryptionAvailability = {
 export default class User extends EventEmitter {
     public isLoggedIn: boolean = false;
     public authError: boolean = false;
+    /**
+     * Whether the last session check went unanswered.
+     *
+     * A rate-limited /chkauth is not a "no" - see isUserAuthenticated - but it
+     * is not a "yes" either, and something has to remember which it was. A
+     * cached account is up to two days old, so handing it over when neither
+     * endpoint could answer would let an expired session into the signed-in
+     * interface on the strength of nothing at all.
+     */
+    private sessionUnconfirmed: boolean = false;
     public id: string = "";
     public email: string = "";
     public object: ClientUserAccount | undefined;
@@ -1035,8 +1045,12 @@ export default class User extends EventEmitter {
         if (req.status == 429) {
             console.warn("Could not check the session - Tempo is rate limiting; leaving it to /me");
 
+            this.sessionUnconfirmed = true;
+
             return true;
         }
+
+        this.sessionUnconfirmed = false;
 
         return (req.status == 200);
     }
@@ -1106,9 +1120,16 @@ export default class User extends EventEmitter {
                 // 2 day cache duration
                 const cachedData = getCachedObject<ClientUserAccount>(ME_CACHE_KEY, 3600e3 * 48);
 
-                // Resolved early where there is a copy, so the interface has
-                // something to draw while the account is refreshed behind it
-                if (cachedData)
+                /*
+                 * Resolved early where there is a copy, so the interface has
+                 * something to draw while the account is refreshed behind it -
+                 * but only once something has confirmed the session. With
+                 * /chkauth unanswered, /me is the only thing that can, and
+                 * until it does a two-day-old account is not evidence of one.
+                 */
+                const servedFromCache = !!cachedData && !this.sessionUnconfirmed;
+
+                if (servedFromCache)
                     resolve(cachedData);
 
                 const req = await fetchThroughRateLimit(API_URL + "/me", {
@@ -1132,18 +1153,27 @@ export default class User extends EventEmitter {
                 if (req.status == 429) {
                     console.warn("Could not load the account - Tempo is rate limiting");
 
+                    if (servedFromCache) {
+                        /*
+                         * The cached account is already out, so its friends
+                         * belong with it: that list has a cache and a failure
+                         * path of its own, and the friends page waits on the
+                         * event it fires rather than on this promise.
+                         */
+                        await loadFriends(cachedData?.id);
+
+                        return;
+                    }
+
                     /*
-                     * The friends list is still asked for: it has a cache and a
-                     * failure path of its own, and the friends page waits on
-                     * the event it fires rather than on this promise.
+                     * Neither endpoint could answer, so nothing has confirmed
+                     * this session. The caller reads no account as "offer
+                     * sign-in", which is the honest thing to show somebody
+                     * whose session we cannot vouch for - rather than the
+                     * signed-in interface, drawn from a two-day-old copy, on
+                     * which nothing they touch will work.
                      */
-                    await loadFriends(cachedData?.id);
-
-                    // Already resolved above where there was a cached account.
-                    if (!cachedData)
-                        resolve(undefined);
-
-                    return;
+                    return resolve(undefined);
                 }
 
                 await loadFriends(cachedData?.id);
