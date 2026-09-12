@@ -1,6 +1,5 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, createContext, useContext } from "react";
 import { Box, Center, HStack, Skeleton, Stack, Text } from "@chakra-ui/react";
-import { keyframes } from "@emotion/react";
 import {
     animate, motion, motionValue, useMotionValue, useTransform,
     type AnimationPlaybackControls, type MotionValue, type PanInfo,
@@ -60,8 +59,9 @@ import { InitialAvatar } from "./initial-avatar";
  *   - Each card owns its horizontal value. A card thrown away keeps its own
  *     position for good, so there is no moment where a card that has been
  *     dealt with reads as being back in the middle.
- *   - A rating is one movement: the card leaves as the next one rises, rather
- *     than the feed waiting for the throw's spring to be declared over.
+ *   - A rating is a toss, not a page turn. The card is thrown where it stands
+ *     and the next grows into its place from underneath; the stack itself does
+ *     not move, and the feed moves on only once the card has left the screen.
  *   - One release decides once, the stack's offset is absolute rather than
  *     added to, and it is jumped rather than set — a set would report the jump
  *     as speed and the spring would sail a screen past before returning.
@@ -153,10 +153,15 @@ const THROW_CALM = { duration: 0.18, ease: "easeOut" } as const;
 /** How long the page keeps its blur and drift switched off after a gesture. */
 const CALM_AFTER_GESTURE_MS = 260;
 
-const rise = keyframes`
-    from { transform: translateY(14px); opacity: 0; }
-    to   { transform: translateY(0); opacity: 1; }
-`;
+/**
+ * How far the card underneath has come forward, for what is drawn inside it.
+ *
+ * The layer that moves a card has to stay transforms-only — an opacity there
+ * makes it a backdrop root and the glass on the sleeve stops blurring — so the
+ * parts of a card that fade do it themselves, from this. It is 1 for any card
+ * that is simply where it belongs.
+ */
+const Reveal = createContext<MotionValue<number>>(motionValue(1));
 
 type Rating = "liked" | "passed";
 
@@ -752,6 +757,13 @@ export default function DiscoverPage({
         animate(value, to, calm ? SETTLE_CALM : SETTLE), [calm]);
 
     const go = useCallback((step: 1 | -1) => {
+        // Not while a tossed card is still on its way out: the feed moves on by
+        // itself once it has gone, and moving it now as well would skip a card
+        const here = cards[index];
+
+        if (here && flying.current.has(here.key))
+            return;
+
         const next = Math.max(0, Math.min(index + step, cards.length));
 
         if (next === index)
@@ -779,7 +791,7 @@ export default function DiscoverPage({
             onComplete: () => { dragged.current = 0; },
         });
         setIndex(next);
-    }, [calm, cards.length, index, panY, size.height]);
+    }, [calm, cards, index, panY, size.height]);
 
     /**
      * Which rating sent for a card is the newest.
@@ -832,6 +844,7 @@ export default function DiscoverPage({
 
         const previous = ratings[card.key];
         const dir: 1 | -1 = (rating === "liked" ? 1 : -1);
+        const from = cards.indexOf(card);
 
         // A like rises and a pass falls, so a pocket can tell them apart
         feelPattern(rating === "liked" ? "reward" : "refuse");
@@ -840,27 +853,51 @@ export default function DiscoverPage({
         setRatings(r => ({ ...r, [card.key]: rating }));
 
         /*
-         * The card leaves and the next one rises together.
+         * Tossed where it stands, while the next card grows into its place from
+         * underneath — and only once it has left the screen does the feed move
+         * on, at a moment when nothing visible changes.
          *
-         * They used to run one after the other, and not even promptly: the feed
-         * moved on when the throw's spring was declared finished, which is long
-         * after the card is out of sight. A rating read as two swipes — the
-         * second a whole card arriving by itself. Advancing now makes the
-         * arrival part of the same movement, while the card carries on out on
-         * its own value.
+         * Twice this went wrong. First the feed waited for the throw's spring to
+         * be declared finished, long after the card was out of sight, and then
+         * slid the next card up by itself: a rating read as two swipes. Then it
+         * moved on at the release instead, which moved the whole stack up a
+         * screen while the card was still flying — the toss was carried off the
+         * top, and all that was left to see was a page sliding over. A rating
+         * is not a page turn, so the stack does not move for one at all.
          */
-        flights.current.set(card.key, animate(xFor(card.key), dir * size.width * THROW_OUT, {
+        const x = xFor(card.key);
+        let moved = false;
+        let stopWatching = () => { /* Replaced below, before anything can call it. */ };
+
+        const moveOn = () => {
+            if (moved)
+                return;
+
+            moved = true;
+            stopWatching();
+
+            // Only from where it was rated; anywhere else, the reader has moved on themselves
+            setIndex(i => (i === from ? from + 1 : i));
+        };
+
+        // Clear of the screen, not merely finished: a spring is declared over
+        // long after it stops being visible
+        stopWatching = x.on("change", value => {
+            if (Math.abs(value) >= size.width)
+                moveOn();
+        });
+
+        flights.current.set(card.key, animate(x, dir * size.width * THROW_OUT, {
             ...(calm ? THROW_CALM : THROW),
             // Parked only once it is out there; parked at the start it would
             // jump to the position instead of flying to it
             onComplete: () => {
                 flying.current.delete(card.key);
                 flights.current.delete(card.key);
+                moveOn();
                 setThrown(t => ({ ...t, [card.key]: dir }));
             },
         }));
-
-        go(1);
 
         const affinity = dir * strength;
 
@@ -870,14 +907,23 @@ export default function DiscoverPage({
             previous,
             timer: setTimeout(() => send(card.key, card.song.id, affinity, previous), RATING_GRACE_MS),
         });
-    }, [calm, go, ratings, send, size.width, xFor]);
+    }, [calm, cards, ratings, send, size.width, xFor]);
 
     const onPanStart = useCallback(() => {
+        // A card still being tossed away finishes going first; this gesture is ignored
+        const here = cards[index];
+
+        if (here && flying.current.has(here.key)) {
+            released.current = true;
+
+            return;
+        }
+
         panned.current = true;
         released.current = false;
         dragged.current = 0;
         holdStill(true);
-    }, [holdStill]);
+    }, [cards, holdStill, index]);
 
     const onPan = useCallback((_: unknown, info: PanInfo) => {
         if (released.current)
@@ -1154,6 +1200,8 @@ export default function DiscoverPage({
                         height={size.height}
                         panY={panY}
                         x={xFor(card.key)}
+                        lead={xFor(cards[index]?.key ?? "end")}
+                        width={size.width}
                         parkedAt={away ? away * size.width * THROW_OUT : null}
                         isCurrent={isCurrent}
                         onPanStart={onPanStart}
@@ -1193,6 +1241,8 @@ export default function DiscoverPage({
                     height={size.height}
                     panY={panY}
                     x={xFor("end")}
+                    lead={xFor("end")}
+                    width={size.width}
                     parkedAt={null}
                     isCurrent
                     onPanStart={onPanStart}
@@ -1243,6 +1293,8 @@ function CardLayer({
     height,
     panY,
     x,
+    lead,
+    width,
     parkedAt,
     isCurrent,
     onPanStart,
@@ -1255,6 +1307,9 @@ function CardLayer({
     height: number;
     panY: MotionValue<number>;
     x: MotionValue<number>;
+    /** The sideways movement of the card on top, which the one underneath follows. */
+    lead: MotionValue<number>;
+    width: number;
     /** Where a thrown card stays, or null for a card still in the stack. */
     parkedAt: number | null;
     isCurrent: boolean;
@@ -1264,7 +1319,24 @@ function CardLayer({
     calm: boolean;
     children: React.ReactNode;
 }>) {
-    const y = useTransform(panY, value => offset * height + value);
+    /*
+     * The next card waits a screen below, for scrolling. While the card on top
+     * is being taken sideways it waits underneath instead — same place, a size
+     * smaller, entirely hidden behind the sleeve above it — and grows as the
+     * top card goes, so a toss uncovers the next card rather than making way
+     * for one. The switch between the two places happens only while the top
+     * card is at rest, when this one cannot be seen in either.
+     */
+    const underneath = (leadX: number) => offset === 1 && leadX !== 0;
+    const gone = (leadX: number) => Math.min(1, Math.abs(leadX) / width);
+
+    const y = useTransform([panY, lead], ([value, leadX]: number[]) =>
+        (underneath(leadX) ? 0 : offset * height + value));
+    const scale = useTransform(lead, leadX => (underneath(leadX) ? 0.9 + 0.1 * gone(leadX) : 1));
+    // Its words wait for the words above to be mostly out of the way: two titles
+    // on top of each other is the one thing a stack must not show
+    const reveal = useTransform(lead, leadX =>
+        (underneath(leadX) ? Math.max(0, Math.min(1, (gone(leadX) - 0.6) / 0.4)) : 1));
     const across = useTransform(x, value => (parkedAt === null ? value : parkedAt));
     // A card leans into the direction it is being taken, and no further
     const rotate = useTransform(across, value => Math.max(-18, Math.min(18, value / 24)));
@@ -1281,6 +1353,7 @@ function CardLayer({
                 inset: 0,
                 x: across,
                 y,
+                scale,
                 rotate: calm ? 0 : rotate,
                 touchAction: "none",
                 zIndex: isCurrent ? 2 : 1,
@@ -1289,7 +1362,9 @@ function CardLayer({
             }}
             aria-hidden={!isCurrent}
         >
-            {children}
+            <Reveal.Provider value={reveal}>
+                {children}
+            </Reveal.Provider>
         </motion.div>
     );
 }
@@ -1493,6 +1568,7 @@ const SongCard = memo(function SongCard({
     openProfile?: (userId: string) => void;
 }>) {
     const { song } = card;
+    const reveal = useContext(Reveal);
     /*
      * Playable only with a URL in hand. While the lookup is still out the
      * sleeve was focusable and announced as "Play preview", and its handlers
@@ -1531,9 +1607,11 @@ const SongCard = memo(function SongCard({
                 // Optically centred, a little above the middle: without the panel
                 // the card is short, and centred exactly it read as sitting low
                 marginBottom="6vh"
-                animation={isCurrent && !calm ? `${rise} .32s ease-out both` : undefined}
             >
-                <Reason card={card} tint={tint} accentInk={accentInk} openProfile={openProfile} />
+                {/* A column of its own, so the chip keeps its width rather than stretching */}
+                <motion.div style={{ opacity: reveal, display: "flex", flexDirection: "column" }}>
+                    <Reason card={card} tint={tint} accentInk={accentInk} openProfile={openProfile} />
+                </motion.div>
 
                 {/* The sleeve, which is also the player */}
                 <Box
@@ -1597,70 +1675,72 @@ const SongCard = memo(function SongCard({
                     )}
                 </Box>
 
-                <HStack marginTop="18px" gap="8px" alignItems="flex-start" minWidth="0">
-                    <Stack gap="3px" flex="1" minWidth="0">
-                        <HStack gap="6px" alignItems="flex-start" minWidth="0">
-                            <Text
-                                fontFamily="Inter"
-                                fontWeight="800"
-                                fontSize="24px"
-                                letterSpacing="-0.025em"
-                                lineHeight="1.12"
-                                color={INK}
-                                noOfLines={2}
-                                minWidth="0"
-                            >
-                                {song.title}
+                <motion.div style={{ opacity: reveal, display: "flex", flexDirection: "column" }}>
+                    <HStack marginTop="18px" gap="8px" alignItems="flex-start" minWidth="0">
+                        <Stack gap="3px" flex="1" minWidth="0">
+                            <HStack gap="6px" alignItems="flex-start" minWidth="0">
+                                <Text
+                                    fontFamily="Inter"
+                                    fontWeight="800"
+                                    fontSize="24px"
+                                    letterSpacing="-0.025em"
+                                    lineHeight="1.12"
+                                    color={INK}
+                                    noOfLines={2}
+                                    minWidth="0"
+                                >
+                                    {song.title}
+                                </Text>
+                                {song.explicit && (
+                                    <Box color={INK_FAINT} flexShrink={0} fontSize="20px" height="1.12em" display="flex" alignItems="center">
+                                        <MdExplicit />
+                                    </Box>
+                                )}
+                            </HStack>
+                            <Text fontSize="15px" color={INK_DIM} noOfLines={1}>
+                                {song.artists.join(", ")}
                             </Text>
-                            {song.explicit && (
-                                <Box color={INK_FAINT} flexShrink={0} fontSize="20px" height="1.12em" display="flex" alignItems="center">
-                                    <MdExplicit />
-                                </Box>
-                            )}
-                        </HStack>
-                        <Text fontSize="15px" color={INK_DIM} noOfLines={1}>
-                            {song.artists.join(", ")}
-                        </Text>
-                        <Text
-                            as="a"
-                            href={getSpotifyDeeplink(song.id)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            alignSelf="flex-start"
-                            marginTop="5px"
-                            fontSize="13px"
-                            fontWeight="600"
-                            color={accentInk}
-                            transition="color .45s"
-                        >
-                            {preview === null ? "No preview · open in Spotify" : "Open in Spotify"}
-                        </Text>
-                    </Stack>
+                            <Text
+                                as="a"
+                                href={getSpotifyDeeplink(song.id)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                alignSelf="flex-start"
+                                marginTop="5px"
+                                fontSize="13px"
+                                fontWeight="600"
+                                color={accentInk}
+                                transition="color .45s"
+                            >
+                                {preview === null ? "No preview · open in Spotify" : "Open in Spotify"}
+                            </Text>
+                        </Stack>
 
-                    {/* Pulled into the margin by the glyphs' own padding, so the heart lines up with the sleeve's edge */}
-                    <HStack gap="0" flexShrink={0} marginRight="-11px" marginTop="-7px">
-                        <ActionGlyph
-                            label="Not for me"
-                            onClick={() => onRate("passed")}
-                            pan={pan}
-                            towards={-1}
-                            active={rating === "passed"}
-                            activeColour={accentInk}
-                        >
-                            <X size={27} strokeWidth={2.2} />
-                        </ActionGlyph>
-                        <ActionGlyph
-                            label={rating === "liked" ? "Liked" : "Like"}
-                            onClick={() => onRate("liked")}
-                            pan={pan}
-                            towards={1}
-                            active={rating === "liked"}
-                            activeColour={accentInk}
-                        >
-                            <Heart size={25} strokeWidth={2.2} fill={rating === "liked" ? accentInk : "none"} />
-                        </ActionGlyph>
+                        {/* Pulled into the margin by the glyphs' own padding, so the heart lines up with the sleeve's edge */}
+                        <HStack gap="0" flexShrink={0} marginRight="-11px" marginTop="-7px">
+                            <ActionGlyph
+                                label="Not for me"
+                                onClick={() => onRate("passed")}
+                                pan={pan}
+                                towards={-1}
+                                active={rating === "passed"}
+                                activeColour={accentInk}
+                            >
+                                <X size={27} strokeWidth={2.2} />
+                            </ActionGlyph>
+                            <ActionGlyph
+                                label={rating === "liked" ? "Liked" : "Like"}
+                                onClick={() => onRate("liked")}
+                                pan={pan}
+                                towards={1}
+                                active={rating === "liked"}
+                                activeColour={accentInk}
+                            >
+                                <Heart size={25} strokeWidth={2.2} fill={rating === "liked" ? accentInk : "none"} />
+                            </ActionGlyph>
+                        </HStack>
                     </HStack>
-                </HStack>
+                </motion.div>
             </Stack>
         </Stack>
     );
@@ -1669,29 +1749,33 @@ const SongCard = memo(function SongCard({
 /* ============================================================ other cards */
 
 function MilestoneCard({ tier, calm }: Readonly<{ tier: string; calm: boolean }>) {
+    const reveal = useContext(Reveal);
+
     return (
         <Stack height="100%" paddingTop={TOP_CLEAR} paddingBottom={BOTTOM_CLEAR} paddingX="28px" justifyContent="center">
-            <Stack gap="14px" animation={calm ? undefined : `${rise} .36s ease-out both`}>
-                <Text fontFamily="Inter" fontWeight="800" fontSize="13px" letterSpacing="0.02em" color={FALLBACK_ACCENT}>
-                    New listening tier
-                </Text>
-                <Text
-                    fontFamily="Inter"
-                    fontWeight="800"
-                    fontSize="46px"
-                    letterSpacing="-0.035em"
-                    lineHeight="1.02"
-                    color={INK}
-                >
-                    {tier}
-                </Text>
-                <Text fontSize="15px" color={INK_DIM} maxWidth="30ch">
-                    What you have been playing lately has moved you up. Keep going.
-                </Text>
-                <Text marginTop="18px" fontSize="12px" color={INK_FAINT}>
-                    Swipe up for your next song
-                </Text>
-            </Stack>
+            <motion.div style={{ opacity: reveal, display: "flex", flexDirection: "column" }}>
+                <Stack gap="14px">
+                    <Text fontFamily="Inter" fontWeight="800" fontSize="13px" letterSpacing="0.02em" color={FALLBACK_ACCENT}>
+                        New listening tier
+                    </Text>
+                    <Text
+                        fontFamily="Inter"
+                        fontWeight="800"
+                        fontSize="46px"
+                        letterSpacing="-0.035em"
+                        lineHeight="1.02"
+                        color={INK}
+                    >
+                        {tier}
+                    </Text>
+                    <Text fontSize="15px" color={INK_DIM} maxWidth="30ch">
+                        What you have been playing lately has moved you up. Keep going.
+                    </Text>
+                    <Text marginTop="18px" fontSize="12px" color={INK_FAINT}>
+                        Swipe up for your next song
+                    </Text>
+                </Stack>
+            </motion.div>
         </Stack>
     );
 }
