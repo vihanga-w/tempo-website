@@ -56,6 +56,28 @@ export const NOTIF_SUB_ID_KEY = "tempo-notif-subid";
 export const KNOWN_USER_KEY = "tempo.known-user";
 
 /**
+ * The recaps dismissed on this device, by recap id, with when they were.
+ *
+ * Closing a recap tells the server it has been seen, but that is one POST which
+ * can be refused - an expired token, a 429, a 502 from a restarting server -
+ * and the shell reopens any recap the server still calls unseen, every thirty
+ * seconds and on every launch. Since the drawer is the whole screen and its
+ * close button is the only way out of it, a mark that never landed left people
+ * with no way to put their own recap away. Remembering the dismissal here is
+ * what makes closing it stick, whatever became of the mark.
+ */
+export const RECAP_DISMISSED_KEY = "tempo.dismissed-recaps";
+
+/**
+ * How long to remember a dismissal.
+ *
+ * The server stops serving a recap a week after it becomes available (the
+ * weekly one; a day, for the daily), so nothing older than that can come back
+ * to be reopened, and a day's grace covers the boundary.
+ */
+export const RECAP_DISMISSED_TTL = 8 * 24 * 3600e3;
+
+/**
  * Whether this is the installed app rather than a browser.
  *
  * Asked of the bridge as well as of Capacitor's own helper. The helper reads a

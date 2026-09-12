@@ -7,6 +7,7 @@ import { Recap } from "@/components/recap-drawer";
 import { FaF } from "react-icons/fa6";
 import { DataStreamer } from "./live-ingest";
 import { getCachedObject, setCachedObject } from "./client-cache";
+import { fetchThroughRateLimit, rateLimitPauseMs, backoffPauseMs, RateLimitedError } from "./rate-limit";
 
 /** A pick, as the feed sends it: a taste pick, or a friends' pick with likeness over 1. See lib/discover-feed.ts. */
 export interface Song {
@@ -233,21 +234,37 @@ export default class User extends EventEmitter {
         return headers;
     }
 
+    /**
+     * Mark a For You alert read, so it stops being offered.
+     *
+     * Waited out rather than reloaded at, and answered: an alert shown again
+     * because this never landed is the small version of what the recap drawer
+     * made a large one.
+     */
     public async markFYPAlertViewed(alertId: string) {
-        const req = await fetch(API_URL + `/me/feed/alert/viewed/${alertId}`, {
+        const req = await fetchThroughRateLimit(API_URL + `/me/feed/alert/viewed/${alertId}`, {
             method: "POST",
             headers: {
                 ...(this.getAuthHeaders())
             },
             credentials: "include",
         });
-        
-        if (req.status == 429)
-            window.location.reload();
+
+        return req.status == 200;
     }
 
+    /**
+     * Sign out: here for certain, and on the server if it will hear it.
+     *
+     * The session is the server's to end, but the account on this device is
+     * ours, and somebody who has asked to sign out should not be left signed in
+     * because the request was refused. That is what a rate limit used to do -
+     * the reload left the token in storage, and the app came back up signed in
+     * as though nothing had been asked - so the local sign-out now happens
+     * either way, and the answer says whether the server agreed.
+     */
     public async logout() {
-        const req = await fetch(API_URL + "/logout", {
+        const req = await fetchThroughRateLimit(API_URL + "/logout", {
             method: "POST",
             headers: {
                 ...(this.getAuthHeaders())
@@ -255,24 +272,38 @@ export default class User extends EventEmitter {
             credentials: "include",
         });
 
-        if (req.status == 429)
-            window.location.reload();
+        const confirmed = req.status == 200;
 
-        if (req.status == 200) {
-            this.isLoggedIn = false;
-            this.object = undefined;
-            this.storedToken = undefined;
-            this.id = "";
-            this.email = "";
-            this.friends = [];
-            this.friendsSessionsCount = 0;
-            this.emit("user-logout");
+        if (!confirmed)
+            console.warn("The server did not confirm the sign-out, code:", req.status, "- signing out on this device anyway");
+
+        this.isLoggedIn = false;
+        this.object = undefined;
+        this.storedToken = undefined;
+        this.id = "";
+        this.email = "";
+        this.friends = [];
+        this.friendsSessionsCount = 0;
+        this.emit("user-logout");
+
+        try {
             window.localStorage.removeItem("tempo.a");
+        } catch (ex) {
+            console.warn("Could not clear the stored token, error:", ex);
         }
+
+        return confirmed;
     }
 
+    /**
+     * Record how somebody feels about a song.
+     *
+     * A tap that has to land, so a rate limit is waited out rather than
+     * reloaded over - the reload took the card, the queue behind it and the
+     * verdict with it.
+     */
     public async setSongAffinity(songId: string, affinity: number) {
-        const req = await fetch(API_URL + "/me/taste/affinity", {
+        const req = await fetchThroughRateLimit(API_URL + "/me/taste/affinity", {
             method: "POST",
             headers: {
                 ...(this.getAuthHeaders()),
@@ -285,9 +316,6 @@ export default class User extends EventEmitter {
             }),
             credentials: "include",
         });
-        
-        if (req.status == 429)
-            window.location.reload();
 
         return req.status == 200;
     }
@@ -304,16 +332,24 @@ export default class User extends EventEmitter {
         if (cached)
             return cached;
 
-        const req = await fetch(API_URL + `/profile/${userId}/pastWeekStats`, {
+        const url = API_URL + `/profile/${userId}/pastWeekStats`;
+
+        const req = await fetchThroughRateLimit(url, {
             method: "GET",
             headers: {
                 ...(this.getAuthHeaders())
             },
             credentials: "include",
         });
-        
+
+        /*
+         * Raised rather than read as an empty week. Every caller of this logs
+         * the failure and leaves the figures as they were, which is the right
+         * thing for a profile to do - where a reload was not, since it took the
+         * whole page to spare one panel.
+         */
         if (req.status == 429)
-            window.location.reload();
+            throw new RateLimitedError(url);
 
         const res = await req.json() as {
             error: boolean;
@@ -349,16 +385,19 @@ export default class User extends EventEmitter {
         if (cached && !forceRefresh)
             return cached;
 
-        const req = await fetch(API_URL + `/profile/${userId}/topSongs/${period}`, {
+        const url = API_URL + `/profile/${userId}/topSongs/${period}`;
+
+        const req = await fetchThroughRateLimit(url, {
             method: "GET",
             headers: {
                 ...(this.getAuthHeaders())
             },
             credentials: "include",
         });
-        
+
+        // The panel keeps the songs it has; see getRemoteUserPastWeekStats.
         if (req.status == 429)
-            window.location.reload();
+            throw new RateLimitedError(url);
 
         const res = await req.json() as {
             error: boolean;
@@ -390,7 +429,9 @@ export default class User extends EventEmitter {
         if (cached)
             return cached;
 
-        const req = await fetch(API_URL + `/profile/${userId}`, {
+        const url = API_URL + `/profile/${userId}`;
+
+        const req = await fetchThroughRateLimit(url, {
             method: "GET",
             headers: {
                 ...(this.getAuthHeaders())
@@ -398,8 +439,13 @@ export default class User extends EventEmitter {
             credentials: "include",
         });
 
+        /*
+         * Raised, so the one caller that fetches these in a loop - the friends
+         * list behind getDetails - can leave out whoever it could not read and
+         * keep the rest, which is what it already does with any other failure.
+         */
         if (req.status == 429)
-            window.location.reload();
+            throw new RateLimitedError(url);
 
         const res = await req.json() as {
             error: boolean;
@@ -485,15 +531,22 @@ export default class User extends EventEmitter {
             }
         }
 
-        const req = await fetch(API_URL + "/me/friends" + (filter ? `?state=${filter.join(",")}` : ""), {
+        const url = API_URL + "/me/friends" + (filter ? `?state=${filter.join(",")}` : "");
+
+        const req = await fetchThroughRateLimit(url, {
             headers: {
                 ...(this.getAuthHeaders())
             },
             credentials: "include",
         });
 
+        /*
+         * Raised rather than answered with an empty list, which would read as
+         * having no friends at all - and would be written into the cache above
+         * as though it were true.
+         */
         if (req.status == 429)
-            window.location.reload();
+            throw new RateLimitedError(url);
 
         const res = await req.json() as {
             error: boolean;
@@ -520,7 +573,10 @@ export default class User extends EventEmitter {
     @throws An error if the friend request fails
     */
     public async sendFriendRequest(userId: string) {
-        const req = await fetch(API_URL + "/me/friends/request", {
+        // Waited out rather than reloaded over: the reload took the reader off
+        // the person they had just found, with no way to tell whether the
+        // request had been sent.
+        const req = await fetchThroughRateLimit(API_URL + "/me/friends/request", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -532,8 +588,8 @@ export default class User extends EventEmitter {
             credentials: "include",
         });
 
-        if (req.status == 429)
-            window.location.reload();
+        if (req.status === 429)
+            throw new Error("Failed to send friend request, Tempo is busy - try again in a moment");
 
         if (req.status === 409)
             throw new Error("Failed to send friend request, user already a friend");
@@ -560,15 +616,17 @@ export default class User extends EventEmitter {
     }
 
     public async acceptFriendRequest(friendshipId: string) {
-        const req = await fetch(API_URL + "/me/friends/accept/" + friendshipId, {
+        const req = await fetchThroughRateLimit(API_URL + "/me/friends/accept/" + friendshipId, {
             headers: {
                 ...(this.getAuthHeaders())
             },
             credentials: "include",
         });
 
+        // Said plainly, so the page can offer the tap again. A reload here left
+        // the request sitting there as though it had been ignored.
         if (req.status == 429)
-            window.location.reload();
+            throw new Error("Failed to accept friend request, Tempo is busy - try again in a moment");
 
         const res = await req.json() as {
             error: boolean;
@@ -589,14 +647,13 @@ export default class User extends EventEmitter {
      * you already have in common.
      */
     public async getFriendSuggestions(limit = 20) {
-        const req = await fetch(API_URL + `/users/suggestions?limit=${limit}`, {
+        const req = await fetchThroughRateLimit(API_URL + `/users/suggestions?limit=${limit}`, {
             headers: { ...(this.getAuthHeaders()) },
             credentials: "include",
         });
 
-        if (req.status === 429)
-            window.location.reload();
-
+        // Nobody to suggest this time, which the page already draws as a page
+        // with no suggestions on it rather than as a fault.
         if (!req.ok)
             return [];
 
@@ -613,7 +670,9 @@ export default class User extends EventEmitter {
     }
 
     public async searchUsers(query: string, limit?: number) {
-        const req = await fetch(API_URL + "/users/query", {
+        // Waited out: a reload here threw away a half-typed name, and the
+        // typing that earned the rate limit is exactly what it discarded.
+        const req = await fetchThroughRateLimit(API_URL + "/users/query", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -627,7 +686,7 @@ export default class User extends EventEmitter {
         });
 
         if (req.status == 429)
-            window.location.reload();
+            throw new Error("Failed to search, Tempo is busy - try again in a moment");
 
         const res = await req.json() as {
             error: boolean;
@@ -653,8 +712,14 @@ export default class User extends EventEmitter {
                 }
             });
 
+            /*
+             * No notice this time, and no waiting for one either: this runs
+             * before anything else on boot and again every five seconds while a
+             * notice is up, so the next ask is never far off - and a reload
+             * over it meant an app that could not finish starting.
+             */
             if (req.status == 429)
-                window.location.reload();
+                return undefined;
 
             const res = await req.json() as {
                 active: boolean;
@@ -738,15 +803,20 @@ export default class User extends EventEmitter {
             page = 1;
 
         try {
-            const req = await fetch(API_URL + "/me/feed/" + page + (pagePreset ? "?p=" + pagePreset : ""), {
+            const req = await fetchThroughRateLimit(API_URL + "/me/feed/" + page + (pagePreset ? "?p=" + pagePreset : ""), {
                 headers: {
                     ...(this.getAuthHeaders())
                 },
                 credentials: "include"
             });
 
+            /*
+             * A page of the feed that did not arrive, which is how this already
+             * answers every other failure - the page keeps what it has and asks
+             * again when the reader next reaches the end of it.
+             */
             if (req.status == 429)
-                window.location.reload();
+                return [];
 
             const res = (await req.json()) as {
                 error: boolean;
@@ -822,15 +892,22 @@ export default class User extends EventEmitter {
         if (cached && !forceRefresh)
             return cached;
 
-        const req = await fetch(API_URL + `/profile/${userId}/history/${page}`, {
+        const url = API_URL + `/profile/${userId}/history/${page}`;
+
+        const req = await fetchThroughRateLimit(url, {
             headers: {
                 ...(this.getAuthHeaders())
             },
             credentials: "include"
         });
 
+        /*
+         * Raised rather than read as the end of somebody's history: this is
+         * paged, an empty page is how the list learns it has reached the
+         * bottom, and it would be cached as the bottom too.
+         */
         if (req.status == 429)
-            window.location.reload();
+            throw new RateLimitedError(url);
 
         const res = (await req.json()) as {
             error: boolean;
@@ -856,15 +933,27 @@ export default class User extends EventEmitter {
     }
 
     public async loadSettings() {
-        const req = await fetch(API_URL + "/me/settings", {
+        const req = await fetchThroughRateLimit(API_URL + "/me/settings", {
             headers: {
                 ...(this.getAuthHeaders()),
             },
             credentials: "include",
         });
 
-        if (req.status == 429)
-            window.location.reload();
+        /*
+         * Whatever is already held, rather than a throw or a reload.
+         *
+         * Sign-in awaits this, so anything that comes out of here sideways
+         * stops the app on its loading screen - and a rate limit is likeliest
+         * on exactly that first burst of requests. Leaving the settings as they
+         * are means the defaults on a cold start, and the reader's own the
+         * moment this is asked again.
+         */
+        if (req.status == 429) {
+            console.warn("Could not load settings just now - Tempo is rate limiting; keeping what is held");
+
+            return this.settings;
+        }
 
         const data = await req.json() as {
             error: boolean;
@@ -876,8 +965,14 @@ export default class User extends EventEmitter {
         return data.data;
     }
 
+    /**
+     * Change one setting, and say whether it took.
+     *
+     * A rate limit is waited out: this is a switch somebody has just flicked,
+     * and a reload would have put it back where it was without saying so.
+     */
     public async updateSetting(key: string, value: any) {
-        const req = await fetch(API_URL + "/me/settings", {
+        const req = await fetchThroughRateLimit(API_URL + "/me/settings", {
             method: "POST",
             headers: {
                 ...(this.getAuthHeaders()),
@@ -890,22 +985,32 @@ export default class User extends EventEmitter {
             }),
         });
 
-        if (req.status == 429)
-            window.location.reload();
-
         return (req.status == 200);
     }
 
+    /**
+     * Whether the server still knows this session.
+     *
+     * A rate limit is not an answer to that question, and it must not be read
+     * as "no": the caller signs the reader out on a false, and the old reload
+     * here returned undefined - falsy - on its way to asking again. Waiting out
+     * the limit answers it properly nearly always; when it does not, the last
+     * answer we had stands until the next check, which is a reader left where
+     * they were rather than tipped out of their account over a busy minute.
+     */
     private async isUserAuthenticated() {
-        const req = await fetch(API_URL + "/chkauth", {
+        const req = await fetchThroughRateLimit(API_URL + "/chkauth", {
             headers: {
                 ...(this.getAuthHeaders())
             },
             credentials: "include"
         });
 
-        if (req.status == 429)
-            return window.location.reload();
+        if (req.status == 429) {
+            console.warn("Could not check the session - Tempo is rate limiting; assuming it is as it was");
+
+            return this.isLoggedIn;
+        }
 
         return (req.status == 200);
     }
@@ -923,54 +1028,97 @@ export default class User extends EventEmitter {
                 const loadFriends = async (userId?: string) => {
                     const id = userId || this.id;
 
-                    if (id !== "") {
-                        const friends = await this.getFriends(["friends"]);
+                    if (id === "")
+                        return;
 
-                        const frtemp: typeof this.friends = [];
+                    let friends: UserFriendship[];
 
-                        for (let i = 0; i < friends.length; i++) {
-                            const f = friends[i];
-                            const otherId = (f.u1Id == id ? f.u2Id : f.u1Id);
-                            
-                            try {
-                                const user = await this.getRemoteUser(otherId);
+                    /*
+                     * A friends list that could not be read is not a missing
+                     * account. Anything thrown in here lands in the catch at
+                     * the foot of this promise, which reads every failure as
+                     * "not authenticated" and hands back no account at all - so
+                     * one busy minute on this one request would put somebody
+                     * who is perfectly well signed in at the sign-in prompt.
+                     */
+                    try {
+                        friends = await this.getFriends(["friends"]);
+                    } catch (ex) {
+                        console.warn("Could not load the friends list with the account, error:", ex);
 
-                                const uniqueUserIds = new Set();
-                                
-                                if (!uniqueUserIds.has(user.id)) {
-                                    frtemp.push({
-                                        user: user,
-                                        friendship: f,
-                                    });
-                                    uniqueUserIds.add(user.id);
-                                }
-                            } catch (ex) {
-                                console.warn("Unable to fetch user object for", otherId);
-                            }
-                        }
-
-                        this.friends = frtemp;
-
-                        this.emit("friends-updated", this.friends);
+                        return;
                     }
+
+                    const frtemp: typeof this.friends = [];
+
+                    for (let i = 0; i < friends.length; i++) {
+                        const f = friends[i];
+                        const otherId = (f.u1Id == id ? f.u2Id : f.u1Id);
+
+                        try {
+                            const user = await this.getRemoteUser(otherId);
+
+                            const uniqueUserIds = new Set();
+
+                            if (!uniqueUserIds.has(user.id)) {
+                                frtemp.push({
+                                    user: user,
+                                    friendship: f,
+                                });
+                                uniqueUserIds.add(user.id);
+                            }
+                        } catch (ex) {
+                            console.warn("Unable to fetch user object for", otherId);
+                        }
+                    }
+
+                    this.friends = frtemp;
+
+                    this.emit("friends-updated", this.friends);
                 };
 
                 // 2 day cache duration
                 const cachedData = getCachedObject<ClientUserAccount>(ME_CACHE_KEY, 3600e3 * 48);
 
-                // Dont return here so we can still do the rate limit check
+                // Resolved early where there is a copy, so the interface has
+                // something to draw while the account is refreshed behind it
                 if (cachedData)
                     resolve(cachedData);
 
-                const req = await fetch(API_URL + "/me", {
+                const req = await fetchThroughRateLimit(API_URL + "/me", {
                     headers: {
                         ...(this.getAuthHeaders())
                     },
                     credentials: "include"
                 });
 
-                if (req.status == 429)
-                    return window.location.reload();
+                /*
+                 * The cached account stands, and where there is none the caller
+                 * is told there is none - refreshDetails reads that as "signed
+                 * in, nothing to load" and offers sign-in, which is at least a
+                 * screen with a way forward on it.
+                 *
+                 * The reload this replaces was worse than it looks: it sat
+                 * inside a promise the whole app awaits before it can render,
+                 * and returning from here resolved nothing at all. Only the
+                 * reload itself ended the wait.
+                 */
+                if (req.status == 429) {
+                    console.warn("Could not load the account - Tempo is rate limiting");
+
+                    /*
+                     * The friends list is still asked for: it has a cache and a
+                     * failure path of its own, and the friends page waits on
+                     * the event it fires rather than on this promise.
+                     */
+                    await loadFriends(cachedData?.id);
+
+                    // Already resolved above where there was a cached account.
+                    if (!cachedData)
+                        resolve(undefined);
+
+                    return;
+                }
 
                 await loadFriends(cachedData?.id);
 
@@ -1007,15 +1155,40 @@ export default class User extends EventEmitter {
     }
 
     public async getRecaps(showAlreadySeen?: boolean) {
-        const req = await fetch(API_URL + "/me/recap" + (showAlreadySeen ? "?seen=true" : ""), {
+        const req = await fetchThroughRateLimit(API_URL + "/me/recap" + (showAlreadySeen ? "?seen=true" : ""), {
             headers: {
                 ...(this.getAuthHeaders())
             },
             credentials: "include",
         });
-            
+
+        /*
+         * A rate-limited poll was the worst place in the app to reload, which
+         * is what every request in here used to do: the reload lands on a recap
+         * the server still calls unseen, which opens the drawer over the whole
+         * screen, and the only way out of it sends a request of its own -
+         * rate-limited too, so another reload. Nothing is lost by reading it as
+         * "no recaps this time"; the poll is back in thirty seconds.
+         */
         if (req.status == 429)
-            window.location.reload();
+            return {
+                daily: null,
+                weekly: null,
+            };
+
+        /*
+         * No recap is not a failure, however the server says it. It answers an
+         * empty day with two nulls now, and used to answer 404 with
+         * error: true - which a client that throws turns into an error logged
+         * every thirty seconds for everybody who simply has nothing to see.
+         * Read here as well as fixed there, since an app build and the server
+         * it talks to do not ship together.
+         */
+        if (req.status == 404)
+            return {
+                daily: null,
+                weekly: null,
+            };
 
         const res = (await req.json()) as {
             error: boolean;
@@ -1040,20 +1213,56 @@ export default class User extends EventEmitter {
         return res.data;
     }
 
-    public async markRecapSeen(type: "daily" | "weekly") {
-        const req = await fetch(API_URL + "/me/recap/" + type + "/seen", {
-            method: "POST",
-            headers: {
-                ...(this.getAuthHeaders())
-            },
-            credentials: "include",
-        });
+    /**
+     * Tell the server a recap has been seen, so it stops being offered.
+     *
+     * Retried, and worth awaiting: this is the only thing that stops a recap
+     * coming back, and it used to be one unchecked POST whose failure - an
+     * expired token, a rate limit, a 502 from a restarting server - left the
+     * drawer reopening every thirty seconds and on every launch, with its close
+     * button the only way out and no more luck than the first time.
+     *
+     * Returns whether the server confirmed it, so a caller can tell a recap
+     * that is put away everywhere from one put away only on this device.
+     */
+    public async markRecapSeen(type: "daily" | "weekly", attempts: number = 3) {
+        for (let attempt = 1; attempt <= attempts; attempt++) {
+            try {
+                const req = await fetch(API_URL + "/me/recap/" + type + "/seen", {
+                    method: "POST",
+                    headers: {
+                        ...(this.getAuthHeaders())
+                    },
+                    credentials: "include",
+                });
 
-        if (req.status == 429)
-            window.location.reload();
-        
-        // This is not a definite indicator of success as the server does not return a success validated state
-        return (req.status == 200);
+                if (req.status == 200)
+                    return true;
+
+                /*
+                 * A 4xx that is not a rate limit is settled: the token is not
+                 * accepted, or the type is not one the server knows. The same
+                 * request cannot get a different answer, so stop asking.
+                 */
+                if (req.status < 500 && req.status != 429) {
+                    console.warn("Server refused to mark the", type, "recap seen, code:", req.status);
+
+                    return false;
+                }
+
+                console.warn("Failed to mark the", type, "recap seen, code:", req.status, "try:", attempt, "of", attempts);
+
+                if (attempt < attempts)
+                    await new Promise(resolve => setTimeout(resolve, rateLimitPauseMs(req, attempt)));
+            } catch (ex) {
+                console.warn("Failed to mark the", type, "recap seen, try:", attempt, "of", attempts, "error:", ex);
+
+                if (attempt < attempts)
+                    await new Promise(resolve => setTimeout(resolve, backoffPauseMs(attempt)));
+            }
+        }
+
+        return false;
     }
 
     public async getEncryptionAvailability(): Promise<EncryptionAvailability> {
