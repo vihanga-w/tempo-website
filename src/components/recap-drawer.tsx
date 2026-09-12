@@ -264,6 +264,7 @@ export default function ReactionDrawer({
     daily,
     weekly,
     user,
+    onDismissed,
 }: {
     open: () => void;
     close: () => void;
@@ -271,12 +272,53 @@ export default function ReactionDrawer({
     daily: Recap | null;
     weekly: Recap | null;
     user: User;
+    /**
+     * The recaps the reader has just put away, by id, so the shell stops
+     * offering them however the server's "seen" marks went. Closing this drawer
+     * is the only way out of it, so the dismissal cannot rest on a request.
+     */
+    onDismissed: (recapIds: string[]) => void;
 }) {
     const [openIndex, setOpenIndex] = useState<number>(0);
 
     const artwork = useRef<HTMLImageElement>(null);
 
     useOutsideAlerter(artwork, close);
+
+    /** The recaps whose "seen" mark is away or confirmed, so nothing asks twice. */
+    const askedRecapIds = useRef<Set<string>>(new Set());
+
+    /**
+     * Tell the server a recap has been seen, at most once.
+     *
+     * Recorded as asked before the request goes, so the backstop below and the
+     * close button cannot both send one, and forgotten again if the mark is
+     * refused - a mark that did not land is not done, and whichever path comes
+     * next should be free to try it again.
+     */
+    const markSeen = (type: "daily" | "weekly", recap: Recap) => {
+        if (askedRecapIds.current.has(recap.id))
+            return;
+
+        askedRecapIds.current.add(recap.id);
+
+        user.markRecapSeen(type)
+            .then(marked => {
+                if (!marked)
+                    askedRecapIds.current.delete(recap.id);
+            })
+            .catch(ex => {
+                askedRecapIds.current.delete(recap.id);
+
+                console.error("Failed to mark the", type, "recap seen, error:", ex);
+            });
+    };
+
+    /** Whichever recaps are on screen, with the type the server calls them. */
+    const shownRecaps = ([
+        ["daily", daily],
+        ["weekly", weekly],
+    ] as const).filter((entry): entry is readonly ["daily" | "weekly", Recap] => !!entry[1]);
 
     useEffect(() => {
         if (daily && !weekly)
@@ -286,20 +328,52 @@ export default function ReactionDrawer({
     }, [daily, weekly]);
 
     useEffect(() => {
-        if (openIndex == 0 && !daily)
+        const reading = openIndex == 0 ? daily : weekly;
+
+        /*
+         * Marked after a couple of seconds on screen, so a recap that has been
+         * read is put away even if the close button is never reached.
+         *
+         * The recaps belong in these dependencies. Without them the timer was
+         * armed by a change of tab and nothing else, and a lone daily recap -
+         * the everyday case - arrives while the index is already 0: the effect
+         * had run once on mount with nothing to show, and never ran again. So
+         * the backstop covered only the weekly-on-its-own case, which is the
+         * one that happens to move the index.
+         */
+        if (!reading || askedRecapIds.current.has(reading.id))
             return;
 
-        if (openIndex == 1 && !weekly)
-            return;
+        const type = openIndex == 0 ? "daily" : "weekly";
 
-        // Mark this recap viewed after 2.5s
-        setTimeout(() => {
-            user.markRecapSeen(["daily", "weekly"][openIndex] as "daily" | "weekly");
-        }, 2500);
-    }, [openIndex]);
+        const timer = setTimeout(() => markSeen(type, reading), 2500);
+
+        return () => clearTimeout(timer);
+    }, [openIndex, daily, weekly, user]);
+
+    /*
+     * Putting a recap away.
+     *
+     * Every recap on screen, not merely the tab in front: with a daily and a
+     * weekly to read the tabs open on the daily, and closing marked only that
+     * one - so the weekly reopened the drawer at the next poll, seconds after
+     * it had been closed.
+     *
+     * The drawer closes on the tap rather than waiting on the marks, which
+     * retry in the background. The shell is told first, and remembers, so
+     * nothing here has to reach the server for the recap to stay closed.
+     */
+    const dismiss = () => {
+        onDismissed(shownRecaps.map(([, recap]) => recap.id));
+
+        for (const [type, recap] of shownRecaps)
+            markSeen(type, recap);
+
+        close();
+    };
 
     return (
-        <Drawer placement="bottom" onClose={close} isOpen={isOpen} isFullHeight>
+        <Drawer placement="bottom" onClose={dismiss} isOpen={isOpen} isFullHeight>
             <DrawerOverlay background="#0D0D0E" />
             {/* Full-height drawers render in a portal, so they are positioned
                 against the viewport and the safe-area padding on body never
@@ -313,11 +387,15 @@ export default function ReactionDrawer({
                 <DrawerHeader borderBottomWidth='1px' height="64px">
                     <Box display="flex" justifyContent="space-between" alignItems="center" width="100%">
                         <Text>{(daily && weekly) ? "Your Music Recap" : daily ? "Your Daily Recap" : "Your Weekly Recap"}</Text>
-                        <MdClose size="38px" onClick={() => {
-                            console.log("closing recap")
-                            user.markRecapSeen(["daily", "weekly"][openIndex] as "daily" | "weekly");
-                            close();
-                        }} />
+                        {/* Named, since it is the only way out of a drawer
+                            that covers the screen and an unlabelled <svg> is
+                            nothing at all to a screen reader. */}
+                        <MdClose
+                            size="38px"
+                            role="button"
+                            aria-label="Close recap"
+                            onClick={dismiss}
+                        />
                     </Box>
                 </DrawerHeader>
                 <DrawerBody padding="0" overflowX="hidden">

@@ -18,6 +18,9 @@ import { GlassTopBar } from "./glass-top-bar";
 import { Loader } from "./loader";
 import { DataStreamer, UpdateEvent } from "@/lib/live-ingest";
 import { API_URL } from "@/lib/const";
+import {
+    RecapDismissals, readRecapDismissals, withRecapsDismissed, writeRecapDismissals,
+} from "@/lib/recap-dismissals";
 import { PlaybackHistoryItem } from "./playback-history-item";
 import { UserLookupResult } from "./user-lookup-result";
 import RecapDrawer, { Recap } from "./recap-drawer";
@@ -97,6 +100,28 @@ export default React.memo(function UIApp({
     const [dailyRecap, setDailyRecap] = useState<Recap | null>(null);
     const [weeklyRecap, setWeeklyRecap] = useState<Recap | null>(null);
 
+    /*
+     * The recaps already put away on this device, by id, and when.
+     *
+     * The poll below opens the drawer over the whole interface for any recap
+     * the server still calls unseen, and the close button is the only way out
+     * of it - so when the "seen" mark that button sends did not land, closing a
+     * recap bought thirty seconds before it reopened, and a new daily recap
+     * every morning meant it was there at every launch. This is what makes
+     * closing one stick, whatever became of the mark.
+     *
+     * A ref rather than state: the poll runs from an interval set up once, and
+     * a dismissal has to be visible to it without restarting it.
+     */
+    const dismissedRecaps = useRef<RecapDismissals>({});
+
+    /*
+     * Whether the drawer is up, where the poll can read it. The interval closes
+     * over the first render's values, so the state itself always looks false
+     * from in there.
+     */
+    const recapDrawerVisibleRef = useRef<boolean>(false);
+
     // Lazy loading: how many history items to show at first
     const ITEMS_PER_BATCH = 25;
     const [visibleHistoryCount, setVisibleHistoryCount] = useState<number>(ITEMS_PER_BATCH);
@@ -153,19 +178,50 @@ export default React.memo(function UIApp({
     //     });
     // };
 
+    /** Whether this device has already put this recap away. */
+    const isRecapDismissed = (recap: Recap | null) => !!recap && !!dismissedRecaps.current[recap.id];
+
+    /**
+     * Remember that these recaps have been put away.
+     *
+     * Written through to storage, so a dismissal survives the reload that a
+     * rate-limited request used to force, and the next launch.
+     */
+    const rememberRecapsDismissed = useCallback((recapIds: string[]) => {
+        dismissedRecaps.current = withRecapsDismissed(dismissedRecaps.current, recapIds);
+
+        writeRecapDismissals(dismissedRecaps.current);
+    }, []);
+
+    // Read before the poll below is set up, which is why it is declared here:
+    // effects run in the order they are written.
+    useEffect(() => {
+        dismissedRecaps.current = readRecapDismissals();
+    }, []);
+
     const fetchRecaps = async () => {
         try {
             const recaps = await user.getRecaps();
 
-            console.log(dailyRecap?.id, recaps.daily?.id, isRecapDrawerVisible);
+            const daily = isRecapDismissed(recaps.daily) ? null : recaps.daily;
+            const weekly = isRecapDismissed(recaps.weekly) ? null : recaps.weekly;
 
-            if (dailyRecap?.id !== recaps.daily?.id)
-                setDailyRecap(recaps.daily);
+            /*
+             * While the drawer is open, what it is showing is the truth. A poll
+             * landing mid-read could otherwise empty it underneath the reader,
+             * and a recap opened deliberately from the profile - which is
+             * allowed to be one already put away - would be taken straight
+             * back off the screen.
+             */
+            if (recapDrawerVisibleRef.current)
+                return;
 
-            if (weeklyRecap?.id !== recaps.weekly?.id)
-                setWeeklyRecap(recaps.weekly);
+            // Compared by id inside the setter: the interval's copy of this
+            // function only ever sees the state as it was when it was made.
+            setDailyRecap(prev => prev?.id === daily?.id ? prev : daily);
+            setWeeklyRecap(prev => prev?.id === weekly?.id ? prev : weekly);
 
-            if (!isRecapDrawerVisible && (recaps.daily || recaps.weekly))
+            if (daily || weekly)
                 openRecapDrawer();
         } catch (ex) {
             console.error("Failed to fetch latest user recaps, error:", ex);
@@ -190,6 +246,8 @@ export default React.memo(function UIApp({
     }, [user.isLoggedIn]);
 
     useEffect(() => {
+        recapDrawerVisibleRef.current = isRecapDrawerVisible;
+
         if (!isRecapDrawerVisible) {
             setDailyRecap(null);
             setWeeklyRecap(null);
@@ -470,6 +528,7 @@ export default React.memo(function UIApp({
                 daily={dailyRecap}
                 weekly={weeklyRecap}
                 user={user}
+                onDismissed={rememberRecapsDismissed}
             />
             <Box
                 position="fixed"
