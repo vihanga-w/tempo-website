@@ -1,5 +1,5 @@
 import PageRouter from "@/lib/page-router";
-import User, { FeedItem, FeedItemAlert, FriendListenershipItem } from "@/lib/usrlib";
+import User, { FriendListenershipItem } from "@/lib/usrlib";
 import {
     Text,
     Box,
@@ -17,8 +17,10 @@ import { History, Settings as SettingsIcon } from "lucide-react";
 import { GlassTopBar } from "./glass-top-bar";
 import { Loader } from "./loader";
 import { DataStreamer, UpdateEvent } from "@/lib/live-ingest";
-import { Mutex } from "async-mutex";
 import { API_URL } from "@/lib/const";
+import {
+    RecapDismissals, readRecapDismissals, withRecapsDismissed, writeRecapDismissals,
+} from "@/lib/recap-dismissals";
 import { PlaybackHistoryItem } from "./playback-history-item";
 import { UserLookupResult } from "./user-lookup-result";
 import RecapDrawer, { Recap } from "./recap-drawer";
@@ -27,15 +29,12 @@ import PlaylistsPage from "./playlists-page";
 import CreatePlaylistPage from "./create-playlist-page";
 import UserPreferencesPage from "./user-preferences-page";
 
-const MusicDiscoveryFeed = lazy(() => import("./music-discovery-feed"));
+const DiscoverPage = lazy(() => import("./discover-page"));
 const FriendsPage = lazy(() => import("./friends-page"));
 const LeaderboardPage = lazy(() => import("./leaderboard-page"));
 const AddFriendsPage = lazy(() => import("./add-friends-page"));
 const ProfilePage = lazy(() => import("./profile-page"));
 const PassportPage = lazy(() => import("./passport-page"));
-const ReactionDrawer = lazy(() => import("./reaction-drawer"));
-
-const updateMutex = new Mutex();
 
 export const SuspenseSpinner = ({
     useNew,
@@ -92,24 +91,36 @@ export default React.memo(function UIApp({
      */
     const [pagePalette, setPagePalette] = useState<string[] | null>(null);
     const [isLoading, setIsLoading] = useState<boolean>(false);
-    const [activityPageLoading, setActivityPageLoading] = useState<boolean>(true);
-    const [showLivePlaybackStates, setShowLivePlaybackStates] = useState<boolean>(false);
-    const [livePlaybackStates, setLivePlaybackStates] = useState<UpdateEvent[]>([]);
-    const [livePlaybackStatesPlaceholderCount, setLivePlaybackStatesPlaceholderCount] = useState<number>(user.friendsSessionsCount);
     const [streamer, setStreamer] = useState<DataStreamer | null>(null);
     const [streamerReset, setStreamerReset] = useState<boolean>(false);
     const [hideTopGradient, setHideTopGradient] = useState<boolean>(false);
     const [complementaryColour, setComplementaryColour] = useState<string>("#e9e7fb");
-    const [discoveryData, setDiscoveryData] = useState<FeedItem[]>([]);
     const [pubProfileUserId, setPubProfileUserId] = useState<string>("");
-    const [reactionDrawerItem, setReactionDrawerItem] = useState<UpdateEvent["data"]["state"] | undefined>();
     const [friends, setFriends] = useState<User["friends"]>([]);
     const [dailyRecap, setDailyRecap] = useState<Recap | null>(null);
     const [weeklyRecap, setWeeklyRecap] = useState<Recap | null>(null);
-    const [currentFYPPageIndex, setCurrentFYPPageIndex] = useState<{
-        p: number;  // Page index
-        t: number;  // Item index
-    } | null>(null);
+
+    /*
+     * The recaps already put away on this device, by id, and when.
+     *
+     * The poll below opens the drawer over the whole interface for any recap
+     * the server still calls unseen, and the close button is the only way out
+     * of it - so when the "seen" mark that button sends did not land, closing a
+     * recap bought thirty seconds before it reopened, and a new daily recap
+     * every morning meant it was there at every launch. This is what makes
+     * closing one stick, whatever became of the mark.
+     *
+     * A ref rather than state: the poll runs from an interval set up once, and
+     * a dismissal has to be visible to it without restarting it.
+     */
+    const dismissedRecaps = useRef<RecapDismissals>({});
+
+    /*
+     * Whether the drawer is up, where the poll can read it. The interval closes
+     * over the first render's values, so the state itself always looks false
+     * from in there.
+     */
+    const recapDrawerVisibleRef = useRef<boolean>(false);
 
     // Lazy loading: how many history items to show at first
     const ITEMS_PER_BATCH = 25;
@@ -122,16 +133,6 @@ export default React.memo(function UIApp({
     // list and refilling it. This collapses a burst into one check.
     const resumeCheckInFlight = useRef<boolean>(false);
 
-    // Mirrors livePlaybackStates for the socket callbacks and the resume check,
-    // which need to know whether anything is currently on screen without being
-    // re-created (and re-subscribed) every time the list changes.
-    const livePlaybackStatesRef = useRef<UpdateEvent[]>([]);
-
-    useEffect(() => {
-        livePlaybackStatesRef.current = livePlaybackStates;
-    }, [livePlaybackStates]);
-
-    const { isOpen: isReactionDrawerVisible, onOpen: openReactionDrawer, onClose: closeReactionDrawer } = useDisclosure();
     const { isOpen: isRecapDrawerVisible, onOpen: openRecapDrawer, onClose: closeRecapDrawer } = useDisclosure();
 
     const setStatusBarColour = (colour: string) => {
@@ -177,19 +178,50 @@ export default React.memo(function UIApp({
     //     });
     // };
 
+    /** Whether this device has already put this recap away. */
+    const isRecapDismissed = (recap: Recap | null) => !!recap && !!dismissedRecaps.current[recap.id];
+
+    /**
+     * Remember that these recaps have been put away.
+     *
+     * Written through to storage, so a dismissal survives the reload that a
+     * rate-limited request used to force, and the next launch.
+     */
+    const rememberRecapsDismissed = useCallback((recapIds: string[]) => {
+        dismissedRecaps.current = withRecapsDismissed(dismissedRecaps.current, recapIds);
+
+        writeRecapDismissals(dismissedRecaps.current);
+    }, []);
+
+    // Read before the poll below is set up, which is why it is declared here:
+    // effects run in the order they are written.
+    useEffect(() => {
+        dismissedRecaps.current = readRecapDismissals();
+    }, []);
+
     const fetchRecaps = async () => {
         try {
             const recaps = await user.getRecaps();
 
-            console.log(dailyRecap?.id, recaps.daily?.id, isRecapDrawerVisible);
+            const daily = isRecapDismissed(recaps.daily) ? null : recaps.daily;
+            const weekly = isRecapDismissed(recaps.weekly) ? null : recaps.weekly;
 
-            if (dailyRecap?.id !== recaps.daily?.id)
-                setDailyRecap(recaps.daily);
+            /*
+             * While the drawer is open, what it is showing is the truth. A poll
+             * landing mid-read could otherwise empty it underneath the reader,
+             * and a recap opened deliberately from the profile - which is
+             * allowed to be one already put away - would be taken straight
+             * back off the screen.
+             */
+            if (recapDrawerVisibleRef.current)
+                return;
 
-            if (weeklyRecap?.id !== recaps.weekly?.id)
-                setWeeklyRecap(recaps.weekly);
+            // Compared by id inside the setter: the interval's copy of this
+            // function only ever sees the state as it was when it was made.
+            setDailyRecap(prev => prev?.id === daily?.id ? prev : daily);
+            setWeeklyRecap(prev => prev?.id === weekly?.id ? prev : weekly);
 
-            if (!isRecapDrawerVisible && (recaps.daily || recaps.weekly))
+            if (daily || weekly)
                 openRecapDrawer();
         } catch (ex) {
             console.error("Failed to fetch latest user recaps, error:", ex);
@@ -198,14 +230,15 @@ export default React.memo(function UIApp({
 
     useEffect(() => {
         prouter.on("set-main-page", (p: string) => {
-            // No hardcoded previous page: "activity" is hidden, and recording it
-            // meant the back control tried to return to a page that no longer
-            // exists
-            pageChanger(p);
+            // For You is part of Discover now, and a notice written before
+            // that can still name it
+            pageChanger(p === "activity" ? "discover" : p);
         });
 
         if (user.isLoggedIn) {
-            // Refresh every 30 sec
+            // Once now, then every 30 sec. The first fetch used to wait for For
+            // You's live list to fill, which went with it.
+            fetchRecaps();
             const intervalId = setInterval(fetchRecaps, 30e3);
 
             return () => clearInterval(intervalId);
@@ -213,6 +246,8 @@ export default React.memo(function UIApp({
     }, [user.isLoggedIn]);
 
     useEffect(() => {
+        recapDrawerVisibleRef.current = isRecapDrawerVisible;
+
         if (!isRecapDrawerVisible) {
             setDailyRecap(null);
             setWeeklyRecap(null);
@@ -270,10 +305,7 @@ export default React.memo(function UIApp({
 
     useEffect(() => {
         // Extra actions to perform when page switched
-        if (currentPage == "activity") {
-            // Refresh friends listenership history data
-            // updateFriendsListenershipHistory();
-        } else if (currentPage == "friends") {
+        if (currentPage == "friends") {
             user.refreshDetails()
             .then(() => {
                 setFriends(user.friends);
@@ -288,97 +320,11 @@ export default React.memo(function UIApp({
 
         setStreamer(newStreamer);
 
-        newStreamer.on("construct", () => {
-            // Only hide while there is nothing worth looking at. On a reconnect
-            // the previous states stay on screen until "open" replaces them,
-            // rather than collapsing to placeholders and popping back.
-            if (livePlaybackStatesRef.current.length === 0)
-                setShowLivePlaybackStates(false);
-            
-            newStreamer.fetchFriendsStreams()
-            .then(s => {
-                if (s.includes(user.id))
-                    s.splice(s.indexOf(user.id), 1);
-                
-                setLivePlaybackStatesPlaceholderCount(s.length);
-            });
-        });
-
         newStreamer.on("handshake", () => {
-            setActivityPageLoading(false);
-
             console.log("Load complete, took", Date.now() - lstart, "ms");
         });
 
-        newStreamer.on("open", async () => {
-            const states = await newStreamer.queryRemoteLastStates();
-
-            // Convert the last states into update events
-            const updates = states.map(v => {
-                if (!v)
-                    return null;
-
-                // Ignore if last state was longer than the duration of the song ago
-                if (Date.now() >= v.updatedAt + v.timeRemaining - 2500)
-                    return null;
-
-                const converted: UpdateEvent = {
-                    userId: v.userId,
-                    data: {
-                        state: v,
-                        action: {
-                            type: v.isPlaying ? "PLAYING" : "PAUSED",
-                            songId: v.songId
-                        },
-                        interpolatedProgress: v.progressNormal
-                    }
-                };
-
-                return converted;
-            }).filter(v => v !== null) as UpdateEvent[];
-
-            setLivePlaybackStatesPlaceholderCount(updates.filter(v => v.userId !== user.id).length);
-            setLivePlaybackStates(updates);
-        });
-
-        newStreamer.on("update", (data: UpdateEvent) => {
-            updateMutex.runExclusive(() => {
-                // console.log(data)
-                setLivePlaybackStates((v) => {
-                    const existing = v.find((a) => a.userId === data.userId);
-                    if (existing && data.data.action.type == "STOPPED") {
-                        return v.filter((a) => a.userId !== data.userId);
-                    } else if (!existing && data.data.action.type !== "STOPPED") {
-                        return [...v, data].sort((a, b) => {
-                            return (a.data.state?.username ?? "").localeCompare(
-                                b.data.state?.username ?? ""
-                            );
-                        });
-                    }
-                    return v;
-                });
-            });
-        });
-
-        newStreamer.on("remove", (userId) => {
-            updateMutex.runExclusive(() => {
-                setLivePlaybackStates((v) => {
-                    return v.filter((a) => a.userId !== userId);
-                });
-            });
-        });
-
-        newStreamer.on("close", () => {
-            // Connection lost, display loading screen and trust the connection strategy will reconnect
-            setActivityPageLoading(true);
-        });
-
         newStreamer.init();
-
-        setCurrentFYPPageIndex({
-            p: 1,
-            t: 0,
-        });
 
         // Fetch friends listenership history
         // updateFriendsListenershipHistory();
@@ -389,27 +335,6 @@ export default React.memo(function UIApp({
             newStreamer.cleanup();
         };
     }, [user.isLoggedIn]);
-
-    useEffect(() => {
-        if (!currentFYPPageIndex)
-            return;
-
-        // Fetch FYP
-        user.getMyFYP(currentFYPPageIndex.p, currentPage == "activity" ? "activity" : "discover")
-        .then(data => {
-            setDiscoveryData(prev => {
-                if (currentFYPPageIndex.t == -999)
-                    return data;
-
-                console.log(data)
-
-                return [...(prev.slice(currentFYPPageIndex.t + 1, prev.length)), ...(data ?? [])];
-            });
-        })
-        .catch(ex => {
-            console.error("Failed to fetch user FYP, error:", ex);
-        });
-    }, [currentFYPPageIndex]);
 
     useEffect(() => {
         const handleFocus = async () => {
@@ -452,12 +377,6 @@ export default React.memo(function UIApp({
             // A socket still negotiating is not a dead socket: tearing it down
             // restarts the very connection it was about to complete.
             if (streamer && !streamer.isReady() && !streamer.isConnecting()) {
-                // The list is deliberately left alone. Reconnecting replaces it
-                // wholesale on "open", so clearing it here only guarantees a gap
-                // where the activity page shows nothing at all.
-                if (livePlaybackStatesRef.current.length === 0)
-                    setActivityPageLoading(true);
-
                 setStreamerReset(true);
             }
             // Pass the current friendsListenershipPage explicitly
@@ -487,19 +406,6 @@ export default React.memo(function UIApp({
     }, [streamer]);
 
     useEffect(() => {
-        console.log("uifsc", livePlaybackStates, livePlaybackStatesPlaceholderCount);
-        if (
-            livePlaybackStates.filter(v => v.userId !== user.id).length === livePlaybackStatesPlaceholderCount &&
-            !showLivePlaybackStates
-        ) {
-            setTimeout(() => {
-                setShowLivePlaybackStates(true);
-            }, 120);
-            fetchRecaps();
-        }
-    }, [livePlaybackStates, livePlaybackStatesPlaceholderCount, showLivePlaybackStates]);
-
-    useEffect(() => {
         // Gated on an empty list until now, which only ever held while the resume
         // handler was blanking it. init() runs its own cleanup, so calling
         // cleanup() here as well tore the socket down twice per reconnect.
@@ -518,17 +424,10 @@ export default React.memo(function UIApp({
             indexed: true,
         },
         {
-            // Back now that its taste picks come from the song model, which
-            // describes every song anybody here plays.
+            // Discover and For You as one page: picks from your taste, and what
+            // your friends are playing. See discover-page.tsx.
             name: "Discover",
             id: "discover",
-            indexed: true,
-        },
-        {
-            // Friends' activity with a few recommendations mixed in. Hidden with
-            // Discover because it needed the same taste picks, and back with it.
-            name: "For You",
-            id: "activity",
             indexed: true,
         },
         {
@@ -604,29 +503,12 @@ export default React.memo(function UIApp({
         if (id !== "settings" && id !== "pub-profile")
             setHideTopGradient(false);
 
-        if (id == "activity" || id == "discover") {
-            setDiscoveryData([{
-                data: {
-                    id: "loading",
-                    alertType: "ContentLoading",
-                    content: "",
-                } as FeedItemAlert,
-                type: "alert",
-            }]);
-            setCurrentFYPPageIndex({
-                p: 1,
-                t: -999,
-            });
-        } else if (id !== "activity") {
-            closeReactionDrawer();
-        }
-
         setStatusBarColour("#0d0d0e");
         setComplementaryColour("#e9e7fb");
         setCurrentPage(id);
         setCurrentPageTitle(title);
         setPrevPage(prevPage ?? "");
-    }, [closeReactionDrawer]);
+    }, []);
 
     /*
      * The title used to open a page switcher. Getting around is the action
@@ -646,6 +528,7 @@ export default React.memo(function UIApp({
                 daily={dailyRecap}
                 weekly={weeklyRecap}
                 user={user}
+                onDismissed={rememberRecapsDismissed}
             />
             <Box
                 position="fixed"
@@ -678,9 +561,9 @@ export default React.memo(function UIApp({
                     paddingTop="20px"
                     paddingLeft="20px"
                     paddingRight="20px"
-                    opacity={(dailyRecap || weeklyRecap || (currentPage == "activity" && activityPageLoading)) ? 0 : 1}
+                    opacity={(dailyRecap || weeklyRecap) ? 0 : 1}
                 >
-                    <Box position="fixed" overflow="hidden" zIndex={(isReactionDrawerVisible || isRecapDrawerVisible) ? "999" : "999999999"} top="env(safe-area-inset-top)">
+                    <Box position="fixed" overflow="hidden" zIndex={isRecapDrawerVisible ? "999" : "999999999"} top="env(safe-area-inset-top)">
                         {/*
                           * Just the title. It used to open a page switcher, then
                           * to carry the way back from a sub-page; the button at
@@ -805,86 +688,18 @@ export default React.memo(function UIApp({
                     top="0"
                     left="0"
                 >
-                    {currentPage == "activity" && (
-                        <>
-                            <Suspense fallback={<SuspenseSpinner />}>
-                                <ReactionDrawer isOpen={isReactionDrawerVisible} open={openReactionDrawer} close={closeReactionDrawer} item={reactionDrawerItem} />
-                            </Suspense>
-                            {activityPageLoading ? (
-                                <Center pos="absolute" width="100vw" height="100vh" top="0" left="0">
-                                    <FullLoader />
-                                </Center>
-                            ) : (<Box paddingLeft="20px" paddingRight="20px">
-                                <MusicDiscoveryFeed
-                                    user={user}
-                                    type="activity"
-                                    key={"activity-feed"}
-                                    feed={discoveryData}
-                                    streamer={streamer}
-                                    livePlaybackStatesPlaceholderCount={livePlaybackStatesPlaceholderCount}
-                                    livePlaybackStates={livePlaybackStates}
-                                    showLivePlaybackStates={showLivePlaybackStates}
-                                    openReactionDrawer={openReactionDrawer}
-                                    setPubProfileUserId={setPubProfileUserId}
-                                    setReactionDrawerItem={setReactionDrawerItem}
-                                    pageChanger={pageChanger}
-                                    loadMore={(index: number) => {
-                                        setCurrentFYPPageIndex(prev => {
-                                            return {
-                                                p: !prev?.p ? 1 : prev.p + 1,
-                                                t: index,
-                                            }
-                                        });
-                                    }}
-                                />
-                            </Box>)}
-                        </>
-                    )}
-
                     {currentPage == "discover" && (
-                        <>
-                            {discoveryData.length == 0 ? (
-                                <Text
-                                    position="absolute"
-                                    top="0"
-                                    left="0"
-                                    justifyContent="center"
-                                    alignItems="center"
-                                    display="flex"
-                                    height="calc(100vh - 72px)"
-                                    width="100vw"
-                                    color="text.dark"
-                                    margin="auto"
-                                    textAlign="center"
-                                    fontFamily="Inter"
-                                    fontSize="16px"
-                                    fontWeight="regular"
-                                    zIndex="1"
-                                >
-                                    Tempo is learning your music taste.
-                                    <br />
-                                    We'll let you know when Discover is ready!
-                                </Text>
-                            ) : (
-                                <Suspense fallback={<SuspenseSpinner />}>
-                                    <MusicDiscoveryFeed
-                                        user={user}
-                                        type="discover"
-                                        key={"discover-feed"}
-                                        streamer={streamer}
-                                        feed={discoveryData}
-                                        loadMore={(index: number) => {
-                                            setCurrentFYPPageIndex(prev => {
-                                                return {
-                                                    p: !prev?.p ? 1 : prev.p + 1,
-                                                    t: index,
-                                                }
-                                            });
-                                        }}
-                                    />
-                                </Suspense>
-                            )}
-                        </>
+                        <Suspense fallback={<SuspenseSpinner />}>
+                            <DiscoverPage
+                                user={user}
+                                onPaletteChange={setPagePalette}
+                                setComplementaryColour={setComplementaryColour}
+                                openProfile={(userId: string) => {
+                                    setPubProfileUserId(userId);
+                                    pageChanger("pub-profile", "discover");
+                                }}
+                            />
+                        </Suspense>
                     )}
 
                     {/* Playlists page */}

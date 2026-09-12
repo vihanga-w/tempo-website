@@ -142,7 +142,28 @@ const BLOBS = [
     { size: 74, left: 82, top: 76, animation: turn, duration: 22 },
 ];
 
-export function ArtworkWash({ src, palette, still }: Readonly<{ src: string; palette: string[]; still?: boolean }>) {
+/**
+ * How much of the wash to draw.
+ *
+ * "full" is the wash as the profile page lays it. "quiet" is for a device that
+ * cannot afford it — iOS halves the frame budget in Low Power Mode, and a
+ * drifting 46px blur has to be redrawn every frame it moves. It keeps the
+ * shape and the colour and gives up the parts that only cost: half the copies,
+ * a smaller blur, no grain, and nothing moving.
+ */
+export type WashDetail = "full" | "quiet";
+
+export function ArtworkWash({ src, palette, still, detail = "full" }: Readonly<{
+    src: string;
+    palette: string[];
+    still?: boolean;
+    detail?: WashDetail;
+}>) {
+    const quiet = detail === "quiet";
+    const layers = (quiet ? LAYERS.filter((_, i) => i % 2 === 0) : LAYERS);
+    const blobs = (quiet ? palette.slice(0, 2) : palette);
+    const frozen = (still || quiet);
+
     return (
         <Box
             position="absolute"
@@ -163,14 +184,14 @@ export function ArtworkWash({ src, palette, still }: Readonly<{ src: string; pal
                 position="absolute"
                 inset="0"
                 sx={{
-                    filter: "blur(46px) saturate(1.85)",
+                    filter: `blur(${quiet ? 30 : 46}px) saturate(1.85)`,
                     // The blur eats into the edges, so the group is scaled past
                     // them — otherwise the wash has visibly soft corners where it
                     // should run off the side of the page
                     transform: "scale(1.35)",
                 }}
             >
-                {palette.map((colour, index) => {
+                {blobs.map((colour, index) => {
                     const blob = BLOBS[index % BLOBS.length];
 
                     return (
@@ -184,16 +205,15 @@ export function ArtworkWash({ src, palette, still }: Readonly<{ src: string; pal
                                 aspectRatio: "1",
                                 translate: "-50% -50%",
                                 background: `radial-gradient(circle closest-side, ${colour} 0%, ${colour}00 72%)`,
-                                animation: `${blob.animation} ${blob.duration}s linear infinite`,
-                                animationPlayState: (still ? "paused" : "running"),
-                                willChange: "transform",
+                                animation: (frozen ? "none" : `${blob.animation} ${blob.duration}s linear infinite`),
+                                willChange: (frozen ? "auto" : "transform"),
                                 "@media (prefers-reduced-motion: reduce)": { animation: "none" },
                             }}
                         />
                     );
                 })}
 
-                {LAYERS.map(layer => (
+                {layers.map(layer => (
                     <Box
                         key={layer.size}
                         position="absolute"
@@ -220,9 +240,8 @@ export function ArtworkWash({ src, palette, still }: Readonly<{ src: string; pal
                         backgroundSize="cover"
                         backgroundPosition="center"
                         sx={{
-                            animation: `${layer.animation} ${layer.duration}s linear infinite`,
-                            animationPlayState: (still ? "paused" : "running"),
-                            willChange: "transform",
+                            animation: (frozen ? "none" : `${layer.animation} ${layer.duration}s linear infinite`),
+                            willChange: (frozen ? "auto" : "transform"),
                             "@media (prefers-reduced-motion: reduce)": {
                                 animation: "none",
                             },
@@ -236,7 +255,7 @@ export function ArtworkWash({ src, palette, still }: Readonly<{ src: string; pal
               * shorthands against the theme on the way through, and a data URI
               * this long comes out the other side as nothing at all.
               */}
-            <Box
+            {!quiet && <Box
                 position="absolute"
                 inset="0"
                 pointerEvents="none"
@@ -248,7 +267,7 @@ export function ArtworkWash({ src, palette, still }: Readonly<{ src: string; pal
                     mixBlendMode: "overlay",
                     opacity: 0.38,
                 }}
-            />
+            />}
         </Box>
     );
 }

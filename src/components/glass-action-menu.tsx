@@ -2,7 +2,7 @@
 
 import { Box, Center, HStack, Text, type BoxProps } from "@chakra-ui/react";
 import { AnimatePresence, motion, type TargetAndTransition } from "framer-motion";
-import { CircleUser, Compass, Globe, Plus, Sparkles, Trophy, UserPlus, Users, type LucideIcon } from "lucide-react";
+import { CircleUser, Compass, Globe, Plus, Trophy, UserPlus, Users, type LucideIcon } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { GLASS_TRANSITION, glassPress, glassSurface } from "@/lib/liquid-glass";
 import { GlassHalo } from "./glass-halo";
@@ -57,7 +57,6 @@ export const ACTION_MENU_ITEMS: ActionMenuItem[] = [
     // New Playlist and Playlists are left out until playlists work
     { id: "friends", label: "Friends", icon: Users, kind: "page" },
     { id: "discover", label: "Discover", icon: Compass, kind: "page" },
-    { id: "activity", label: "For You", icon: Sparkles, kind: "page" },
     { id: "leaderboard", label: "Leaderboard", icon: Trophy, kind: "page" },
     { id: "passport", label: "Passport", icon: Globe, kind: "page" },
     { id: "settings", label: "Profile", icon: CircleUser, kind: "page" },
