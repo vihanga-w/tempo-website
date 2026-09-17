@@ -515,22 +515,30 @@ export async function continueInWebView(url: string, onNeedsOwnApp?: () => void)
         return;
 
     if (active.kind === "silent") {
-        // Grown from its pixel to the whole screen: whatever comes next -
-        // a consent screen, most likely - is for the person to see
+        /*
+         * A webview of its own for what comes next - a consent screen, most
+         * likely - rather than the probe's pixel grown to the screen. Growing
+         * it resized the plugin's container but not reliably the web view
+         * inside, which went on drawing in a band at the top with black over
+         * the rest: Spotify's logo showed, the "Agree" button never did, and
+         * there was no way on. The probe's login carries over, since the
+         * plugin keeps every webview's cookies in the one shared store.
+         */
         try {
-            await InAppBrowser.updateDimensions({
-                width: Math.round(window.innerWidth),
-                height: Math.round(window.innerHeight),
-                x: 0,
-                y: 0,
+            await InAppBrowser.close();
+        } catch { }
+
+        watchForReturn((onUrl) => {
+            InAppBrowser.addListener("urlChangeEvent", (state) => onUrl(state.url))
+                .catch(() => { });
+        }, onNeedsOwnApp);
+
+        try {
+            await InAppBrowser.openWebView({
+                url,
+                title: "Spotify",
+                isInspectable: true,
             });
-
-            watchForReturn((onUrl) => {
-                InAppBrowser.addListener("urlChangeEvent", (state) => onUrl(state.url))
-                    .catch(() => { });
-            }, onNeedsOwnApp);
-
-            await InAppBrowser.setUrl({ url });
         } catch { }
 
         return;
