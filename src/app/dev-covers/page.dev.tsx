@@ -235,7 +235,7 @@ function Fan({ p, palette }: { p: Sample; palette: string[] }) {
             <rect width={S} height={S} fill="url(#washB)" opacity="0.25" />
             <rect width={S} height={S} fill="url(#washC)" opacity="0.3" />
             <rect width={S} height={S} fill="url(#fade)" />
-            {cards.map((s, i) => {
+            {[...cards.entries()].reverse().map(([i, s]) => {
                 const offset = i - (cards.length - 1) / 2;
 
                 return (
