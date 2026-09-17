@@ -112,7 +112,8 @@ export function PlaylistCover({
             <rect width={S} height={S} fill={`url(#${u("wb")})`} opacity="0.25" />
             <rect width={S} height={S} fill={`url(#${u("wc")})`} opacity="0.3" />
             <rect width={S} height={S} fill={`url(#${u("fade")})`} />
-            {cards.map((song, i) => {
+            {/* Drawn back to front, so the first song's cover is the one in front */}
+            {[...cards.entries()].reverse().map(([i, song]) => {
                 const offset = i - (cards.length - 1) / 2;
 
                 return (
