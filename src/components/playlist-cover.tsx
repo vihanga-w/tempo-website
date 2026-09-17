@@ -152,6 +152,37 @@ export function PlaylistCover({
     );
 }
 
+/**
+ * The fan alone, small: a playlist's first three covers as the list shows
+ * them, with no words, since at this size the words are the row's.
+ */
+export function FanThumb({ artwork, id, size = "84px" }: Readonly<{ artwork: readonly string[]; id: string; size?: string }>) {
+    const cards = artwork.slice(0, 3);
+    const card = cards.length === 1 ? 420 : 380;
+    const spread = cards.length === 1 ? 0 : cards.length === 2 ? 44 : 64;
+    const tilt = cards.length === 1 ? 0 : cards.length === 2 ? 9 : 14;
+    const u = (name: string) => `${name}-thumb-${id}`;
+
+    return (
+        <svg viewBox={`0 0 ${S} ${S}`} width={size} height={size} style={{ display: "block", borderRadius: 12, background: "#1c1b20", flexShrink: 0 }} aria-hidden>
+            <defs>
+                {cards.map((_, i) => <clipPath key={i} id={u(`card${i}`)}><rect width={card} height={card} rx="22" /></clipPath>)}
+            </defs>
+            {cards.length === 0 && <image href="/icon.png" x={S / 2 - 120} y={S / 2 - 120} width="240" height="240" opacity="0.9" />}
+            {[...cards.entries()].reverse().map(([i, src]) => {
+                const offset = i - (cards.length - 1) / 2;
+
+                return (
+                    <g key={i} transform={`translate(${S / 2 + offset * spread} ${S / 2}) rotate(${offset * tilt}) translate(${-card / 2} ${-card / 2})`}>
+                        <rect x="-8" y="-8" width={card + 16} height={card + 16} rx="28" fill={PAGE_BG} opacity="0.7" />
+                        <image href={getSizedImageUrl(src, 160, 160)} width={card} height={card} preserveAspectRatio="xMidYMid slice" clipPath={`url(#${u(`card${i}`)})`} />
+                    </g>
+                );
+            })}
+        </svg>
+    );
+}
+
 /* ------------------------------------------------------------------ colour */
 
 export interface PlaylistColour {

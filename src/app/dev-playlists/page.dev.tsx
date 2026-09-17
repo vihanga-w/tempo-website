@@ -80,11 +80,15 @@ function Bench() {
         const kept = new Map<string, Playlist>();
 
         if (state !== "empty") {
+            kept.set("cccccccccccccccc", { id: "cccccccccccccccc", name: "Liked in Discover", recipe: "liked", createdAt: now - 9 * DAY, updatedAt: now - 3 * DAY, songs: songsFor("liked", now), spotify: { id: "sp2", url: "https://open.spotify.com/playlist/sp2", syncedAt: now - 3 * DAY } });
             kept.set("aaaaaaaaaaaaaaaa", { id: "aaaaaaaaaaaaaaaa", name: "Sunday morning", recipe: "mix", createdAt: now - 3 * DAY, updatedAt: now - 2 * HOUR, songs: songsFor("mix", now) });
             kept.set("bbbbbbbbbbbbbbbb", { id: "bbbbbbbbbbbbbbbb", name: "On repeat with friends", recipe: "friends", createdAt: now - 6 * DAY, updatedAt: now - DAY, songs: songsFor("friends", now), spotify: { id: "sp", url: "https://open.spotify.com/playlist/sp", syncedAt: now - DAY } });
         }
 
-        const summary = (v: Playlist): PlaylistSummary => ({ id: v.id, name: v.name, recipe: v.recipe, createdAt: v.createdAt, updatedAt: v.updatedAt, songCount: v.songs.length, spotify: v.spotify });
+        const summary = (v: Playlist): PlaylistSummary => ({
+            id: v.id, name: v.name, recipe: v.recipe, createdAt: v.createdAt, updatedAt: v.updatedAt, songCount: v.songs.length, spotify: v.spotify,
+            artwork: v.songs.slice(0, 3).map(s => s.imageUrl), durationMs: v.songs.reduce((sum, s) => sum + (s.duration ?? 0), 0),
+        });
         const need = (id: string) => {
             const found = kept.get(id);
 

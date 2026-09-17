@@ -10,7 +10,7 @@ import { PlaylistNeedsSignInError, describeError, recipeNamed, refreshLine, song
 import { feedback, feelPattern } from "@/lib/native-haptics";
 import { describeWhen } from "./friend-recent-activity-row";
 import { ArtworkWash } from "./artwork-wash";
-import { PlaylistCover, coverFriends, runningTime, tintHex, usePlaylistColour, type CoverFriend } from "./playlist-cover";
+import { FanThumb, PlaylistCover, coverFriends, runningTime, tintHex, usePlaylistColour, type CoverFriend } from "./playlist-cover";
 import { GLASS_TRANSITION, glassPress, glassSurface } from "@/lib/liquid-glass";
 import { getSizedImageUrl } from "@/lib/sized-img";
 import { getSpotifyPlaylistDeeplink } from "./playback-state";
@@ -281,45 +281,63 @@ function PlaylistList({
         <Stack gap="10px" paddingTop="6px">
             <SectionLabel>Your playlists</SectionLabel>
             {note && <Note>{note}</Note>}
-            {lists.map(list => {
-                const recipe = recipeNamed(list.recipe);
-
-                return (
-                    <HStack
-                        key={list.id}
-                        as="button"
-                        aria-label={`Open ${list.name}`}
-                        onClick={() => onOpen(list.id)}
-                        textAlign="left"
-                        gap="12px"
-                        alignItems="center"
-                        padding="14px 16px"
-                        borderRadius="16px"
-                        background={SURFACE_HI}
-                        opacity={opening && opening !== list.id ? 0.6 : 1}
-                        transition="opacity .2s"
-                        _active={{ opacity: 0.7 }}
-                    >
-                        <Stack gap="3px" flex="1" minWidth="0">
-                            <Text fontFamily="Inter" fontWeight="800" fontSize="18px" letterSpacing="-0.02em" color={INK} noOfLines={1}>
-                                {list.name}
-                            </Text>
-                            <Text fontSize="13px" color={INK_DIM} noOfLines={1}>
-                                {recipe.name} · {songCount(list.songCount)} · {describeWhen(list.updatedAt, now)}
-                            </Text>
-                            {list.spotify && (
-                                <Text fontFamily="Inter" fontWeight="600" fontSize="12px" color={ACCENT}>
-                                    Saved in Spotify
-                                </Text>
-                            )}
-                        </Stack>
-                        <Box color={INK_FAINT} flexShrink={0}>
-                            <ChevronRight size={20} />
-                        </Box>
-                    </HStack>
-                );
-            })}
+            {lists.map(list => (
+                <PlaylistRow key={list.id} list={list} now={now} dimmed={opening !== null && opening !== list.id} onOpen={onOpen} />
+            ))}
         </Stack>
+    );
+}
+
+/**
+ * One playlist in the list: its fan, small, on a card tinted from its first
+ * cover — the same colour its page will open in — with its name, what it is
+ * made of, how long it runs and where it lives.
+ */
+function PlaylistRow({
+    list,
+    now,
+    dimmed,
+    onOpen,
+}: Readonly<{ list: PlaylistSummary; now: number; dimmed: boolean; onOpen: (id: string) => void }>) {
+    const recipe = recipeNamed(list.recipe);
+    const artwork = list.artwork ?? [];
+    const colour = usePlaylistColour(artwork[0] ? getSizedImageUrl(artwork[0], 300, 300) : undefined);
+    const runs = list.durationMs ? ` · ${runningTime(list.durationMs)}` : "";
+    // A playlist named after its recipe does not need the recipe said twice
+    const madeOf = list.name.trim().toLowerCase() === recipe.name.toLowerCase() ? "" : `${recipe.name} · `;
+
+    return (
+        <HStack
+            as="button"
+            aria-label={`Open ${list.name}`}
+            onClick={() => { feedback("press"); onOpen(list.id); }}
+            textAlign="left"
+            gap="14px"
+            alignItems="center"
+            padding="12px"
+            borderRadius="18px"
+            background={colour.panel}
+            boxShadow="inset 0 1px 0 rgba(255,255,255,0.06)"
+            opacity={dimmed ? 0.6 : 1}
+            transition="opacity .2s, background-color .45s"
+            _active={{ opacity: 0.7 }}
+        >
+            <FanThumb artwork={artwork} id={list.id} />
+            <Stack gap="3px" flex="1" minWidth="0">
+                <Text fontFamily="Inter" fontWeight="800" fontSize="17px" letterSpacing="-0.02em" lineHeight="1.15" color={INK} noOfLines={2}>
+                    {list.name}
+                </Text>
+                <Text fontSize="13px" color={INK_DIM} noOfLines={1}>
+                    {madeOf}{songCount(list.songCount)}{runs}
+                </Text>
+                <Text fontFamily="Inter" fontWeight="600" fontSize="12px" color={colour.accentInk} noOfLines={1}>
+                    {list.spotify ? "Saved in Spotify" : "Not on Spotify yet"} · {describeWhen(list.updatedAt, now)}
+                </Text>
+            </Stack>
+            <Box color={INK_FAINT} flexShrink={0}>
+                <ChevronRight size={20} />
+            </Box>
+        </HStack>
     );
 }
 
