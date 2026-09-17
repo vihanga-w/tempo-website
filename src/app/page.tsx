@@ -48,6 +48,13 @@ export default function Home() {
   const [mobileOS, setMobileOS] = useState<"ios" | "android" | "generic">("generic");
   const [deferredPWAInstaller, setDeferredPWAInstaller] = useState<any>();
   const [page, setPage] = useState<JSX.Element>();
+  /**
+   * Whether a sign-in is in the person's hands: the native sheet is up, or
+   * about to be. The loading screen under it — the word Tempo, rewritten
+   * five times a second — read as the app being stuck while they were on
+   * Spotify's pages, so nothing is drawn until the sign-in has come back.
+   */
+  const [awaitingSignIn, setAwaitingSignIn] = useState<boolean>(false);
   const [perfMsg, setPerfMsg] = useState<string | undefined>();
   const [displayUI, setDisplayUI] = useState<boolean>(false);
 
@@ -520,6 +527,8 @@ export default function Home() {
 
           window.location.href = routed.url ?? (API_URL + "/auth/ui");
         } else {
+          setAwaitingSignIn(true);
+
           /*
            * Native: find out who they are before signing them in.
            *
@@ -967,6 +976,9 @@ export default function Home() {
     });
 
     const prepare = async (stok?: string) => {
+      // The sign-in is back with us: from here the loading screen is honest
+      setAwaitingSignIn(false);
+
       let storedToken = undefined;
 
       console.log("STOK:", stok);
@@ -1088,6 +1100,8 @@ export default function Home() {
           }}
           onCancel={() => setAppSetupRedirectUri(undefined)}
         />
+      ) : awaitingSignIn ? (
+        <Box background="#0D0D0E" height="100%" width="100%" />
       ) : !perfMsg ? page : (<>
           <Center background="#0D0D0E" padding="15%" pos="fixed" width="100vw" height="100vh" top="0" left="0">
             <Stack gap="15px">
