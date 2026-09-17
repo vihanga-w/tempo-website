@@ -1,14 +1,17 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Box, HStack, Skeleton, Stack, Text } from "@chakra-ui/react";
 import { ChevronRight } from "lucide-react";
 
 import type User from "@/lib/usrlib";
-import { PlaylistNeedsSignInError, recipeNamed, songCount, type Playlist, type PlaylistSummary } from "@/lib/playlists";
+import { PlaylistNeedsSignInError, describeError, recipeNamed, songCount, type Playlist, type PlaylistSummary } from "@/lib/playlists";
 import { feedback, feelPattern } from "@/lib/native-haptics";
 import { describeWhen } from "./friend-recent-activity-row";
 import {
-    ACCENT, BOTTOM_CLEAR, INK, INK_DIM, INK_FAINT, PAGE_BG, PageWords, PlaylistSongRow, SURFACE_HI, SectionLabel, TOP_CLEAR, TextAction,
+    ACCENT, BOTTOM_CLEAR, INK, INK_DIM, INK_FAINT, Note, PAGE_BG, PageWords, PlaylistSongRow, SURFACE_HI, SectionLabel, TOP_CLEAR, TextAction,
 } from "./playlist-song-row";
+
+/** The way back through sign-in, as Settings offers it: for a Spotify permission this account has not granted. */
+const signInAgain = () => { window.location.href = "/reauth"; };
 
 /**
  * Playlists: the ones Tempo has made for this listener, and what is in them.
@@ -34,20 +37,35 @@ export default function PlaylistsPage({
     openProfile?: (userId: string) => void;
 }>) {
     const [lists, setLists] = useState<PlaylistSummary[] | null>(null);
+    /** Whether the list could not be read at all, which is not the same as there being none. */
+    const [unread, setUnread] = useState(false);
     const [open, setOpen] = useState<Playlist | null>(null);
     const [opening, setOpening] = useState<string | null>(null);
     const [busy, setBusy] = useState<string | null>(null);
     const [note, setNote] = useState<string | null>(null);
+    /** The last refusal was for a Spotify permission only a sign-in can grant. */
+    const [needsSignIn, setNeedsSignIn] = useState(false);
     const [now, setNow] = useState(() => Date.now());
+    /**
+     * Which playlist the page is on, or null for the list, as of the last
+     * tap: so an answer that arrives after the reader has moved on — a slow
+     * refresh after they went back, the first of two quick taps on the list —
+     * is dropped rather than put in front of them.
+     */
+    const wanted = useRef<string | null>(null);
 
     const load = useCallback(async () => {
+        setUnread(false);
+        setNote(null);
+
         try {
             setLists(await user.getPlaylists());
             setNow(Date.now());
         } catch (ex) {
             console.warn("Could not read playlists:", ex);
-            setLists([]);
-            setNote(ex instanceof Error ? ex.message : "Could not read your playlists.");
+            setLists(null);
+            setUnread(true);
+            setNote(describeError(ex, "Could not read your playlists."));
         }
     }, [user]);
 
@@ -56,38 +74,61 @@ export default function PlaylistsPage({
     }, [load]);
 
     const show = useCallback(async (id: string) => {
+        wanted.current = id;
         setOpening(id);
         setNote(null);
 
         try {
-            setOpen(await user.getPlaylist(id));
+            const playlist = await user.getPlaylist(id);
+
+            if (wanted.current !== id)
+                return;
+
+            setOpen(playlist);
             setNow(Date.now());
         } catch (ex) {
-            setNote(ex instanceof Error ? ex.message : "Could not open that playlist.");
+            if (wanted.current === id)
+                setNote(describeError(ex, "Could not open that playlist."));
         } finally {
-            setOpening(null);
+            if (wanted.current === id)
+                setOpening(null);
         }
     }, [user]);
+
+    const back = useCallback(() => {
+        wanted.current = null;
+        setOpen(null);
+        setOpening(null);
+        setNote(null);
+        setNeedsSignIn(false);
+    }, []);
 
     /** Runs one change to the open playlist, keeping the list in step. */
     const change = useCallback(async (what: string, run: () => Promise<Playlist>, feel?: () => void) => {
         setBusy(what);
         setNote(null);
+        setNeedsSignIn(false);
 
         try {
             const changed = await run();
 
-            feel?.();
-            setOpen(changed);
-            setNow(Date.now());
+            // The list is kept right either way; the page only if they are still on it
             setLists(current => (current ?? []).map(v => (v.id === changed.id
                 ? { ...v, name: changed.name, updatedAt: changed.updatedAt, songCount: changed.songs.length, spotify: changed.spotify }
                 : v)));
+
+            if (wanted.current !== changed.id)
+                return;
+
+            feel?.();
+            setOpen(changed);
+            setNow(Date.now());
         } catch (ex) {
-            if (ex instanceof PlaylistNeedsSignInError)
-                setNote(ex.message);
-            else
-                setNote(ex instanceof Error ? ex.message : "That did not work. Try again in a moment.");
+            if (wanted.current === null)
+                return;
+
+            setNeedsSignIn(ex instanceof PlaylistNeedsSignInError);
+            setNote(describeError(ex, "That did not work. Try again in a moment."));
         } finally {
             setBusy(null);
         }
@@ -98,15 +139,18 @@ export default function PlaylistsPage({
             return;
 
         setBusy("delete");
+        setNote(null);
 
         try {
-            if (await user.deletePlaylist(open.id)) {
-                feelPattern("undone");
-                setLists(current => (current ?? []).filter(v => v.id !== open.id));
-                setOpen(null);
-            } else {
-                setNote("Could not delete that playlist.");
-            }
+            await user.deletePlaylist(open.id);
+            feelPattern("undone");
+            setLists(current => (current ?? []).filter(v => v.id !== open.id));
+
+            if (wanted.current === open.id)
+                back();
+        } catch (ex) {
+            if (wanted.current === open.id)
+                setNote(describeError(ex, "Could not delete that playlist."));
         } finally {
             setBusy(null);
         }
@@ -121,7 +165,8 @@ export default function PlaylistsPage({
                         now={now}
                         busy={busy}
                         note={note}
-                        onBack={() => { setOpen(null); setNote(null); }}
+                        needsSignIn={needsSignIn}
+                        onBack={back}
                         onRemoveSong={songId => change("remove", () => user.removeFromPlaylist(open.id, songId), () => feedback("tick"))}
                         onRefresh={() => change("refresh", () => user.refreshPlaylist(open.id), () => feedback("open"))}
                         onSend={() => change("spotify", () => user.sendPlaylistToSpotify(open.id), () => feelPattern("reward"))}
@@ -129,7 +174,7 @@ export default function PlaylistsPage({
                         openProfile={openProfile}
                     />
                 ) : (
-                    <PlaylistList lists={lists} now={now} opening={opening} note={note} onOpen={show} openCreate={openCreate} />
+                    <PlaylistList lists={lists} unread={unread} now={now} opening={opening} note={note} onOpen={show} onRetry={load} openCreate={openCreate} />
                 )}
             </Stack>
         </Box>
@@ -138,19 +183,34 @@ export default function PlaylistsPage({
 
 function PlaylistList({
     lists,
+    unread,
     now,
     opening,
     note,
     onOpen,
+    onRetry,
     openCreate,
 }: Readonly<{
     lists: PlaylistSummary[] | null;
+    unread: boolean;
     now: number;
     opening: string | null;
     note: string | null;
     onOpen: (id: string) => void;
+    onRetry: () => void;
     openCreate?: () => void;
 }>) {
+    // Could not ask, which is not the same as there being nothing there
+    if (unread)
+        return (
+            <Stack flex="1" justifyContent="center" gap="10px">
+                <PageWords title="Could not read your playlists">
+                    {note ?? "Something went wrong asking for them."}
+                </PageWords>
+                <TextAction label="Try again ›" onClick={onRetry} />
+            </Stack>
+        );
+
     if (lists === null)
         return <LoadingRows label="Loading playlists" />;
 
@@ -216,6 +276,7 @@ function OpenPlaylist({
     now,
     busy,
     note,
+    needsSignIn,
     onBack,
     onRemoveSong,
     onRefresh,
@@ -227,6 +288,7 @@ function OpenPlaylist({
     now: number;
     busy: string | null;
     note: string | null;
+    needsSignIn: boolean;
     onBack: () => void;
     onRemoveSong: (songId: string) => void;
     onRefresh: () => void;
@@ -257,7 +319,12 @@ function OpenPlaylist({
                 <TextAction label={busy === "refresh" ? "Refreshing…" : "Refresh"} onClick={onRefresh} disabled={busy !== null} tone="dim" />
             </HStack>
 
-            {note && <Note>{note}</Note>}
+            {note && (
+                <Stack gap="8px">
+                    <Note>{note}</Note>
+                    {needsSignIn && <TextAction label="Sign in again ›" onClick={signInAgain} />}
+                </Stack>
+            )}
 
             {playlist.songs.length === 0 ? (
                 <Text fontSize="15px" color={INK_DIM} maxWidth="36ch">
@@ -294,15 +361,7 @@ function OpenPlaylist({
     );
 }
 
-function Note({ children }: Readonly<{ children: string }>) {
-    return (
-        <Text role="status" fontSize="14px" color={ACCENT} maxWidth="40ch">
-            {children}
-        </Text>
-    );
-}
-
-export function LoadingRows({ label }: Readonly<{ label: string }>) {
+function LoadingRows({ label }: Readonly<{ label: string }>) {
     return (
         <Stack gap="10px" paddingTop="6px" aria-label={label}>
             <Skeleton height="14px" width="34%" borderRadius="6px" startColor={SURFACE_HI} endColor="#26252b" />

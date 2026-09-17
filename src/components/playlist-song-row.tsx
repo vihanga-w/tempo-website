@@ -132,6 +132,15 @@ export function PageWords({ title, children }: Readonly<{ title: string; childre
     );
 }
 
+/** A line about what just happened, or did not: the server's words, or the page's. */
+export function Note({ children }: Readonly<{ children: string }>) {
+    return (
+        <Text role="status" fontSize="14px" color={ACCENT} maxWidth="40ch">
+            {children}
+        </Text>
+    );
+}
+
 /** A quiet text action: an accent word with a chevron, as Discover offers "Back to the first". */
 export function TextAction({
     label,

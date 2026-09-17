@@ -573,6 +573,22 @@ export default function GlassActionMenu({
     wasOpen.current = open;
 
     /*
+     * Stops the last choice's dust. The dissolve draws on a canvas over the
+     * whole page for longer than the menu takes to close after it, so a menu
+     * reopened inside that window came up under dust still falling — and a
+     * second choice in the same window stacked a second canvas on the first.
+     * The rows it took apart are no longer a concern, being a past opening's
+     * now; the canvas is, and opening finishes it.
+     */
+    const undoFizzle = useRef<(() => void) | null>(null);
+
+    useEffect(() => {
+        if (!open || !undoFizzle.current) return;
+        undoFizzle.current();
+        undoFizzle.current = null;
+    }, [open]);
+
+    /*
      * A menu shut from outside while a choice is held has nothing left to hold
      * it on, so the choice goes with it rather than being stranded for the next
      * time the menu opens.
@@ -707,7 +723,7 @@ export default function GlassActionMenu({
         hold.current = setTimeout(() => {
             setChosen((c) => c && { ...c, dissolving: true });
             // This opening's row: the last close's may still be on its way out
-            fizzle(stack.current?.querySelector(`[data-menu-row="${item.id}"][data-menu-opening="${opening.current}"]`) ?? null);
+            undoFizzle.current = fizzle(stack.current?.querySelector(`[data-menu-row="${item.id}"][data-menu-opening="${opening.current}"]`) ?? null);
 
             hold.current = setTimeout(() => {
                 hold.current = null;
@@ -944,7 +960,14 @@ export default function GlassActionMenu({
                     )}
                 </AnimatePresence>
 
-                <AnimatePresence>
+                {/*
+                  * popLayout: a row on its way out is taken out of the column's
+                  * flow, held exactly where it was. Every opening has rows of
+                  * its own, so a reopen mid-close has two sets in the column
+                  * at once; in the flow, the old set was shoved up the screen
+                  * by the new one arriving under it, mid-fall.
+                  */}
+                <AnimatePresence mode="popLayout">
                     {open && items.map((item, i) => {
                         const Icon = item.icon;
 

@@ -407,13 +407,6 @@ export default class User extends EventEmitter {
         });
     }
 
-    public async renamePlaylist(id: string, name: string): Promise<Playlist> {
-        return this.playlistCall<Playlist>("/" + encodeURIComponent(id), {
-            method: "PATCH",
-            body: JSON.stringify({ name }),
-        });
-    }
-
     /** Take a song out. It stays out however many times the playlist is refreshed. */
     public async removeFromPlaylist(id: string, songId: string): Promise<Playlist> {
         return this.playlistCall<Playlist>("/" + encodeURIComponent(id), {
@@ -431,14 +424,8 @@ export default class User extends EventEmitter {
         return this.playlistCall<Playlist>("/" + encodeURIComponent(id) + "/spotify", { method: "POST" });
     }
 
-    public async deletePlaylist(id: string): Promise<boolean> {
-        const req = await fetchThroughRateLimit(API_URL + "/me/playlists/" + encodeURIComponent(id), {
-            method: "DELETE",
-            headers: { ...(this.getAuthHeaders()) },
-            credentials: "include",
-        });
-
-        return req.status == 200;
+    public async deletePlaylist(id: string): Promise<void> {
+        await this.playlistCall<{ deleted: string }>("/" + encodeURIComponent(id), { method: "DELETE" });
     }
     
     public async getRemoteUserPastWeekStats(userId: string, forceRefresh?: boolean) {

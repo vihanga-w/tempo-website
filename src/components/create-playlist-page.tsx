@@ -3,11 +3,11 @@ import { Box, HStack, Input, Skeleton, Stack, Text } from "@chakra-ui/react";
 import { ChevronRight } from "lucide-react";
 
 import type User from "@/lib/usrlib";
-import { RECIPES, recipeNamed, songCount, type PlaylistRecipe, type PlaylistSong } from "@/lib/playlists";
+import { RECIPES, describeError, recipeNamed, songCount, type PlaylistRecipe, type PlaylistSong } from "@/lib/playlists";
 import { feedback, feelPattern } from "@/lib/native-haptics";
 import {
-    ACCENT, BOTTOM_CLEAR, INK, INK_DIM, INK_FAINT, PAGE_BG, PageWords, PlaylistSongRow, PrimaryButton, SURFACE_HI, SectionLabel, TOP_CLEAR,
-    TextAction,
+    ACCENT, BOTTOM_CLEAR, INK, INK_DIM, INK_FAINT, Note, PAGE_BG, PageWords, PlaylistSongRow, PrimaryButton, SURFACE_HI, SectionLabel,
+    TOP_CLEAR, TextAction,
 } from "./playlist-song-row";
 
 /**
@@ -56,7 +56,7 @@ export default function CreatePlaylistPage({
                     return;
 
                 setPreview([]);
-                setNote(ex instanceof Error ? ex.message : "Could not build that playlist.");
+                setNote(describeError(ex, "Could not build that playlist."));
             });
 
         return () => { cancelled = true; };
@@ -75,7 +75,7 @@ export default function CreatePlaylistPage({
             feelPattern("reward");
             onCreated?.(made.id);
         } catch (ex) {
-            setNote(ex instanceof Error ? ex.message : "Could not make that playlist.");
+            setNote(describeError(ex, "Could not make that playlist."));
             setMaking(false);
         }
     }, [making, name, onCreated, recipe, user]);
@@ -171,11 +171,7 @@ export default function CreatePlaylistPage({
 
                                 <PrimaryButton label={making ? "Making it…" : `Make it · ${songCount(preview.length)}`} onClick={make} disabled={making} />
 
-                                {note && (
-                                    <Text role="status" fontSize="14px" color={ACCENT} maxWidth="40ch">
-                                        {note}
-                                    </Text>
-                                )}
+                                {note && <Note>{note}</Note>}
 
                                 <Stack gap="0" marginX="-4px" paddingX="4px">
                                     <SectionLabel>What goes in</SectionLabel>

@@ -67,7 +67,6 @@ function Bench() {
     const state = params.get("state");
     const page = params.get("page");
     const slow = params.get("slow") === "1";
-    const [glow] = useState<string[] | null>(null);
     const [view, setView] = useState<"playlists" | "create">(page === "create" ? "create" : "playlists");
 
     useEffect(() => {
@@ -143,7 +142,7 @@ function Bench() {
 
                 return changed;
             },
-            deletePlaylist: async (id: string) => { await wait(); return kept.delete(id); },
+            deletePlaylist: async (id: string) => { await wait(); if (!kept.delete(id)) throw new Error("No such playlist"); },
         } as unknown as User;
     }, [slow, state]);
 
@@ -155,7 +154,7 @@ function Bench() {
                 ) : (
                     <PlaylistsPage user={user} openCreate={() => setView("create")} openProfile={id => console.log("[bench] open profile", id)} />
                 )}
-                <BenchChrome title={view === "create" ? "Create Playlist" : "Playlists"} page={view === "create" ? "create-playlist" : "playlists"} glow={glow ?? undefined} />
+                <BenchChrome title={view === "create" ? "Create Playlist" : "Playlists"} page={view === "create" ? "create-playlist" : "playlists"} />
             </DarkMode>
         </ChakraProvider>
     );

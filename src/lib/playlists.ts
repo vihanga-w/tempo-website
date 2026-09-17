@@ -1,4 +1,5 @@
 import { describeWhen } from "@/components/friend-recent-activity-row";
+import { RateLimitedError } from "./rate-limit";
 
 /**
  * Playlists, as the server keeps them: made from what only Tempo knows, and
@@ -23,7 +24,9 @@ export type PlaylistReason =
     | { type: "liked"; at: number; strength: number }
     | { type: "friend"; userId: string; username: string; how: "repeat" | "through" | "played"; at: number; others: number }
     | { type: "returned"; days: number; lastAt: number }
-    | { type: "played"; plays: number; replays: number; lastAt: number };
+    | { type: "played"; plays: number; replays: number; lastAt: number }
+    /** A friend's reason the listener may no longer be shown: the friend has stopped sharing, or being one. */
+    | { type: "kept"; at: number };
 
 export interface PlaylistSong {
     id: string;
@@ -100,7 +103,27 @@ export function reasonLine(reason: PlaylistReason, now: number = Date.now()): st
 
             return `You played this ${times}${repeats} · ${describeWhen(reason.lastAt, now)}`;
         }
+
+        case "kept":
+            return `In this playlist · ${describeWhen(reason.at, now)}`;
     }
+}
+
+/**
+ * What went wrong, in a sentence the page can show.
+ *
+ * The rate limiter's error names the URL it was waiting on, which is for the
+ * log, not the screen; the server's messages and the sign-in refusal are
+ * written to be shown. Anything else gets the page's own fallback.
+ */
+export function describeError(ex: unknown, fallback: string): string {
+    if (ex instanceof RateLimitedError)
+        return "Tempo is busy just now. Try again in a moment.";
+
+    if (ex instanceof Error && ex.message)
+        return ex.message;
+
+    return fallback;
 }
 
 /** "12 songs", "1 song", "No songs". */

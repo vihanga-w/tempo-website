@@ -31,6 +31,12 @@ describe("the reason a song is there", () => {
     });
 });
 
+describe("a reason that can no longer be told", () => {
+    it("says only that the song is here, and since when", () => {
+        expect(reasonLine({ type: "kept", at: NOW - 3 * 24 * HOUR }, NOW)).toBe("In this playlist · 3d ago");
+    });
+});
+
 describe("the small words", () => {
     it("counts songs", () => {
         expect(songCount(0)).toBe("No songs");

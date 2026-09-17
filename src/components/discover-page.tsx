@@ -22,7 +22,7 @@ import {
     type DiscoverCard, type DiscoverFriend,
 } from "@/lib/discover-feed";
 import { readCoverTones, type CoverTones } from "@/lib/cover-tone";
-import { lastHashOf, preferencesStore, readCursor, searchPage, writeCursor, type CursorSearch } from "@/lib/discover-cursor";
+import { hashKey, preferencesStore, readCursor, searchPage, writeCursor, type CursorSearch } from "@/lib/discover-cursor";
 import { decideSwipe, ratingStrength } from "@/lib/swipe";
 import { feelPattern } from "@/lib/native-haptics";
 import { useCalm } from "@/lib/use-calm";
@@ -254,6 +254,8 @@ export default function DiscoverPage({
     const store = (fetchPage ? null : preferencesStore);
     /** The mark being looked for, with the pages held back until it is found. Null once it has been dealt with. */
     const seeking = useRef<CursorSearch | null>(null);
+    /** The furthest card the reader has got past this visit: the mark is written as they go. */
+    const furthest = useRef(0);
     /** Whether the mark has been read from the device yet, which happens once, on the first load. */
     const soughtMark = useRef(false);
 
@@ -288,12 +290,6 @@ export default function DiscoverPage({
                 const page = (await get(nextPage.current)) ?? [];
 
                 nextPage.current += 1;
-
-                // The mark moves with every fetch: this is how far the feed has been dealt
-                const mark = lastHashOf(page);
-
-                if (store && mark)
-                    writeCursor(mark, store);
 
                 /*
                  * Cut the page at the mark left last time. A page that ends
@@ -353,6 +349,7 @@ export default function DiscoverPage({
     const dealAgain = useCallback(() => {
         nextPage.current = 1;
         seeking.current = null;
+        furthest.current = 0;
         cardsRef.current = [];
         setCards([]);
         setIndex(0);
@@ -368,6 +365,26 @@ export default function DiscoverPage({
 
     // Never while anything is moving: the settle after a swipe gets the frames,
     // and the tick from coming to rest brings this straight back
+    /*
+     * The mark is where the reader has got to, written as they pass each
+     * card. It was once written by the fetch, as the last song of the last
+     * page fetched — but a page is fetched while the reader is still eight
+     * cards short of the one before it, so a mark left that way skipped up
+     * to a page of cards they had never seen. Only ever moved forward: a
+     * reader who goes back over cards has still dealt with them.
+     */
+    useEffect(() => {
+        if (!store || index <= furthest.current)
+            return;
+
+        furthest.current = index;
+
+        const passed = cards[index - 1];
+
+        if (passed?.kind === "song")
+            writeCursor(hashKey(passed.key), store);
+    }, [cards, index, store]);
+
     useEffect(() => {
         if (!ended && loadedOnce && !moving.current && cards.length - index < LOAD_WHEN_AHEAD_UNDER)
             load();

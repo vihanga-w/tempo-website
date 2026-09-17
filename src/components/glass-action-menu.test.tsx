@@ -440,6 +440,36 @@ describe("the dissolve at the end of the hold", () => {
         expect(second?.getAttribute("data-menu-opening")).not.toBe(first?.getAttribute("data-menu-opening"));
     });
 
+    it("stops the last choice's dust when the menu next opens", () => {
+        /*
+         * The dust outlives the close it was chosen on. Reopened inside that
+         * window, the menu came up under dust still falling, and a second
+         * choice stacked another canvas on the first — so opening finishes it.
+         */
+        const undo = vi.fn();
+        fizzle.mockReturnValueOnce(undo);
+
+        const props = { setOpen: vi.fn(), onNavigate: vi.fn(), currentPage: "leaderboard" };
+        const view = render(<GlassActionMenu open {...props} />);
+
+        fireEvent.pointerDown(screen.getByLabelText("Friends"));
+        fireEvent.pointerUp(screen.getByLabelText("Friends"));
+        vi.advanceTimersByTime(RELEASE_MS);
+
+        // Shut mid-dissolve: nothing is stopped until the menu is next opened
+        expect(undo).not.toHaveBeenCalled();
+        view.rerender(<GlassActionMenu open={false} {...props} />);
+        expect(undo).not.toHaveBeenCalled();
+
+        view.rerender(<GlassActionMenu open {...props} />);
+        expect(undo).toHaveBeenCalledTimes(1);
+
+        // Once is enough: the opening after that has nothing left to stop
+        view.rerender(<GlassActionMenu open={false} {...props} />);
+        view.rerender(<GlassActionMenu open {...props} />);
+        expect(undo).toHaveBeenCalledTimes(1);
+    });
+
     it("dissolves the row of this opening, not a leftover of the last", () => {
         const props = { setOpen: vi.fn(), onNavigate: vi.fn(), currentPage: "leaderboard" };
         const view = render(<GlassActionMenu open {...props} />);

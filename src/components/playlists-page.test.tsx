@@ -50,7 +50,7 @@ describe("the playlists page", () => {
             removeFromPlaylist: vi.fn().mockResolvedValue(playlist({ songs: playlist().songs.slice(1) })),
             refreshPlaylist: vi.fn().mockResolvedValue(playlist()),
             sendPlaylistToSpotify: vi.fn().mockResolvedValue(playlist({ spotify: { id: "sp", url: "https://open.spotify.com/playlist/sp", syncedAt: NOW } })),
-            deletePlaylist: vi.fn().mockResolvedValue(true),
+            deletePlaylist: vi.fn().mockResolvedValue(undefined),
             ...over,
         };
 
@@ -90,6 +90,62 @@ describe("the playlists page", () => {
         fireEvent.click(await screen.findByRole("button", { name: "Send to Spotify ›" }));
 
         expect(await screen.findByRole("status")).toHaveProperty("textContent", words);
+        // And the way to do what it says
+        expect(screen.getByRole("button", { name: "Sign in again ›" })).toBeTruthy();
+    });
+
+    it("tells a list it could not read apart from a list with nothing in it", async () => {
+        const user = mount({ getPlaylists: vi.fn().mockRejectedValueOnce(new Error("The server is away")).mockResolvedValue([]) });
+
+        expect(await screen.findByText("Could not read your playlists")).toBeTruthy();
+        expect(screen.getByText("The server is away")).toBeTruthy();
+        expect(screen.queryByText("No playlists yet")).toBeNull();
+
+        fireEvent.click(screen.getByRole("button", { name: "Try again ›" }));
+
+        expect(user.getPlaylists).toHaveBeenCalledTimes(2);
+        expect(await screen.findByText("No playlists yet")).toBeTruthy();
+    });
+
+    it("opens the playlist tapped last, whichever answers first", async () => {
+        let answerA: (p: Playlist) => void = () => {};
+        const user = mount({
+            getPlaylists: vi.fn().mockResolvedValue([summary(), summary({ id: "bbbbbbbbbbbbbbbb", name: "Late night" })]),
+            getPlaylist: vi.fn().mockImplementation((id: string) => (id === "aaaaaaaaaaaaaaaa"
+                ? new Promise<Playlist>(resolve => { answerA = resolve; })
+                : Promise.resolve(playlist({ id: "bbbbbbbbbbbbbbbb", name: "Late night" })))),
+        });
+
+        fireEvent.click(await screen.findByRole("button", { name: "Open Sunday morning" }));
+        fireEvent.click(screen.getByRole("button", { name: "Open Late night" }));
+
+        expect(await screen.findByText("Late night")).toBeTruthy();
+
+        // The first tap's answer arrives late, and is dropped
+        answerA(playlist());
+        await new Promise(r => setTimeout(r, 0));
+
+        expect(user.getPlaylist).toHaveBeenCalledTimes(2);
+        expect(screen.queryByText("Sunday morning")).toBeNull();
+        expect(screen.getByText("Late night")).toBeTruthy();
+    });
+
+    it("does not reopen a playlist the reader has left while a change was in flight", async () => {
+        let answer: (p: Playlist) => void = () => {};
+
+        mount({ refreshPlaylist: vi.fn().mockImplementation(() => new Promise<Playlist>(resolve => { answer = resolve; })) });
+
+        fireEvent.click(await screen.findByRole("button", { name: "Open Sunday morning" }));
+        fireEvent.click(await screen.findByRole("button", { name: "Refresh" }));
+        fireEvent.click(screen.getByRole("button", { name: "‹ Playlists" }));
+
+        expect(await screen.findByRole("button", { name: "Open Sunday morning" })).toBeTruthy();
+
+        answer(playlist());
+        await new Promise(r => setTimeout(r, 0));
+
+        expect(screen.getByRole("button", { name: "Open Sunday morning" })).toBeTruthy();
+        expect(screen.queryByText("Nights")).toBeNull();
     });
 
     it("offers the way out of Spotify once a copy exists there", async () => {

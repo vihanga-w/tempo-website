@@ -9,11 +9,10 @@ import { isLastPage, toCard } from "./discover-feed";
  * Discover starts from the server's first page every time the tab is opened,
  * and the server's order holds for a quarter of an hour: leave the tab and come
  * back inside one, and the same twenty songs are dealt again. This is the mark
- * that says how far the feed has already been fetched.
+ * that says how far the reader has already got.
  *
- * It is a hash of the last song on the last page fetched, written by the fetch
- * itself, so it is kept whether or not the reader got to the end of what was
- * fetched. Read back, it cuts the feed: a page that ends with it has all been
+ * It is a hash of the last song the reader dealt with, written as they pass
+ * it. Read back, it cuts the feed: a page that ends with it has all been
  * seen, a page with it in the middle has new songs after it, and a page
  * without it is held back while later pages are looked through for it, since
  * a reader who got through more than a page will find it further in. If the
