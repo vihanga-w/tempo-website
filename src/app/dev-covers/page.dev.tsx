@@ -189,48 +189,6 @@ function Stamp({ p, palette }: { p: Sample; palette: string[] }) {
     );
 }
 
-/** 4. Friends: the people behind the songs in a ring, the mark in the corner. As the server now draws it. */
-function Friends({ p, palette }: { p: Sample; palette: string[] }) {
-    const friends = Array.from(new Map(p.songs.filter(s => s.friend).map(s => [s.friend!.id, s.friend!])).values());
-    const n = Math.max(friends.length, 1);
-    const avatarR = n <= 4 ? 46 : n <= 6 ? 42 : 38;
-    const radius = n <= 1 ? 0 : n <= 3 ? 150 : n <= 5 ? 178 : 196;
-    const textTop = S - 118;
-    const cy = Math.min(262, textTop - 24 - radius - avatarR);
-    const markSize = 88;
-    const line = friends.length === 0 ? "nobody's plays in it yet"
-        : friends.length === 1 ? friends[0].name
-            : friends.length <= 3 ? `${friends.slice(0, -1).map(f => f.name).join(", ")} and ${friends[friends.length - 1].name}`
-                : `${friends.slice(0, 2).map(f => f.name).join(", ")} and ${friends.length - 2} others`;
-
-    return (
-        <Frame palette={palette}>
-            <rect width={S} height={S} fill={BLACK} />
-            <rect width={S} height={S} fill="url(#washA)" opacity="0.4" />
-            <rect width={S} height={S} fill="url(#washB)" opacity="0.35" />
-            <rect width={S} height={S} fill="url(#washC)" opacity="0.25" />
-            <rect width={S} height={S} fill="url(#fade)" />
-            {radius > 0 && <circle cx={S / 2} cy={cy} r={radius} fill="none" stroke="#fff" strokeOpacity="0.08" strokeWidth="2" />}
-            {friends.map((f, i) => {
-                const angle = -Math.PI / 2 + (i / n) * Math.PI * 2;
-                const x = S / 2 + Math.cos(angle) * radius;
-                const y = cy + Math.sin(angle) * radius;
-                const colour = avatarColour(f.id);
-
-                return (
-                    <g key={f.id}>
-                        <circle cx={x} cy={y} r={avatarR} fill={colour.from} />
-                        <text x={x} y={y + avatarR * 0.34} textAnchor="middle" fill={colour.ink} fontFamily="Inter" fontWeight="800" fontSize={Math.round(avatarR * 0.9)}>{f.name[0]}</text>
-                    </g>
-                );
-            })}
-            <text x="32" y={S - 66} fill="#fff" fontFamily="Inter" fontWeight="800" fontSize="40" letterSpacing="-1.2">{p.name}</text>
-            <text x="32" y={S - 34} fill="#fff" opacity="0.62" fontFamily="Inter" fontWeight="500" fontSize="19">{line}</text>
-            <image href="/icon.png" x={S - markSize - 28} y={S - markSize - 28} width={markSize} height={markSize} clipPath="inset(0 round 20px)" />
-        </Frame>
-    );
-}
-
 /** 5. Pulse: one bar per song, its height from the song, coloured from the covers. */
 function Pulse({ p, palette }: { p: Sample; palette: string[] }) {
     const bars = p.songs.length;
@@ -254,11 +212,15 @@ function Pulse({ p, palette }: { p: Sample; palette: string[] }) {
     );
 }
 
-/** 6. Fan: three covers fanned like a hand of cards, the mark in the corner. As the server now draws it for every recipe but friends. */
+/** 6. Fan: three covers fanned like a hand of cards, the mark in the corner, and the friends behind it as chips. As the server now draws every cover. */
 function Fan({ p, palette }: { p: Sample; palette: string[] }) {
     const cards = p.songs.slice(0, 3);
-    const size = 300;
-    const cy = S / 2 - 48;
+    const friends = p.recipe === "On repeat with friends"
+        ? Array.from(new Map(p.songs.filter(s => s.friend).map(s => [s.friend!.id, s.friend!])).values())
+        : [];
+    const chips = friends.length > 0;
+    const size = chips ? 280 : 300;
+    const cy = chips ? S / 2 - 84 : S / 2 - 48;
     const spread = cards.length === 1 ? 0 : cards.length === 2 ? 30 : 46;
     const tilt = cards.length === 1 ? 0 : cards.length === 2 ? 9 : 14;
     const markSize = 88;
@@ -284,8 +246,19 @@ function Fan({ p, palette }: { p: Sample; palette: string[] }) {
                     </g>
                 );
             })}
-            <text x="32" y={S - 66} fill="#fff" fontFamily="Inter" fontWeight="800" fontSize="40" letterSpacing="-1.2">{p.name}</text>
-            <text x="32" y={S - 34} fill="#fff" opacity="0.62" fontFamily="Inter" fontWeight="500" fontSize="19">for {p.listener} · {runs}</text>
+            <text x="32" y={chips ? S - 122 : S - 66} fill="#fff" fontFamily="Inter" fontWeight="800" fontSize="40" letterSpacing="-1.2">{p.name}</text>
+            <text x="32" y={chips ? S - 92 : S - 34} fill="#fff" opacity="0.62" fontFamily="Inter" fontWeight="500" fontSize="19">for {p.listener} · {runs}</text>
+            {friends.map((f, i) => {
+                const colour = avatarColour(f.id);
+                const cx = 32 + 21 + i * 48;
+
+                return (
+                    <g key={f.id}>
+                        <circle cx={cx} cy={S - 48} r="21" fill={colour.from} />
+                        <text x={cx} y={S - 41} textAnchor="middle" fill={colour.ink} fontFamily="Inter" fontWeight="800" fontSize="20">{f.name[0]}</text>
+                    </g>
+                );
+            })}
             <image href="/icon.png" x={S - markSize - 28} y={S - markSize - 28} width={markSize} height={markSize} clipPath="inset(0 round 20px)" />
         </Frame>
     );
@@ -295,9 +268,8 @@ const STYLES: { name: string; note: string; render: (p: Sample, palette: string[
     { name: "Mosaic", note: "Spotify's own idea, made ours: four covers, the mark on a plate, the name in a band.", render: (p, c) => <Mosaic p={p} palette={c} /> },
     { name: "Wash", note: "The songs' colours as a wash behind the name. Every playlist gets its own weather.", render: (p, c) => <Wash p={p} palette={c} /> },
     { name: "Stamp", note: "Passport's stamp, tilted by the name's hash, the recipe around the ring.", render: (p, c) => <Stamp p={p} palette={c} /> },
-    { name: "Friends", note: "The people behind it, in their avatar colours, in a ring; the mark in the corner. What the server now draws for the friends recipe.", render: (p, c) => <Friends p={p} palette={c} /> },
     { name: "Pulse", note: "One bar per song, height from the song, colour from the covers: a fingerprint of the list.", render: (p, c) => <Pulse p={p} palette={c} /> },
-    { name: "Fan", note: "Three covers as a hand of cards, the mark in the corner. What the server now draws for every recipe but friends.", render: (p, c) => <Fan p={p} palette={c} /> },
+    { name: "Fan", note: "Three covers as a hand of cards, the mark in the corner, and for the friends recipe the people behind it as chips. What the server now draws for every playlist.", render: (p, c) => <Fan p={p} palette={c} /> },
 ];
 
 function Platter() {

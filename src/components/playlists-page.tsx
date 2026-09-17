@@ -380,7 +380,7 @@ function OpenPlaylist({
                     <TextAction label="Delete playlist" onClick={() => setConfirmingDelete(true)} tone="dim" />
                 )}
                 <Text fontSize="12px" color={INK_FAINT}>
-                    {refreshLine(playlist.refreshesAt, now)} A song taken out stays out. Deleting leaves the copy on Spotify, if there is one.
+                    {refreshLine(playlist.refreshesAt, now)} A song taken out stays out. Deleting removes it from your Spotify too.
                 </Text>
             </Stack>
         </Stack>
