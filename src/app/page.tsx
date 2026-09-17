@@ -554,6 +554,17 @@ export default function Home() {
 
           const loadSwappedToken = async () => {
             const req = await fetch(API_URL + "/swapToken/" + seshRes.token);
+
+            /*
+             * The server no longer knows this sign-in. The swap session lives
+             * in its memory, so a restart while the person was on Spotify's
+             * consent screen loses it: the sign-in itself still lands, but the
+             * token it issues has nowhere to go, and the sheet was left on
+             * the web welcome page with the app polling underneath forever.
+             */
+            if (req.status == 400)
+              return "LOST";
+
             const res = await req.json() as {
               error: boolean;
               message: string;
@@ -720,7 +731,22 @@ export default function Home() {
                 const tok = await loadSwappedToken();
 
                 console.log("POLL:", tok)
-      
+
+                if (tok == "LOST") {
+                  // Start over with a session the server has: this one is gone
+                  console.warn("The server has lost this sign-in's swap session, starting the sign-in again");
+                  clearInterval(checker);
+
+                  try {
+                    InAppBrowser.close();
+                  } catch { }
+
+                  closeAppFormWebView();
+                  window.location.reload();
+
+                  return;
+                }
+
                 if (tok && tok !== "INIT") {
                   // Both, because by this point the webview on screen may be
                   // either: the one this flow opened, or the one set-up opened
@@ -752,7 +778,8 @@ export default function Home() {
 
               const tok = await loadSwappedToken();
 
-              prepare(tok);
+              // Spent by the poller a moment ago, or lost: whatever was stored is what there is
+              prepare(tok == "LOST" ? undefined : tok);
             }
           }
 

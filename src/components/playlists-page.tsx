@@ -2,6 +2,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Box, HStack, Skeleton, Stack, Text } from "@chakra-ui/react";
 import { ChevronRight } from "lucide-react";
 
+import { Capacitor } from "@capacitor/core";
+import { Preferences } from "@capacitor/preferences";
+
 import type User from "@/lib/usrlib";
 import { PlaylistNeedsSignInError, describeError, recipeNamed, songCount, type Playlist, type PlaylistSummary } from "@/lib/playlists";
 import { feedback, feelPattern } from "@/lib/native-haptics";
@@ -10,8 +13,28 @@ import {
     ACCENT, BOTTOM_CLEAR, INK, INK_DIM, INK_FAINT, Note, PAGE_BG, PageWords, PlaylistSongRow, SURFACE_HI, SectionLabel, TOP_CLEAR, TextAction,
 } from "./playlist-song-row";
 
-/** The way back through sign-in, as Settings offers it: for a Spotify permission this account has not granted. */
-const signInAgain = () => { window.location.href = "/reauth"; };
+/**
+ * The way back through sign-in, for a Spotify permission this account has
+ * not granted. As the release notice does it: sign out and reload, and the
+ * sign-in that runs on the next load already handles this platform — the
+ * native sheet, or the web redirect — rather than a second path to keep
+ * working. The web page /reauth would have taken the native web view itself
+ * through Spotify, and left it on the website.
+ */
+async function signInAgain(user: User) {
+    try {
+        await user.logout();
+    } catch (ex) {
+        console.warn("Could not sign out before re-authorising:", ex);
+    }
+
+    try {
+        if (Capacitor.isNativePlatform())
+            await Preferences.remove({ key: "tempo.s.a" });
+    } catch { }
+
+    window.location.reload();
+}
 
 /**
  * Playlists: the ones Tempo has made for this listener, and what is in them.
@@ -166,6 +189,7 @@ export default function PlaylistsPage({
                         busy={busy}
                         note={note}
                         needsSignIn={needsSignIn}
+                        onSignIn={() => signInAgain(user)}
                         onBack={back}
                         onRemoveSong={songId => change("remove", () => user.removeFromPlaylist(open.id, songId), () => feedback("tick"))}
                         onRefresh={() => change("refresh", () => user.refreshPlaylist(open.id), () => feedback("open"))}
@@ -277,6 +301,7 @@ function OpenPlaylist({
     busy,
     note,
     needsSignIn,
+    onSignIn,
     onBack,
     onRemoveSong,
     onRefresh,
@@ -289,6 +314,7 @@ function OpenPlaylist({
     busy: string | null;
     note: string | null;
     needsSignIn: boolean;
+    onSignIn: () => void;
     onBack: () => void;
     onRemoveSong: (songId: string) => void;
     onRefresh: () => void;
@@ -322,7 +348,7 @@ function OpenPlaylist({
             {note && (
                 <Stack gap="8px">
                     <Note>{note}</Note>
-                    {needsSignIn && <TextAction label="Sign in again ›" onClick={signInAgain} />}
+                    {needsSignIn && <TextAction label="Sign in again ›" onClick={onSignIn} />}
                 </Stack>
             )}
 
