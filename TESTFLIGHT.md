@@ -4,7 +4,7 @@ Notes handed to TestFlight testers alongside each build. Paste the current
 section into App Store Connect's "What to Test" field; it has a 4000 character
 limit, so keep it inside that.
 
-## 1.4.0 (build 13)
+## 1.4.0 (build 14)
 
 **Playlists are new.** Tempo builds them from what Spotify can't see: songs
 you liked in Discover, what friends had on repeat, the songs you keep coming
