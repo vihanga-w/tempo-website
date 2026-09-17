@@ -6,54 +6,22 @@ limit, so keep it inside that.
 
 ## 1.4.0 (build 13)
 
-**Playlists are new — a tab of its own, and New Playlist in the menu.** Tempo
-makes a playlist from things Spotify can't see. Four recipes: Liked in
-Discover, On repeat with friends, On repeat with Tempo (the songs you keep
-coming back to), and Your mix, which weighs all three together. Every song
-says why it's there — "Maya had this on repeat", "You liked this in Discover".
+**Playlists are new.** Tempo builds them from what Spotify can't see: songs
+you liked in Discover, what friends had on repeat, the songs you keep coming
+back to, or a mix. Every song says why it's there.
 
 Please try:
 
-• **Make one of each.** Open New Playlist, pick a recipe, and look at what it
-shows before you name it. That preview is exactly what gets kept. If a recipe
-says nothing fits yet, that's honest — it needs some listening or some swipes
-in Discover first — but tell us if you're sure it should have found something.
+• Make a playlist of each recipe. The preview is what gets kept.
+• Check the reason under each song. Wrong friend, wrong like, wrong time —
+tell us which song.
+• Take a song out, then refresh. It should stay out.
+• Send one to Spotify. If it asks you to sign in again, do, then retry. If it
+fails, tell us the time.
+• Delete one. It asks first.
 
-• **Read the reason under each song.** This is the big one. If it names a
-friend who didn't play it, a like you didn't give, or a time that's wrong, say
-which song and we can trace it. Tapping a friend's reason opens their profile.
-
-• **Take a song out, then refresh the playlist.** The song should stay out,
-however many times you refresh. Refresh should also pick up anything new since.
-Every playlist also refreshes itself once a week, and its Spotify copy with
-it; the line at the bottom of a playlist says when that's next due.
-
-• **Send one to Spotify.** It arrives as a private playlist on your account,
-and the list marks it "Saved in Spotify". If you get a message saying Tempo
-needs one more permission, that's expected for anyone who signed in before
-this build: tap Sign in again, come back, and try once more. Update on Spotify
-should bring the copy up to date after a refresh or a removal. If it fails,
-tell us the time — we're chasing one report of "Load failed".
-
-• **Delete one.** It asks first. Deleting leaves the Spotify copy alone.
-
-Also in this build:
-
-• **Discover picks up where you left off.** Coming back to Discover within a
-few minutes, the cards you'd already dealt with are skipped. Reaching the end
-says you're caught up and offers to show them again. Tell us if it skips
-cards you never saw, or shows you cards you'd already swiped.
-
-• **The menu.** Open and close it a few times fast: the labels should always
-arrive sharp, with the wave up the stack each time, and the rows should fall
-away in place when you close it rather than jumping off the bottom right.
-
-• **Signing in again.** If a sign-in ever leaves you on a page showing the
-Tempo logo, it should now start over by itself within a few seconds. If you
-have to close it and relaunch instead, tell us.
-
-Known and not worth reporting: the preview line under a song in Discover
-can't be dragged to scrub; that's by design for now.
+Also: Discover skips cards you've already dealt with when you come back, and
+the menu should open and close cleanly however fast you tap it.
 
 ## 1.2.0 (build 3)
 
