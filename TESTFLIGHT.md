@@ -12,13 +12,16 @@ back to, or a mix. Every song says why it's there.
 
 Please try:
 
-• Make a playlist of each recipe. The preview is what gets kept.
+• Make a playlist of each recipe. The preview is what gets kept, and the
+playlist lands on your Spotify by itself with a cover made from its songs.
+The friends one shows the friends on the cover.
 • Check the reason under each song. Wrong friend, wrong like, wrong time —
 tell us which song.
-• Take a song out, then refresh. It should stay out.
-• A new playlist lands on your Spotify by itself, with a cover made from its
-songs. If it asks you to sign in again, do, then make another.
+• Take a song out, then refresh. It should stay out. Playlists also refresh
+themselves weekly; the bottom of each one says when.
 • Delete one. It asks first, and it goes from your Spotify too.
+• If Tempo asks you to sign in again, do: the sign-in sheet should close on
+its own afterwards. If it sits on a page, tell us.
 
 Also: Discover skips cards you've already dealt with when you come back, and
 the menu should open and close cleanly however fast you tap it.
