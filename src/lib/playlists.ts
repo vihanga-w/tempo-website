@@ -12,7 +12,7 @@ export type PlaylistRecipe = "liked" | "friends" | "returned" | "mix";
 export const RECIPES: { id: PlaylistRecipe; name: string; blurb: string }[] = [
     { id: "liked", name: "Liked in Discover", blurb: "Everything you swiped right on, newest first." },
     { id: "friends", name: "On repeat with friends", blurb: "What your friends kept playing this week." },
-    { id: "returned", name: "Songs you came back to", blurb: "The ones you returned to after a while away." },
+    { id: "returned", name: "On repeat with Tempo", blurb: "The songs you keep coming back to." },
     { id: "mix", name: "Your mix", blurb: "Likes, your plays and your friends', weighed together." },
 ];
 
@@ -60,6 +60,8 @@ export interface Playlist {
     recipe: PlaylistRecipe;
     createdAt: number;
     updatedAt: number;
+    /** When the server will next rebuild it from its recipe, Spotify copy and all. */
+    refreshesAt?: number;
     spotify?: SpotifyCopy;
     songs: PlaylistSong[];
 }
@@ -124,6 +126,22 @@ export function describeError(ex: unknown, fallback: string): string {
         return ex.message;
 
     return fallback;
+}
+
+/** "Refreshed every week · next Tuesday", or just the first half without a date. */
+export function refreshLine(refreshesAt: number | undefined, now: number = Date.now()): string {
+    if (refreshesAt === undefined)
+        return "Refreshed every week.";
+
+    const days = Math.ceil((refreshesAt - now) / (24 * 3600e3));
+
+    if (days <= 0)
+        return "Refreshed every week · due now.";
+
+    if (days === 1)
+        return "Refreshed every week · next tomorrow.";
+
+    return `Refreshed every week · next ${new Date(refreshesAt).toLocaleDateString(undefined, { weekday: "long" })}.`;
 }
 
 /** "12 songs", "1 song", "No songs". */

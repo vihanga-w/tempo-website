@@ -69,7 +69,7 @@ describe("making a playlist", () => {
     it("says when a recipe finds nothing, and offers nothing to make", async () => {
         mount({ previewPlaylist: vi.fn().mockResolvedValue([]) });
 
-        fireEvent.click(screen.getByRole("button", { name: "Songs you came back to" }));
+        fireEvent.click(screen.getByRole("button", { name: "On repeat with Tempo" }));
 
         expect(await screen.findByText(/Nothing fits this recipe yet/)).toBeTruthy();
         expect(screen.queryByRole("button", { name: /Make it/ })).toBeNull();

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { reasonLine, recipeNamed, songCount } from "./playlists";
+import { reasonLine, recipeNamed, refreshLine, songCount } from "./playlists";
 
 const NOW = 1_700_000_000_000;
 const HOUR = 3600e3;
@@ -34,6 +34,17 @@ describe("the reason a song is there", () => {
 describe("a reason that can no longer be told", () => {
     it("says only that the song is here, and since when", () => {
         expect(reasonLine({ type: "kept", at: NOW - 3 * 24 * HOUR }, NOW)).toBe("In this playlist · 3d ago");
+    });
+});
+
+describe("when a playlist is next refreshed", () => {
+    it("names the day, or says it is due", () => {
+        const DAY = 24 * HOUR;
+        // NOW is a Tuesday evening UTC; three days on is a Friday in every zone within a day of it
+        expect(refreshLine(NOW + 3 * DAY, NOW)).toMatch(/^Refreshed every week · next (Friday|Saturday|Thursday)\.$/);
+        expect(refreshLine(NOW + HOUR, NOW)).toBe("Refreshed every week · next tomorrow.");
+        expect(refreshLine(NOW - HOUR, NOW)).toBe("Refreshed every week · due now.");
+        expect(refreshLine(undefined, NOW)).toBe("Refreshed every week.");
     });
 });
 

@@ -8,8 +8,8 @@ limit, so keep it inside that.
 
 **Playlists are new — a tab of its own, and New Playlist in the menu.** Tempo
 makes a playlist from things Spotify can't see: the songs you liked in
-Discover, what your friends kept playing this week, the songs you came back to
-after a while away, or all of those weighed together. Every song says why it's
+Discover, what your friends kept playing this week, the songs you keep coming
+back to, or all of those weighed together. Every song says why it's
 there — "Maya had this on repeat", "you liked this in Discover".
 
 Please try:
@@ -25,6 +25,8 @@ which song and we can trace it.
 
 • **Take a song out, then refresh the playlist.** The song should stay out,
 however many times you refresh. Refresh should also pick up anything new since.
+Every playlist is also refreshed by itself once a week, and its Spotify copy
+with it; the line at the bottom of a playlist says when.
 
 • **Send one to Spotify.** It arrives as a private playlist on your account.
 If you get a message saying Tempo needs one more permission, that's expected

@@ -6,7 +6,7 @@ import { Capacitor } from "@capacitor/core";
 import { Preferences } from "@capacitor/preferences";
 
 import type User from "@/lib/usrlib";
-import { PlaylistNeedsSignInError, describeError, recipeNamed, songCount, type Playlist, type PlaylistSummary } from "@/lib/playlists";
+import { PlaylistNeedsSignInError, describeError, recipeNamed, refreshLine, songCount, type Playlist, type PlaylistSummary } from "@/lib/playlists";
 import { feedback, feelPattern } from "@/lib/native-haptics";
 import { describeWhen } from "./friend-recent-activity-row";
 import {
@@ -242,7 +242,7 @@ function PlaylistList({
         return (
             <Stack flex="1" justifyContent="center" gap="10px">
                 <PageWords title="No playlists yet">
-                    Tempo makes playlists from what only it knows: what you liked in Discover, what your friends had on repeat, and the songs you came back to.
+                    Tempo makes playlists from what only it knows: what you liked in Discover, what your friends had on repeat, and the songs you keep coming back to.
                 </PageWords>
                 {openCreate && <TextAction label="Make one ›" onClick={openCreate} />}
                 {note && <Note>{note}</Note>}
@@ -380,7 +380,7 @@ function OpenPlaylist({
                     <TextAction label="Delete playlist" onClick={() => setConfirmingDelete(true)} tone="dim" />
                 )}
                 <Text fontSize="12px" color={INK_FAINT}>
-                    A song taken out stays out when the playlist is refreshed. Deleting leaves the copy on Spotify, if there is one.
+                    {refreshLine(playlist.refreshesAt, now)} A song taken out stays out. Deleting leaves the copy on Spotify, if there is one.
                 </Text>
             </Stack>
         </Stack>
