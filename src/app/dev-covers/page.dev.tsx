@@ -262,6 +262,9 @@ function Fan({ p, palette }: { p: Sample; palette: string[] }) {
     const spread = cards.length === 1 ? 0 : cards.length === 2 ? 30 : 46;
     const tilt = cards.length === 1 ? 0 : cards.length === 2 ? 9 : 14;
     const markSize = 88;
+    // Sample songs carry no length; call them three and three-quarter minutes each
+    const minutes = Math.round(p.songs.length * 3.75);
+    const runs = minutes >= 60 ? `${Math.floor(minutes / 60)}h ${minutes % 60}m` : `${minutes}m`;
 
     return (
         <Frame palette={palette}>
@@ -282,7 +285,7 @@ function Fan({ p, palette }: { p: Sample; palette: string[] }) {
                 );
             })}
             <text x="32" y={S - 66} fill="#fff" fontFamily="Inter" fontWeight="800" fontSize="40" letterSpacing="-1.2">{p.name}</text>
-            <text x="32" y={S - 34} fill="#fff" opacity="0.62" fontFamily="Inter" fontWeight="500" fontSize="19">for {p.listener} · {p.recipe}</text>
+            <text x="32" y={S - 34} fill="#fff" opacity="0.62" fontFamily="Inter" fontWeight="500" fontSize="19">for {p.listener} · {runs}</text>
             <image href="/icon.png" x={S - markSize - 28} y={S - markSize - 28} width={markSize} height={markSize} clipPath="inset(0 round 20px)" />
         </Frame>
     );
