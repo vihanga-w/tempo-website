@@ -289,9 +289,10 @@ function PlaylistList({
 }
 
 /**
- * One playlist in the list: its fan, small, on a card tinted from its first
- * cover — the same colour its page will open in — with its name, what it is
- * made of, how long it runs and where it lives.
+ * One playlist in the list: its fan, small, with its name, what it is made
+ * of, how long it runs and where it lives. Bare on the page, as the song
+ * rows are; only its Spotify line carries its own colour, the one its page
+ * will open in.
  */
 function PlaylistRow({
     list,
@@ -314,12 +315,9 @@ function PlaylistRow({
             textAlign="left"
             gap="14px"
             alignItems="center"
-            padding="12px"
-            borderRadius="18px"
-            background={colour.panel}
-            boxShadow="inset 0 1px 0 rgba(255,255,255,0.06)"
+            paddingY="8px"
             opacity={dimmed ? 0.6 : 1}
-            transition="opacity .2s, background-color .45s"
+            transition="opacity .2s"
             _active={{ opacity: 0.7 }}
         >
             <FanThumb artwork={artwork} id={list.id} />
