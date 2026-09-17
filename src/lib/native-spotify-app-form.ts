@@ -75,8 +75,15 @@ const POLL_MS = 1000;
  * Every step asks the page a question about once a second and gets an answer,
  * so silence means the webview is not running our script at all - and because
  * it is hidden, nobody would ever see that happen.
+ *
+ * Ten seconds rather than five, because the clock starts when the webview is
+ * opened and not when the page is up: the first answer cannot arrive until a
+ * heavy client-rendered dashboard has loaded and run, and five seconds of that
+ * over mobile data is a normal cold start rather than a stuck one. Reporting it
+ * as stuck also told the person to check their connection, which sent them
+ * looking at the one thing that was working.
  */
-const STALL_MS = 5000;
+const STALL_MS = 10000;
 
 /** How often to ask whether an app appeared, and how long to keep asking. */
 const OUTCOME_POLL_MS = 700;
