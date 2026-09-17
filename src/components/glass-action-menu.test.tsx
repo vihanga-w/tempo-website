@@ -47,6 +47,7 @@ vi.mock("framer-motion", () => ({
                 role={props.role}
                 aria-label={props["aria-label"]}
                 data-menu-row={props["data-menu-row"]}
+                data-menu-opening={props["data-menu-opening"]}
                 data-pinned={props["data-pinned"]}
                 data-beside={props["data-beside"]}
                 onPointerDown={props.onPointerDown}
@@ -413,35 +414,47 @@ describe("the dissolve at the end of the hold", () => {
         expect(row.getAttribute("data-menu-row")).toBe("friends");
     });
 
-    it("puts the chosen row back when the menu next opens", () => {
+    it("gives every opening rows of its own", () => {
         /*
-         * The dissolve hides the row's label and button itself. Reopened before
-         * framer has finished removing the old rows, the menu gets that same row
-         * back rather than a new one, which showed as an empty slot — so opening
-         * has to undo what the dissolve did.
+         * Reopened before framer has finished removing the old rows, the menu
+         * used to get the same rows back, still wearing whatever the close had
+         * got as far as: the slam did not play again, the label's exit blur
+         * stayed put, and a row the dissolve had taken apart came back as an
+         * empty slot. So a new opening is new rows, and the old ones can finish
+         * leaving on their own.
          */
-        const undo = vi.fn();
-        fizzle.mockReturnValueOnce(undo);
+        const props = { setOpen: vi.fn(), onNavigate: vi.fn(), currentPage: "leaderboard" };
+        const view = render(<GlassActionMenu open {...props} />);
+        const first = screen.getAllByLabelText("Friends").at(-1);
 
+        // Re-rendering the open menu does not replace its rows
+        view.rerender(<GlassActionMenu open {...props} tint="#ffffff" />);
+        expect(screen.getAllByLabelText("Friends").at(-1)).toBe(first);
+
+        view.rerender(<GlassActionMenu open={false} {...props} />);
+        view.rerender(<GlassActionMenu open {...props} />);
+
+        const second = screen.getAllByLabelText("Friends").at(-1);
+
+        expect(second).not.toBe(first);
+        expect(second?.getAttribute("data-menu-opening")).not.toBe(first?.getAttribute("data-menu-opening"));
+    });
+
+    it("dissolves the row of this opening, not a leftover of the last", () => {
         const props = { setOpen: vi.fn(), onNavigate: vi.fn(), currentPage: "leaderboard" };
         const view = render(<GlassActionMenu open {...props} />);
 
-        fireEvent.pointerDown(screen.getByLabelText("Friends"));
-        fireEvent.pointerUp(screen.getByLabelText("Friends"));
-        vi.advanceTimersByTime(RELEASE_MS);
-
-        // Open through the dust, then shut: nothing is put back mid-dissolve.
-        expect(undo).not.toHaveBeenCalled();
-        view.rerender(<GlassActionMenu open={false} {...props} />);
-        expect(undo).not.toHaveBeenCalled();
-
-        view.rerender(<GlassActionMenu open {...props} />);
-        expect(undo).toHaveBeenCalledTimes(1);
-
-        // Once is enough: the opening after that has nothing left to undo.
         view.rerender(<GlassActionMenu open={false} {...props} />);
         view.rerender(<GlassActionMenu open {...props} />);
-        expect(undo).toHaveBeenCalledTimes(1);
+
+        const row = screen.getAllByLabelText("Friends").at(-1) as HTMLElement;
+
+        fireEvent.pointerDown(row);
+        fireEvent.pointerUp(row);
+        vi.advanceTimersByTime(CHOICE_HOLD_MS);
+
+        expect(fizzle).toHaveBeenCalledTimes(1);
+        expect(fizzle.mock.calls[0][0]).toBe(row);
     });
 
     it("dissolves nothing if the menu is shut from outside during the hold", () => {
@@ -695,18 +708,18 @@ describe("the pinned action", () => {
     });
 });
 
-describe("playlists, left out until they work", () => {
-    it("offers neither Playlists nor New Playlist in the menu", () => {
+describe("playlists", () => {
+    it("offers Playlists and New Playlist in the menu", () => {
         render(<GlassActionMenu open setOpen={vi.fn()} onNavigate={vi.fn()} currentPage="friends" />);
 
-        expect(screen.queryByLabelText("Playlists")).toBeNull();
-        expect(screen.queryByLabelText("New Playlist")).toBeNull();
+        expect(screen.getByLabelText("Playlists")).toBeTruthy();
+        expect(screen.getByLabelText("New Playlist")).toBeTruthy();
     });
 
-    it("pins nothing on the Playlists page", () => {
+    it("pins New Playlist on the Playlists page", () => {
         render(<GlassActionMenu open={false} setOpen={vi.fn()} onNavigate={vi.fn()} currentPage="playlists" />);
 
-        expect(document.querySelector("[data-pinned]")).toBeNull();
+        expect(document.querySelector("[data-pinned]")?.getAttribute("aria-label")).toBe("New Playlist");
     });
 });
 

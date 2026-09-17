@@ -22,6 +22,7 @@ import {
     type DiscoverCard, type DiscoverFriend,
 } from "@/lib/discover-feed";
 import { readCoverTones, type CoverTones } from "@/lib/cover-tone";
+import { lastHashOf, preferencesStore, readCursor, searchPage, writeCursor, type CursorSearch } from "@/lib/discover-cursor";
 import { decideSwipe, ratingStrength } from "@/lib/swipe";
 import { feelPattern } from "@/lib/native-haptics";
 import { useCalm } from "@/lib/use-calm";
@@ -224,6 +225,8 @@ export default function DiscoverPage({
     const [loading, setLoading] = useState(false);
     const [ended, setEnded] = useState(false);
     const [loadedOnce, setLoadedOnce] = useState(false);
+    /** Whether the feed was cut at the mark: what came before it had been dealt already. */
+    const [seenBefore, setSeenBefore] = useState(false);
     const [ratings, setRatings] = useState<Record<string, Rating>>({});
 
     const nextPage = useRef(1);
@@ -243,6 +246,16 @@ export default function DiscoverPage({
     const [settleTick, setSettleTick] = useState(0);
     /** Covers already handed to the decoder. */
     const decoded = useRef(new Set<string>());
+    /**
+     * Where the last fetch got to, kept on the device: see lib/discover-cursor.ts.
+     * For the real feed only. The bench deals its own pages, and should deal
+     * them every time.
+     */
+    const store = (fetchPage ? null : preferencesStore);
+    /** The mark being looked for, with the pages held back until it is found. Null once it has been dealt with. */
+    const seeking = useRef<CursorSearch | null>(null);
+    /** Whether the mark has been read from the device yet, which happens once, on the first load. */
+    const soughtMark = useRef(false);
 
     const load = useCallback(async () => {
         if (loadingRef.current)
@@ -254,6 +267,15 @@ export default function DiscoverPage({
         const get = fetchPage ?? ((page: number) => user.getMyFYP(page));
 
         try {
+            if (store && !soughtMark.current) {
+                soughtMark.current = true;
+
+                const hash = await readCursor(store);
+
+                if (hash)
+                    seeking.current = { hash, held: [], pages: 0 };
+            }
+
             /*
              * Keep fetching until there is runway.
              *
@@ -263,16 +285,49 @@ export default function DiscoverPage({
              * or a busy reshuffle could hold it all day.
              */
             for (let round = 0; round < PAGES_PER_LOAD; round++) {
-                const items = (await get(nextPage.current)) ?? [];
+                const page = (await get(nextPage.current)) ?? [];
 
                 nextPage.current += 1;
+
+                // The mark moves with every fetch: this is how far the feed has been dealt
+                const mark = lastHashOf(page);
+
+                if (store && mark)
+                    writeCursor(mark, store);
+
+                /*
+                 * Cut the page at the mark left last time. A page that ends
+                 * with it has all been seen; one without it is held back while
+                 * the next pages are looked through, and shown from the start
+                 * only once the search has given up — the mark not being
+                 * anywhere means the order has changed, not that it was all seen.
+                 */
+                let items = page;
+
+                if (seeking.current) {
+                    const step = searchPage(seeking.current, page);
+
+                    if (step.kind === "hold") {
+                        seeking.current = step.search;
+                        // A page held back is not a round: the search has its own bound
+                        round--;
+
+                        continue;
+                    }
+
+                    seeking.current = null;
+                    items = step.items;
+
+                    if (step.kind === "found")
+                        setSeenBefore(true);
+                }
 
                 const next = appendPage(cardsRef.current, items);
 
                 cardsRef.current = next;
                 setCards(next);
 
-                if (isLastPage(items)) {
+                if (isLastPage(page)) {
                     setEnded(true);
 
                     break;
@@ -288,9 +343,22 @@ export default function DiscoverPage({
             setLoading(false);
             setLoadedOnce(true);
         }
-    }, [fetchPage, user]);
+    }, [fetchPage, store, user]);
 
     useEffect(() => {
+        load();
+    }, [load]);
+
+    /** Deal the feed again from its first page, mark or no mark. */
+    const dealAgain = useCallback(() => {
+        nextPage.current = 1;
+        seeking.current = null;
+        cardsRef.current = [];
+        setCards([]);
+        setIndex(0);
+        setEnded(false);
+        setSeenBefore(false);
+        setLoadedOnce(false);
         load();
     }, [load]);
 
@@ -1178,11 +1246,16 @@ export default function DiscoverPage({
 
             {!loadedOnce && <LoadingCard />}
 
-            {loadedOnce && cards.length === 0 && (
+            {loadedOnce && cards.length === 0 && (seenBefore ? (
+                // Everything the server has was dealt already, earlier this quarter-hour
+                <EmptyState title="You're all caught up" action={{ label: "Show them again", run: dealAgain }}>
+                    New songs turn up here as your friends listen, and as Tempo learns what you like.
+                </EmptyState>
+            ) : (
                 <EmptyState title="Nothing to discover yet">
                     Tempo finds songs in what you and your friends play. Listen to a few and come back.
                 </EmptyState>
-            )}
+            ))}
 
             {cards.map((card, i) => {
                 const offset = i - index;

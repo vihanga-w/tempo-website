@@ -1,130 +1,193 @@
-import { ChangeEvent, use, useEffect, useState } from "react";
-import { Avatar, Box, Center, Stack, Text, useColorModeValue } from "@chakra-ui/react";
-import { Input } from "./mchat-input";
-import { ChakraStylesConfig, Select } from "chakra-react-select";
-// import { InteractiveButtonBox as test, VisualViewPortHandler } from "./interactive-btn-box";
-import { StyledBtn } from "./button";
-import { InteractiveButtonBox } from "./interactive-btn-box";
-import { UserLookupResult, UserLookupResultType } from "@/components/user-lookup-result";
-import User from "@/lib/usrlib";
-import { findBestSCDNImageSize } from "@/lib/utils";
+import { useCallback, useEffect, useState } from "react";
+import { Box, HStack, Input, Skeleton, Stack, Text } from "@chakra-ui/react";
+import { ChevronRight } from "lucide-react";
 
+import type User from "@/lib/usrlib";
+import { RECIPES, recipeNamed, songCount, type PlaylistRecipe, type PlaylistSong } from "@/lib/playlists";
+import { feedback, feelPattern } from "@/lib/native-haptics";
+import {
+    ACCENT, BOTTOM_CLEAR, INK, INK_DIM, INK_FAINT, PAGE_BG, PageWords, PlaylistSongRow, PrimaryButton, SURFACE_HI, SectionLabel, TOP_CLEAR,
+    TextAction,
+} from "./playlist-song-row";
+
+/**
+ * New Playlist: pick a recipe, see what it makes, name it, keep it.
+ *
+ * The preview comes first, before a name is asked for: a recipe that finds
+ * nothing right now should say so before anybody types anything, and a
+ * playlist is easier to name once its songs are in view. What is shown is
+ * exactly what will be kept — the server builds it the same way both times.
+ */
 export default function CreatePlaylistPage({
     user,
-}: {
+    onCreated,
+}: Readonly<{
     user: User;
-}) {
-    // const [lookupTimeout, setLookupTimeout] = useState<NodeJS.Timeout | undefined>();
-    // const [lookupResults, setLookupResults] = useState<UserLookupResultType[]>([]);
+    /** Called with the new playlist's id once it has been kept. */
+    onCreated?: (id: string) => void;
+}>) {
+    const [recipe, setRecipe] = useState<PlaylistRecipe | null>(null);
+    const [preview, setPreview] = useState<PlaylistSong[] | null>(null);
+    const [name, setName] = useState("");
+    const [making, setMaking] = useState(false);
+    const [note, setNote] = useState<string | null>(null);
+    const [now, setNow] = useState(() => Date.now());
 
-    // const handler = async (e: ChangeEvent<HTMLInputElement>) => {
-    //     if (e.target.value.trim() == "") {
-    //         // setLookupResults([]);
-    //         const incoming = await user.getFriends(["incoming"]);
+    useEffect(() => {
+        if (!recipe)
+            return;
 
-    //         if (incoming.length == 0) {
-    //             setLookupResults([]);
-    //             return;
-    //         }
+        let cancelled = false;
 
-    //         const incomingUsers = await Promise.all(incoming.map(async v => {
-    //             const u = await user.searchUsers(v.u1Id == user.object?.id ? v.u2Id : v.u1Id, 1);
+        setPreview(null);
+        setNote(null);
+        setName(recipeNamed(recipe).name);
 
-    //             if (u.length == 0)
-    //                 return null;
+        user.previewPlaylist(recipe)
+            .then(songs => {
+                if (cancelled)
+                    return;
 
-    //             return {
-    //                 id: u[0].user.id,
-    //                 pfpUrl: u[0].user.images.length > 0 ? findBestSCDNImageSize(u[0].user.images, 56, 56) : undefined,
-    //                 username: u[0].user.displayName,
-    //                 mutual: u[0].mutualFriends,
-    //                 frState: u[0].friendState,
-    //                 frId: u[0].friendshipId,
-    //             };
-    //         }));
+                setPreview(songs);
+                setNow(Date.now());
+            })
+            .catch(ex => {
+                if (cancelled)
+                    return;
 
-    //         setLookupResults(incomingUsers.filter(v => v != null) as UserLookupResultType[]);
+                setPreview([]);
+                setNote(ex instanceof Error ? ex.message : "Could not build that playlist.");
+            });
 
-    //         return;
-    //     }
+        return () => { cancelled = true; };
+    }, [recipe, user]);
 
-    //     console.log("Querying server for users with query:", e.target.value);
+    const make = useCallback(async () => {
+        if (!recipe || making)
+            return;
 
-    //     try {
-    //         const results = await user.searchUsers(e.target.value, 25);
+        setMaking(true);
+        setNote(null);
 
-    //         const processed: UserLookupResultType[] = results.map(v => {
-    //             const idealImage = v.user.images.filter(v => v.url.startsWith("https://i.scdn."));
-                
-    //             return {
-    //                 id: v.user.id,
-    //                 pfpUrl: idealImage.length > 0 ? findBestSCDNImageSize(idealImage, 56, 56) ?? undefined : v.user.images.length > 0 ? findBestSCDNImageSize(v.user.images, 56, 56) ?? undefined : undefined,
-    //                 username: v.user.displayName,
-    //                 mutual: v.mutualFriends,
-    //                 frState: v.friendState,
-    //                 frId: v.friendshipId,
-    //             };
-    //         });
+        try {
+            const made = await user.createPlaylist(recipe, name);
 
-    //         setLookupResults(processed);
-    //     } catch (ex) {
-    //         console.warn("User lookup query failed, error:", ex);
-    //     }
-    // };
+            feelPattern("reward");
+            onCreated?.(made.id);
+        } catch (ex) {
+            setNote(ex instanceof Error ? ex.message : "Could not make that playlist.");
+            setMaking(false);
+        }
+    }, [making, name, onCreated, recipe, user]);
 
-    // const onSearchFieldChange = (e: ChangeEvent<HTMLInputElement>) => {
-    //     if (lookupTimeout) clearTimeout(lookupTimeout);
+    return (
+        <Box position="fixed" inset="0" background={PAGE_BG} overflowY="auto" overflowX="hidden" sx={{ WebkitOverflowScrolling: "touch" }}>
+            <Stack paddingTop={TOP_CLEAR} paddingBottom={BOTTOM_CLEAR} paddingX="24px" gap="18px" minHeight="100%">
+                {recipe === null ? (
+                    <>
+                        <PageWords title="What should it be made of?">
+                            Each of these is something Spotify cannot see. Every song will say why it is there.
+                        </PageWords>
 
-    //     setLookupTimeout(setTimeout(async () => {
-    //         await handler(e);
-    //     }, lookupResults.length > 0 ? 320 : 0));
-    // };
+                        <Stack gap="10px">
+                            <SectionLabel>Recipes</SectionLabel>
+                            {RECIPES.map(option => (
+                                <HStack
+                                    key={option.id}
+                                    as="button"
+                                    aria-label={option.name}
+                                    onClick={() => { feedback("press"); setRecipe(option.id); }}
+                                    textAlign="left"
+                                    gap="12px"
+                                    alignItems="center"
+                                    padding="14px 16px"
+                                    borderRadius="16px"
+                                    background={SURFACE_HI}
+                                    _active={{ opacity: 0.7 }}
+                                >
+                                    <Stack gap="3px" flex="1" minWidth="0">
+                                        <Text fontFamily="Inter" fontWeight="800" fontSize="18px" letterSpacing="-0.02em" color={INK}>
+                                            {option.name}
+                                        </Text>
+                                        <Text fontSize="13px" color={INK_DIM}>
+                                            {option.blurb}
+                                        </Text>
+                                    </Stack>
+                                    <Box color={INK_FAINT} flexShrink={0}>
+                                        <ChevronRight size={20} />
+                                    </Box>
+                                </HStack>
+                            ))}
+                        </Stack>
+                    </>
+                ) : (
+                    <>
+                        <TextAction label="‹ Choose another" onClick={() => { setRecipe(null); setPreview(null); }} tone="dim" />
 
-    // useEffect(() => {
-    //     handler({ target: { value: "" } } as ChangeEvent<HTMLInputElement>);
-    // }, []);
+                        <PageWords title={recipeNamed(recipe).name}>
+                            {recipeNamed(recipe).blurb}
+                        </PageWords>
 
-    return (<>
-        <Stack gap="34px">
-            <Text
-                marginTop="24px"
-                fontFamily="Inter"
-                fontWeight="regular"
-                fontSize="16px"
-                opacity="0.75"
-            >
-                Pick a mood, choose your crew, and we’ll turn your group’s taste into the perfect playlist.
-            </Text>
-            <br />
-            <Text>This page is a work in progress, it does not yet function!</Text>
-            <Box>
-                <Stack gap="20px">
-                    {/* <Input
-                        // label="Search for someone"
-                        placeholder="Search for someone"
-                        valid={1}
-                        onChange={onSearchFieldChange}
-                    />
-                    <Box height="calc(100vh - 275px)" overflowY="auto" position="relative">
-                        {lookupResults.filter(v => v.id !== user.object?.id).map((v, i) => {
-                            return (
-                                <UserLookupResult
-                                    userId={v.id}
-                                    username={v.username}
-                                    pfpUrl={v.pfpUrl}
-                                    firstItem={i == 0}
-                                    mutualFriends={v.mutual}
-                                    friendState={v.frState}
-                                    friendshipId={v.frId}
-                                    // onClick={onCommit}
-                                    user={user}
-                                    key={v.id + v.username + i}
-                                />
-                            );
-                        })}
-                    </Box> */}
-                </Stack>
-            </Box>
-        </Stack>
-    </>);
+                        {preview === null ? (
+                            <Stack gap="0" aria-label="Building the playlist">
+                                {[0, 1, 2, 3].map(i => (
+                                    <HStack key={i} gap="12px" paddingY="8px">
+                                        <Skeleton width="52px" height="52px" borderRadius="8px" startColor={SURFACE_HI} endColor="#26252b" />
+                                        <Stack gap="6px" flex="1">
+                                            <Skeleton height="14px" width="60%" borderRadius="6px" startColor={SURFACE_HI} endColor="#26252b" />
+                                            <Skeleton height="12px" width="40%" borderRadius="6px" startColor={SURFACE_HI} endColor="#26252b" />
+                                            <Skeleton height="12px" width="70%" borderRadius="6px" startColor={SURFACE_HI} endColor="#26252b" />
+                                        </Stack>
+                                    </HStack>
+                                ))}
+                            </Stack>
+                        ) : preview.length === 0 ? (
+                            <Text fontSize="15px" color={INK_DIM} maxWidth="36ch">
+                                {note ?? "Nothing fits this recipe yet. Some more listening, or a few more swipes in Discover, and there will be."}
+                            </Text>
+                        ) : (
+                            <>
+                                <Stack gap="10px">
+                                    <SectionLabel>Name it</SectionLabel>
+                                    <Input
+                                        aria-label="Playlist name"
+                                        value={name}
+                                        maxLength={60}
+                                        onChange={e => setName(e.target.value)}
+                                        onKeyDown={e => { if (e.key === "Enter") make(); }}
+                                        height="48px"
+                                        borderRadius="12px"
+                                        border="none"
+                                        background={SURFACE_HI}
+                                        color={INK}
+                                        fontFamily="Inter"
+                                        fontWeight="700"
+                                        fontSize="16px"
+                                        _focus={{ boxShadow: `0 0 0 2px ${ACCENT}` }}
+                                        _placeholder={{ color: INK_FAINT }}
+                                        placeholder={recipeNamed(recipe).name}
+                                    />
+                                </Stack>
+
+                                <PrimaryButton label={making ? "Making it…" : `Make it · ${songCount(preview.length)}`} onClick={make} disabled={making} />
+
+                                {note && (
+                                    <Text role="status" fontSize="14px" color={ACCENT} maxWidth="40ch">
+                                        {note}
+                                    </Text>
+                                )}
+
+                                <Stack gap="0" marginX="-4px" paddingX="4px">
+                                    <SectionLabel>What goes in</SectionLabel>
+                                    {preview.map(song => (
+                                        <PlaylistSongRow key={song.id} song={song} now={now} />
+                                    ))}
+                                </Stack>
+                            </>
+                        )}
+                    </>
+                )}
+            </Stack>
+        </Box>
+    );
 }

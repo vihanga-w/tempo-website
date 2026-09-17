@@ -8,6 +8,7 @@ import { FaF } from "react-icons/fa6";
 import { DataStreamer } from "./live-ingest";
 import { getCachedObject, setCachedObject } from "./client-cache";
 import { fetchThroughRateLimit, rateLimitPauseMs, backoffPauseMs, RateLimitedError } from "./rate-limit";
+import { PlaylistNeedsSignInError, type Playlist, type PlaylistRecipe, type PlaylistSong, type PlaylistSummary } from "./playlists";
 
 /** A pick, as the feed sends it: a taste pick, or a friends' pick with likeness over 1. See lib/discover-feed.ts. */
 export interface Song {
@@ -338,6 +339,102 @@ export default class User extends EventEmitter {
                 // Clamp the affinity to -5 to 5
                 affinity: Math.max(-5, Math.min(5, affinity)),
             }),
+            credentials: "include",
+        });
+
+        return req.status == 200;
+    }
+
+    /* ---------------------------------------------------------- playlists */
+
+    /**
+     * One call to the playlist routes, which all answer the same way: a
+     * `data` on success, a `message` on failure, and `needsReauth` when the
+     * fix is a sign-in rather than a retry.
+     */
+    private async playlistCall<T>(path: string, init: RequestInit = {}): Promise<T> {
+        const url = API_URL + "/me/playlists" + path;
+        const req = await fetchThroughRateLimit(url, {
+            ...init,
+            headers: {
+                ...(this.getAuthHeaders()),
+                ...(init.body ? { "Content-Type": "application/json" } : {}),
+            },
+            credentials: "include",
+        });
+
+        if (req.status == 429)
+            throw new RateLimitedError(url);
+
+        const res = (await req.json().catch(() => ({}))) as {
+            error?: boolean;
+            message?: string;
+            needsReauth?: boolean;
+            data?: T;
+        };
+
+        if (res.needsReauth)
+            throw new PlaylistNeedsSignInError(res.message ?? "Sign in again to send playlists to Spotify.");
+
+        if (!req.ok || res.error || res.data === undefined)
+            throw new Error(res.message ?? "Something went wrong with that playlist. Try again in a moment.");
+
+        return res.data;
+    }
+
+    public async getPlaylists(): Promise<PlaylistSummary[]> {
+        return this.playlistCall<PlaylistSummary[]>("");
+    }
+
+    public async getPlaylist(id: string): Promise<Playlist> {
+        return this.playlistCall<Playlist>("/" + encodeURIComponent(id));
+    }
+
+    /** What a recipe would make right now, without keeping it. */
+    public async previewPlaylist(recipe: PlaylistRecipe): Promise<PlaylistSong[]> {
+        const preview = await this.playlistCall<{ songs: PlaylistSong[] }>("/preview", {
+            method: "POST",
+            body: JSON.stringify({ recipe }),
+        });
+
+        return preview.songs;
+    }
+
+    public async createPlaylist(recipe: PlaylistRecipe, name?: string): Promise<Playlist> {
+        return this.playlistCall<Playlist>("", {
+            method: "POST",
+            body: JSON.stringify({ recipe, name }),
+        });
+    }
+
+    public async renamePlaylist(id: string, name: string): Promise<Playlist> {
+        return this.playlistCall<Playlist>("/" + encodeURIComponent(id), {
+            method: "PATCH",
+            body: JSON.stringify({ name }),
+        });
+    }
+
+    /** Take a song out. It stays out however many times the playlist is refreshed. */
+    public async removeFromPlaylist(id: string, songId: string): Promise<Playlist> {
+        return this.playlistCall<Playlist>("/" + encodeURIComponent(id), {
+            method: "PATCH",
+            body: JSON.stringify({ remove: songId }),
+        });
+    }
+
+    public async refreshPlaylist(id: string): Promise<Playlist> {
+        return this.playlistCall<Playlist>("/" + encodeURIComponent(id) + "/refresh", { method: "POST" });
+    }
+
+    /** Write it to Spotify, or bring Spotify's copy up to date. Throws PlaylistNeedsSignInError when the account cannot yet. */
+    public async sendPlaylistToSpotify(id: string): Promise<Playlist> {
+        return this.playlistCall<Playlist>("/" + encodeURIComponent(id) + "/spotify", { method: "POST" });
+    }
+
+    public async deletePlaylist(id: string): Promise<boolean> {
+        const req = await fetchThroughRateLimit(API_URL + "/me/playlists/" + encodeURIComponent(id), {
+            method: "DELETE",
+            headers: { ...(this.getAuthHeaders()) },
             credentials: "include",
         });
 

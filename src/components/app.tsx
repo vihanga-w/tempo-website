@@ -718,28 +718,24 @@ export default React.memo(function UIApp({
                     {currentPage == "playlists" && (
                         <Suspense fallback={<SuspenseSpinner />}>
                             <PlaylistsPage
-                                user={user} 
-                                // streamer={streamer}
-                                // openPubProfile={(id) => {
-                                //     setPubProfileUserId(id);
-                                //     pageChanger("pub-profile", "friends");
-                                // }}
+                                user={user}
+                                openCreate={() => pageChanger("create-playlist", "playlists")}
+                                openProfile={(userId: string) => {
+                                    setPubProfileUserId(userId);
+                                    pageChanger("pub-profile", "playlists");
+                                }}
                             />
                         </Suspense>
                     )}
 
                     {/* Create playlists page */}
                     {currentPage == "create-playlist" && (
-                        <Box paddingLeft="20px" paddingRight="20px">
-                            <Suspense fallback={<SuspenseSpinner />}>
-                                <CreatePlaylistPage
-                                    user={user}
-                                    // onComplete={id => {
-                                    //     console.log("Added new friend:", id);
-                                    // }}
-                                />
-                            </Suspense>
-                        </Box>
+                        <Suspense fallback={<SuspenseSpinner />}>
+                            <CreatePlaylistPage
+                                user={user}
+                                onCreated={() => pageChanger("playlists")}
+                            />
+                        </Suspense>
                     )}
 
                     {/* Friends page */}
