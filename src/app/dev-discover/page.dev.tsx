@@ -18,7 +18,7 @@ import "@fontsource/inter/700.css";
 import "@fontsource/inter/800.css";
 import { ChakraProvider, DarkMode } from "@chakra-ui/react";
 import { useSearchParams } from "next/navigation";
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 
 import { theme } from "../theme";
 import BenchChrome from "@/components/bench-chrome.dev";
@@ -141,6 +141,14 @@ function Bench() {
     const state = params.get("state");
     const [glow, setGlow] = useState<string[] | null>(null);
     const [title, setTitle] = useState("#e9e7fb");
+
+    // The splash screen does not hide itself, and only the app's real entry
+    // point takes it down: opened in the native shell, this bench has to too
+    useEffect(() => {
+        import("@capacitor/splash-screen")
+            .then(({ SplashScreen }) => SplashScreen.hide())
+            .catch(() => { /* Not running in the native shell. */ });
+    }, []);
 
     const user = useMemo(() => ({
         getMyFYP: async () => [],

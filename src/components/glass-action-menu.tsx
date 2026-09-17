@@ -2,7 +2,7 @@
 
 import { Box, Center, HStack, Text, type BoxProps } from "@chakra-ui/react";
 import { AnimatePresence, motion, type TargetAndTransition } from "framer-motion";
-import { CircleUser, Compass, Globe, Plus, Trophy, UserPlus, Users, type LucideIcon } from "lucide-react";
+import { CircleUser, Compass, Globe, ListMusic, ListPlus, Plus, Trophy, UserPlus, Users, type LucideIcon } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { GLASS_TRANSITION, glassPress, glassSurface } from "@/lib/liquid-glass";
 import { GlassHalo } from "./glass-halo";
@@ -54,11 +54,12 @@ export type ActionMenuItem = {
  */
 export const ACTION_MENU_ITEMS: ActionMenuItem[] = [
     { id: "add-friends", label: "Add Friends", icon: UserPlus, kind: "action" },
-    // New Playlist and Playlists are left out until playlists work
+    { id: "create-playlist", label: "New Playlist", icon: ListPlus, kind: "action" },
     { id: "friends", label: "Friends", icon: Users, kind: "page" },
     { id: "discover", label: "Discover", icon: Compass, kind: "page" },
     { id: "leaderboard", label: "Leaderboard", icon: Trophy, kind: "page" },
     { id: "passport", label: "Passport", icon: Globe, kind: "page" },
+    { id: "playlists", label: "Playlists", icon: ListMusic, kind: "page" },
     { id: "settings", label: "Profile", icon: CircleUser, kind: "page" },
 ];
 
@@ -85,7 +86,7 @@ export type PinnedAction = {
 
 export const PINNED_ACTIONS: Record<string, string> = {
     friends: "add-friends",
-    // Playlists pinned New Playlist; both are out of the menu until playlists work
+    playlists: "create-playlist",
 };
 
 /**
@@ -319,12 +320,12 @@ const RECEDE = { duration: FALL_S, ease: FALL_EASE };
  * the one coming in, so the whole stack is gone in about a third of a second.
  *
  * The stagger is bounded by the longest list: every item at once must still
- * be out inside 0.4s. Seven items leave plenty of room at 0.028; nine, when
- * the playlist options were still in, needed 0.024.
+ * be out inside 0.4s. Seven items would leave plenty of room at 0.028; nine,
+ * with the playlist options in, need 0.024.
  */
 export const CLOSE_BASELINE = 0.5;
 export const CLOSE_BASELINE_S = 0.08;
-export const CLOSE_STAGGER_S = 0.028;
+export const CLOSE_STAGGER_S = 0.024;
 const BASELINE_BLUR = "blur(1.5px)";
 
 export function rowExit(fromBottom: number, holding: boolean): TargetAndTransition {
@@ -549,11 +550,35 @@ export default function GlassActionMenu({
     const hold = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     /*
-     * Puts back what the last dissolve hid. Reopened before the last close has
-     * finished — and framer waits for every row to finish leaving before it
-     * removes any — the menu gets the same rows back rather than new ones, and
-     * the hiding is the dissolve's own, not framer's to undo: the chosen row
-     * came back as an empty slot. So opening undoes it.
+     * Which opening this is. Every open gets rows of its own, keyed on it.
+     *
+     * Reopened before the last close has finished — and framer waits for every
+     * row to finish leaving before it removes any — the menu otherwise got the
+     * same rows back rather than new ones, still wearing whatever the close
+     * had got as far as. The slam did not play again, its target being the
+     * same constant as before; the label's exit blur, interrupted, was never
+     * given back, so every label sat behind a permanent smear; and a row the
+     * dissolve had taken apart came back as an empty slot. New keys mean new
+     * rows: the old ones finish falling, the new ones arrive from the start.
+     *
+     * Counted here, during render, rather than in an effect: an effect would
+     * bump it a render after the rows had already mounted, and remount them.
+     */
+    const opening = useRef(0);
+    const wasOpen = useRef(false);
+
+    if (open && !wasOpen.current)
+        opening.current += 1;
+
+    wasOpen.current = open;
+
+    /*
+     * Stops the last choice's dust. The dissolve draws on a canvas over the
+     * whole page for longer than the menu takes to close after it, so a menu
+     * reopened inside that window came up under dust still falling — and a
+     * second choice in the same window stacked a second canvas on the first.
+     * The rows it took apart are no longer a concern, being a past opening's
+     * now; the canvas is, and opening finishes it.
      */
     const undoFizzle = useRef<(() => void) | null>(null);
 
@@ -697,7 +722,8 @@ export default function GlassActionMenu({
 
         hold.current = setTimeout(() => {
             setChosen((c) => c && { ...c, dissolving: true });
-            undoFizzle.current = fizzle(stack.current?.querySelector(`[data-menu-row="${item.id}"]`) ?? null);
+            // This opening's row: the last close's may still be on its way out
+            undoFizzle.current = fizzle(stack.current?.querySelector(`[data-menu-row="${item.id}"][data-menu-opening="${opening.current}"]`) ?? null);
 
             hold.current = setTimeout(() => {
                 hold.current = null;
@@ -934,7 +960,14 @@ export default function GlassActionMenu({
                     )}
                 </AnimatePresence>
 
-                <AnimatePresence>
+                {/*
+                  * popLayout: a row on its way out is taken out of the column's
+                  * flow, held exactly where it was. Every opening has rows of
+                  * its own, so a reopen mid-close has two sets in the column
+                  * at once; in the flow, the old set was shoved up the screen
+                  * by the new one arriving under it, mid-fall.
+                  */}
+                <AnimatePresence mode="popLayout">
                     {open && items.map((item, i) => {
                         const Icon = item.icon;
 
@@ -973,9 +1006,10 @@ export default function GlassActionMenu({
 
                         return (
                             <MotionBox
-                                key={item.id}
+                                key={`${opening.current}:${item.id}`}
                                 // How the dissolve finds the row it is to take apart.
                                 data-menu-row={item.id}
+                                data-menu-opening={opening.current}
                                 display="flex"
                                 alignItems="center"
                                 gap="14px"

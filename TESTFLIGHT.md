@@ -4,6 +4,50 @@ Notes handed to TestFlight testers alongside each build. Paste the current
 section into App Store Connect's "What to Test" field; it has a 4000 character
 limit, so keep it inside that.
 
+## 1.4.0 (build 13)
+
+**Playlists are new — a tab of its own, and New Playlist in the menu.** Tempo
+makes a playlist from things Spotify can't see: the songs you liked in
+Discover, what your friends kept playing this week, the songs you came back to
+after a while away, or all of those weighed together. Every song says why it's
+there — "Maya had this on repeat", "you liked this in Discover".
+
+Please try:
+
+• **Make one of each.** Open New Playlist, pick a recipe, and look at what it
+shows before you name it. That preview is exactly what gets kept. If a recipe
+says nothing fits yet, that's honest — it needs some listening or some swipes
+in Discover first — but tell us if you're sure it should have found something.
+
+• **Read the reason under each song.** This is the big one. If it names a
+friend who didn't play it, a like you didn't give, or a time that's wrong, say
+which song and we can trace it.
+
+• **Take a song out, then refresh the playlist.** The song should stay out,
+however many times you refresh. Refresh should also pick up anything new since.
+
+• **Send one to Spotify.** It arrives as a private playlist on your account.
+If you get a message saying Tempo needs one more permission, that's expected
+for anyone who signed in before this build: sign in again when it asks and
+try once more. Update on Spotify should bring the copy up to date after a
+refresh or a removal.
+
+• **Delete one.** It asks first. Deleting leaves the Spotify copy alone.
+
+Also in this build:
+
+• **Discover picks up where you left off.** Coming back to Discover, the cards
+you'd already dealt with are skipped. Reaching the end now says you're caught
+up and offers to show them again. Tell us if it skips cards you never saw, or
+shows you cards you'd already swiped.
+
+• **The menu reopens cleanly.** Closing the menu and opening it again straight
+away used to leave the labels smeared. Open and close it a few times fast; the
+labels should always arrive sharp, with the wave up the stack each time.
+
+Known and not worth reporting: the preview line under a song in Discover
+can't be dragged to scrub; that's by design for now.
+
 ## 1.2.0 (build 3)
 
 **Passport is new — a tab of its own.** It works out where your music comes
