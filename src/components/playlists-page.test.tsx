@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 import PlaylistsPage from "./playlists-page";
 import type User from "@/lib/usrlib";
@@ -43,7 +43,7 @@ describe("the playlists page", () => {
         vi.restoreAllMocks();
     });
 
-    const mount = (over: Partial<Record<keyof User, unknown>> = {}, props: { openCreate?: () => void; openProfile?: (id: string) => void } = {}) => {
+    const mount = (over: Partial<Record<keyof User, unknown>> = {}, props: { openCreate?: () => void; openProfile?: (id: string) => void; lendBack?: (back: (() => void) | null) => void } = {}) => {
         const user = {
             getPlaylists: vi.fn().mockResolvedValue([summary()]),
             getPlaylist: vi.fn().mockResolvedValue(playlist()),
@@ -119,7 +119,8 @@ describe("the playlists page", () => {
         fireEvent.click(await screen.findByRole("button", { name: "Open Sunday morning" }));
         fireEvent.click(screen.getByRole("button", { name: "Open Late night" }));
 
-        expect(await screen.findByText("Late night")).toBeTruthy();
+        // The name is on the cover as well as in the heading, so both count
+        expect((await screen.findAllByText("Late night")).length).toBeGreaterThan(0);
 
         // The first tap's answer arrives late, and is dropped
         answerA(playlist());
@@ -127,19 +128,27 @@ describe("the playlists page", () => {
 
         expect(user.getPlaylist).toHaveBeenCalledTimes(2);
         expect(screen.queryByText("Sunday morning")).toBeNull();
-        expect(screen.getByText("Late night")).toBeTruthy();
+        expect(screen.getAllByText("Late night").length).toBeGreaterThan(0);
     });
 
     it("does not reopen a playlist the reader has left while a change was in flight", async () => {
         let answer: (p: Playlist) => void = () => {};
 
-        mount({ refreshPlaylist: vi.fn().mockImplementation(() => new Promise<Playlist>(resolve => { answer = resolve; })) });
+        const lendBack = vi.fn();
+
+        mount({ removeFromPlaylist: vi.fn().mockImplementation(() => new Promise<Playlist>(resolve => { answer = resolve; })) }, { lendBack });
 
         fireEvent.click(await screen.findByRole("button", { name: "Open Sunday morning" }));
-        fireEvent.click(await screen.findByRole("button", { name: "Refresh" }));
-        fireEvent.click(screen.getByRole("button", { name: "‹ Playlists" }));
+        fireEvent.click(await screen.findByRole("button", { name: "Take Nights out" }));
+
+        // The way back is the menu button's now, lent to the shell while a playlist is open
+        const back = lendBack.mock.calls.at(-1)?.[0] as (() => void) | null;
+
+        expect(back).toBeTypeOf("function");
+        act(() => back!());
 
         expect(await screen.findByRole("button", { name: "Open Sunday morning" })).toBeTruthy();
+        expect(lendBack).toHaveBeenLastCalledWith(null);
 
         answer(playlist());
         await new Promise(r => setTimeout(r, 0));
@@ -148,14 +157,15 @@ describe("the playlists page", () => {
         expect(screen.queryByText("Nights")).toBeNull();
     });
 
-    it("offers the way out of Spotify once a copy exists there", async () => {
+    it("offers play once a copy exists on Spotify, and the send only until then", async () => {
         mount();
 
         fireEvent.click(await screen.findByRole("button", { name: "Open Sunday morning" }));
+        expect(screen.queryByRole("button", { name: "Play in Spotify" })).toBeNull();
         fireEvent.click(await screen.findByRole("button", { name: "Send to Spotify ›" }));
 
-        expect(await screen.findByRole("button", { name: "Open in Spotify ›" })).toBeTruthy();
-        expect(screen.getByRole("button", { name: "Update on Spotify" })).toBeTruthy();
+        expect(await screen.findByRole("button", { name: "Play in Spotify" })).toBeTruthy();
+        expect(screen.queryByRole("button", { name: "Send to Spotify ›" })).toBeNull();
     });
 
     it("asks before deleting, and goes back to the list after", async () => {

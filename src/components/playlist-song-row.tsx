@@ -5,6 +5,7 @@ import { MdExplicit } from "react-icons/md";
 import { reasonLine, type PlaylistSong } from "@/lib/playlists";
 import { getSizedImageUrl } from "@/lib/sized-img";
 import { getSpotifyDeeplink, SkeletonImage } from "./playback-state";
+import { FriendChip, type CoverFriend } from "./playlist-cover";
 
 /** The page's ink, as Discover sets it. */
 export const INK = "#f6f5f8";
@@ -30,14 +31,21 @@ export function PlaylistSongRow({
     now,
     onRemove,
     openProfile,
+    accent = ACCENT,
+    friends = [],
 }: Readonly<{
     song: PlaylistSong;
     now: number;
     /** Offered only where a song can be taken out: a kept playlist, not a preview. */
     onRemove?: (songId: string) => void;
     openProfile?: (userId: string) => void;
+    /** The ink for the reason: the playlist's own, or the app's. */
+    accent?: string;
+    /** The people behind the playlist, for a friend's picture beside their reason. */
+    friends?: readonly CoverFriend[];
 }>) {
     const friend = (song.reason.type === "friend" ? song.reason : null);
+    const chip = friend ? friends.find(f => f.id === friend.userId) ?? { id: friend.userId, name: friend.username } : null;
 
     return (
         <HStack gap="12px" alignItems="center" minWidth="0" paddingY="8px">
@@ -46,14 +54,14 @@ export function PlaylistSongRow({
                 aria-label={`Open ${song.title} in Spotify`}
                 onClick={() => window.open(getSpotifyDeeplink(song.id))}
                 flexShrink={0}
-                width="52px"
-                height="52px"
-                borderRadius="8px"
+                width="56px"
+                height="56px"
+                borderRadius="10px"
                 overflow="hidden"
                 background={SURFACE_HI}
                 boxShadow="0 6px 14px -8px rgba(0,0,0,0.8)"
             >
-                <SkeletonImage src={getSizedImageUrl(song.imageUrl, 128, 128)} width="52px" height="52px" borderRadius="8px" loading="lazy" />
+                <SkeletonImage src={getSizedImageUrl(song.imageUrl, 128, 128)} width="56px" height="56px" borderRadius="10px" loading="lazy" />
             </Box>
 
             <Stack gap="2px" flex="1" minWidth="0">
@@ -70,19 +78,19 @@ export function PlaylistSongRow({
                 <Text fontSize="13px" color={INK_DIM} noOfLines={1}>
                     {song.artists.join(", ")}
                 </Text>
-                <Text
-                    as={friend && openProfile ? "button" : "p"}
+                <HStack
+                    as={friend && openProfile ? "button" : "div"}
                     onClick={friend && openProfile ? () => openProfile(friend.userId) : undefined}
-                    textAlign="left"
-                    fontFamily="Inter"
-                    fontWeight="600"
-                    fontSize="12px"
-                    color={ACCENT}
-                    noOfLines={1}
-                    marginTop="1px"
+                    gap="6px"
+                    alignItems="center"
+                    minWidth="0"
+                    marginTop="2px"
                 >
-                    {reasonLine(song.reason, now)}
-                </Text>
+                    {chip && <FriendChip friend={chip} size={18} />}
+                    <Text textAlign="left" fontFamily="Inter" fontWeight="600" fontSize="12px" color={accent} noOfLines={1} minWidth="0">
+                        {reasonLine(song.reason, now)}
+                    </Text>
+                </HStack>
             </Stack>
 
             {onRemove && (

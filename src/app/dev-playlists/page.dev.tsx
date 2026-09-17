@@ -40,7 +40,7 @@ const HOUR = 3600e3;
 const DAY = 24 * HOUR;
 
 function song(id: string, title: string, artists: string[], art: string, reason: PlaylistSong["reason"], explicit = false): PlaylistSong {
-    return { id, title, artists, imageUrl: art, explicit, reason, addedAt: Date.now() - DAY };
+    return { id, title, artists, imageUrl: art, explicit, duration: 180e3 + (id.length * 23e3) % 120e3, reason, addedAt: Date.now() - DAY };
 }
 
 function songsFor(recipe: PlaylistRecipe, now: number): PlaylistSong[] {
@@ -68,6 +68,7 @@ function Bench() {
     const page = params.get("page");
     const slow = params.get("slow") === "1";
     const [view, setView] = useState<"playlists" | "create">(page === "create" ? "create" : "playlists");
+    const [lentBack, setLentBack] = useState<(() => void) | null>(null);
 
     useEffect(() => {
         setView(page === "create" ? "create" : "playlists");
@@ -93,8 +94,15 @@ function Bench() {
             return found;
         };
 
+        const friend = (id: string, displayName: string, picture?: string) => ({
+            user: { id, displayName, images: picture ? [{ url: picture, width: 300, height: 300 }] : [] },
+            friendship: {},
+        });
+
         return {
             getAuthHeaders: () => ({}),
+            object: { id: "u-vihanga", displayName: "Vihanga" },
+            friends: [friend("u-maya", "Maya", ART.blonde), friend("u-jon", "Jon"), friend("u-sam", "Sam", ART.tpab)],
             getPlaylists: async () => { await wait(); return [...kept.values()].sort((a, b) => b.updatedAt - a.updatedAt).map(summary); },
             getPlaylist: async (id: string) => { await wait(); return need(id); },
             previewPlaylist: async (recipe: PlaylistRecipe) => { await wait(); return songsFor(recipe, Date.now()); },
@@ -152,9 +160,9 @@ function Bench() {
                 {view === "create" ? (
                     <CreatePlaylistPage user={user} onCreated={id => { console.log("[bench] created", id); setView("playlists"); }} />
                 ) : (
-                    <PlaylistsPage user={user} openCreate={() => setView("create")} openProfile={id => console.log("[bench] open profile", id)} />
+                    <PlaylistsPage user={user} openCreate={() => setView("create")} openProfile={id => console.log("[bench] open profile", id)} lendBack={back => setLentBack(() => back)} />
                 )}
-                <BenchChrome title={view === "create" ? "Create Playlist" : "Playlists"} page={view === "create" ? "create-playlist" : "playlists"} />
+                <BenchChrome title={view === "create" ? "Create Playlist" : "Playlists"} page={view === "create" ? "create-playlist" : "playlists"} onBack={lentBack ?? undefined} />
             </DarkMode>
         </ChakraProvider>
     );
