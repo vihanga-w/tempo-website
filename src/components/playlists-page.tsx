@@ -281,7 +281,7 @@ function PlaylistList({
                             </Text>
                             {list.spotify && (
                                 <Text fontFamily="Inter" fontWeight="600" fontSize="12px" color={ACCENT}>
-                                    On your Spotify
+                                    Saved in Spotify
                                 </Text>
                             )}
                         </Stack>
