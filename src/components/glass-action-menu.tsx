@@ -961,13 +961,18 @@ export default function GlassActionMenu({
                 </AnimatePresence>
 
                 {/*
-                  * popLayout: a row on its way out is taken out of the column's
-                  * flow, held exactly where it was. Every opening has rows of
-                  * its own, so a reopen mid-close has two sets in the column
-                  * at once; in the flow, the old set was shoved up the screen
-                  * by the new one arriving under it, mid-fall.
+                  * The rows are placed, not flowed: each sits a fixed distance
+                  * above the button, by its place in the list. Every opening
+                  * has rows of its own, so a reopen mid-close has two sets
+                  * here at once, and in the flow the old set was shoved up the
+                  * screen by the new one arriving under it. Taking exiting
+                  * rows out of the flow instead (framer's popLayout) held them
+                  * at a measured offset from the column's top — and with every
+                  * row leaving, the column shrank to the button, so the whole
+                  * stack jumped below it, off the screen, for the length of
+                  * the close.
                   */}
-                <AnimatePresence mode="popLayout">
+                <AnimatePresence>
                     {open && items.map((item, i) => {
                         const Icon = item.icon;
 
@@ -1010,6 +1015,9 @@ export default function GlassActionMenu({
                                 // How the dissolve finds the row it is to take apart.
                                 data-menu-row={item.id}
                                 data-menu-opening={opening.current}
+                                position="absolute"
+                                right="0"
+                                bottom={`${BUTTON_SIZE + ITEM_GAP + fromBottom * (ITEM_SIZE + ITEM_GAP)}px`}
                                 display="flex"
                                 alignItems="center"
                                 gap="14px"
