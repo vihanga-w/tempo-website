@@ -41,6 +41,7 @@ export default function BenchChrome({
     pinned,
     beside,
     glow,
+    onBack,
 }: Readonly<{
     /** What the shell would be showing as the page title. */
     title: string;
@@ -56,6 +57,8 @@ export default function BenchChrome({
     pinned?: PinnedAction;
     beside?: PinnedAction;
     glow?: readonly string[];
+    /** A way back a page has lent the menu, as the shell does for an open playlist. */
+    onBack?: () => void;
 }>) {
     const [menuOpen, setMenuOpen] = useState(false);
 
@@ -128,6 +131,7 @@ export default function BenchChrome({
                 pinned={pinned}
                 beside={beside}
                 glow={glow}
+                onBack={onBack}
                 onNavigate={() => { /* Nowhere to go from a bench. */ }}
             />
         </>

@@ -77,6 +77,12 @@ export default React.memo(function UIApp({
     const [currentPage, setCurrentPage] = useState<string>("friends");
     const [currentPageTitle, setCurrentPageTitle] = useState<string>("Friends");
     const [prevPage, setPrevPage] = useState<string>("");
+    /**
+     * A way back a page has lent the menu: Playlists inside an open playlist.
+     * The button shows its back arrow for it as it does on a sub-page, and the
+     * page takes it back when there is nothing to go back from.
+     */
+    const [lentBack, setLentBack] = useState<(() => void) | null>(null);
     const [actionMenuOpen, setActionMenuOpen] = useState<boolean>(false);
     /*
      * The recaps the profile page has found, if any, so the shell can pin a
@@ -604,7 +610,7 @@ export default React.memo(function UIApp({
                      * menu. It used to be hidden there, leaving the title's
                      * chevron as the only exit; now it is the exit.
                      */
-                    onBack={prevPage !== "" ? handleBack : undefined}
+                    onBack={prevPage !== "" ? handleBack : lentBack ?? undefined}
                     /*
                      * The page's own colour — the one its title is set in — for
                      * the glass to reflect. Your Profile sets it from the
@@ -719,6 +725,10 @@ export default React.memo(function UIApp({
                         <Suspense fallback={<SuspenseSpinner />}>
                             <PlaylistsPage
                                 user={user}
+                                onPaletteChange={setPagePalette}
+                                setComplementaryColour={setComplementaryColour}
+                                // Wrapped: a function handed straight to a state setter is taken for an updater
+                                lendBack={back => setLentBack(() => back)}
                                 openCreate={() => pageChanger("create-playlist", "playlists")}
                                 openProfile={(userId: string) => {
                                     setPubProfileUserId(userId);

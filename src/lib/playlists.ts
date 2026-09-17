@@ -34,6 +34,8 @@ export interface PlaylistSong {
     artists: string[];
     imageUrl: string;
     explicit?: boolean;
+    /** In ms, for the running time. */
+    duration?: number;
     reason: PlaylistReason;
     addedAt: number;
 }
