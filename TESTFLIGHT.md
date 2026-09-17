@@ -16,9 +16,9 @@ Please try:
 • Check the reason under each song. Wrong friend, wrong like, wrong time —
 tell us which song.
 • Take a song out, then refresh. It should stay out.
-• Send one to Spotify. If it asks you to sign in again, do, then retry. If it
-fails, tell us the time.
-• Delete one. It asks first.
+• A new playlist lands on your Spotify by itself, with a cover made from its
+songs. If it asks you to sign in again, do, then make another.
+• Delete one. It asks first, and it goes from your Spotify too.
 
 Also: Discover skips cards you've already dealt with when you come back, and
 the menu should open and close cleanly however fast you tap it.
