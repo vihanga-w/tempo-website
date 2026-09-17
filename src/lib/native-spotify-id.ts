@@ -458,6 +458,7 @@ function readWithLogin(options: ProbeOptions = {}): Promise<SpotifyIdResult> {
 function watchForReturn(
     watch: (onUrl: (url: string) => void) => void,
     onNeedsOwnApp?: () => void,
+    onReturned?: () => void,
 ): void {
     let atSpotify = false;
     let finishing = false;
@@ -491,6 +492,25 @@ function watchForReturn(
             return;
         }
 
+        /*
+         * The page the server sends a finished native sign-in to. Its only
+         * job is to say that it happened, and it is not for reading: the
+         * webview goes at once, and the sign-in is picked up from here. An
+         * account that had already consented never stops at Spotify - the
+         * authorise page answers with a redirect - so this is recognised on
+         * its own, not only after Spotify has been seen.
+         */
+        if (/\/static-success(\?|$)/.test(url)) {
+            if (finishing)
+                return;
+
+            finishing = true;
+            closeWebView();
+            onReturned?.();
+
+            return;
+        }
+
         if (finishing || !atSpotify || !url.startsWith(API_URL))
             return;
 
@@ -510,7 +530,7 @@ function watchForReturn(
     });
 }
 
-export async function continueInWebView(url: string, onNeedsOwnApp?: () => void): Promise<void> {
+export async function continueInWebView(url: string, onNeedsOwnApp?: () => void, onReturned?: () => void): Promise<void> {
     if (!active)
         return;
 
@@ -531,7 +551,7 @@ export async function continueInWebView(url: string, onNeedsOwnApp?: () => void)
         watchForReturn((onUrl) => {
             InAppBrowser.addListener("urlChangeEvent", (state) => onUrl(state.url))
                 .catch(() => { });
-        }, onNeedsOwnApp);
+        }, onNeedsOwnApp, onReturned);
 
         try {
             await InAppBrowser.openWebView({
@@ -548,7 +568,7 @@ export async function continueInWebView(url: string, onNeedsOwnApp?: () => void)
 
     watchForReturn((onUrl) => {
         ref.addEventListener("loadstart", (event) => onUrl(event?.url ?? ""));
-    }, onNeedsOwnApp);
+    }, onNeedsOwnApp, onReturned);
 
     try { ref.show(); } catch { }
 

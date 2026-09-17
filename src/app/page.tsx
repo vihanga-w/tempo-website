@@ -725,14 +725,29 @@ export default function Home() {
                   setAppSetupRedirectUri({ redirectUri, swapToken: seshRes.token });
                 };
 
+                /*
+                 * The sign-in has come back: the webview has seen the page the
+                 * server sends a finished one to, and closed itself. The token
+                 * is fetched here rather than left to the poll, so the app
+                 * moves on at once; the poll and the socket, should either
+                 * answer first, find it already taken and do no harm.
+                 */
+                const returned = async () => {
+                  clearInterval(checker);
+
+                  const tok = await loadSwappedToken();
+
+                  prepare(tok == "LOST" || tok == "INIT" ? undefined : tok);
+                };
+
                 if (routed.url) {
-                  await continueInWebView(routed.url, setUpOwnApp);
+                  await continueInWebView(routed.url, setUpOwnApp, returned);
                 } else {
                   console.warn("No app of their own on record for", username,
                     routed.staleCreds ? "(keys rejected)" : "(no record)",
                     "- trying the ordinary sign-in before setting one up");
 
-                  await continueInWebView(defaultSignInUrl, setUpOwnApp);
+                  await continueInWebView(defaultSignInUrl, setUpOwnApp, returned);
                 }
               }
 
@@ -742,9 +757,29 @@ export default function Home() {
                 console.log("POLL:", tok)
 
                 if (tok == "LOST") {
+                  clearInterval(checker);
+
+                  /*
+                   * Gone from the server, but perhaps already taken: the socket
+                   * and the return page each fetch the token as well, and the
+                   * server hands it out once. With a token stored there is
+                   * nothing to start over - the sign-in is done.
+                   */
+                  const stored = await Preferences.get({ key: "tempo.s.a" }).catch(() => null);
+
+                  if (stored?.value) {
+                    try {
+                      InAppBrowser.close();
+                    } catch { }
+
+                    closeAppFormWebView();
+                    prepare(stored.value);
+
+                    return;
+                  }
+
                   // Start over with a session the server has: this one is gone
                   console.warn("The server has lost this sign-in's swap session, starting the sign-in again");
-                  clearInterval(checker);
 
                   try {
                     InAppBrowser.close();
