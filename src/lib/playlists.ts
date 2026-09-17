@@ -53,6 +53,9 @@ export interface PlaylistSummary {
     createdAt: number;
     updatedAt: number;
     songCount: number;
+    /** The first three covers, to draw the playlist's fan small. */
+    artwork?: string[];
+    durationMs?: number;
     spotify?: SpotifyCopy;
 }
 
