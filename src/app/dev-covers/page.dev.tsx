@@ -32,7 +32,7 @@ const ART = {
     depcherry: "/art/art-depcherry.jpg",
 };
 
-type Song = { id: string; title: string; art: string; friend?: { id: string; name: string } };
+type Song = { id: string; title: string; art: string; friend?: { id: string; name: string; picture?: string } };
 type Sample = { name: string; recipe: string; blurb: string; listener: string; madeOn: string; songs: Song[] };
 
 const SAMPLES: Sample[] = [
@@ -51,10 +51,10 @@ const SAMPLES: Sample[] = [
     {
         name: "On repeat with friends", recipe: "On repeat with friends", blurb: "What your friends kept playing this week.", listener: "Vihanga", madeOn: "17 Sep 2026",
         songs: [
-            { id: "weird", title: "Weird Fishes", art: ART.inrainbows, friend: { id: "u-maya", name: "Maya" } },
+            { id: "weird", title: "Weird Fishes", art: ART.inrainbows, friend: { id: "u-maya", name: "Maya", picture: ART.blonde } },
             { id: "tears", title: "Save Your Tears", art: ART.afterhours, friend: { id: "u-jon", name: "Jon" } },
-            { id: "lithium", title: "Lithium", art: ART.nevermind, friend: { id: "u-sam", name: "Sam" } },
-            { id: "alright", title: "Alright", art: ART.tpab, friend: { id: "u-priya", name: "Priya" } },
+            { id: "lithium", title: "Lithium", art: ART.nevermind, friend: { id: "u-sam", name: "Sam", picture: ART.tpab } },
+            { id: "alright", title: "Alright", art: ART.tpab, friend: { id: "u-priya", name: "Priya", picture: ART.depcherry } },
         ],
     },
     {
@@ -254,8 +254,18 @@ function Fan({ p, palette }: { p: Sample; palette: string[] }) {
 
                 return (
                     <g key={f.id}>
-                        <circle cx={cx} cy={S - 48} r="21" fill={colour.from} />
-                        <text x={cx} y={S - 41} textAnchor="middle" fill={colour.ink} fontFamily="Inter" fontWeight="800" fontSize="20">{f.name[0]}</text>
+                        {f.picture ? (
+                            <>
+                                <clipPath id={`chip-${p.name}-${i}`}><circle cx={cx} cy={S - 48} r="21" /></clipPath>
+                                <image href={f.picture} x={cx - 21} y={S - 69} width="42" height="42" preserveAspectRatio="xMidYMid slice" clipPath={`url(#chip-${p.name}-${i})`} />
+                                <circle cx={cx} cy={S - 48} r="21" fill="none" stroke="#fff" strokeOpacity="0.18" strokeWidth="1.5" />
+                            </>
+                        ) : (
+                            <>
+                                <circle cx={cx} cy={S - 48} r="21" fill={colour.from} />
+                                <text x={cx} y={S - 41} textAnchor="middle" fill={colour.ink} fontFamily="Inter" fontWeight="800" fontSize="20">{f.name[0]}</text>
+                            </>
+                        )}
                     </g>
                 );
             })}
@@ -269,7 +279,7 @@ const STYLES: { name: string; note: string; render: (p: Sample, palette: string[
     { name: "Wash", note: "The songs' colours as a wash behind the name. Every playlist gets its own weather.", render: (p, c) => <Wash p={p} palette={c} /> },
     { name: "Stamp", note: "Passport's stamp, tilted by the name's hash, the recipe around the ring.", render: (p, c) => <Stamp p={p} palette={c} /> },
     { name: "Pulse", note: "One bar per song, height from the song, colour from the covers: a fingerprint of the list.", render: (p, c) => <Pulse p={p} palette={c} /> },
-    { name: "Fan", note: "Three covers as a hand of cards, the mark in the corner, and for the friends recipe the people behind it as chips. What the server now draws for every playlist.", render: (p, c) => <Fan p={p} palette={c} /> },
+    { name: "Fan", note: "Three covers as a hand of cards, the mark in the corner, and for the friends recipe the people behind it as chips, their own pictures where they have one. What the server now draws for every playlist.", render: (p, c) => <Fan p={p} palette={c} /> },
 ];
 
 function Platter() {
