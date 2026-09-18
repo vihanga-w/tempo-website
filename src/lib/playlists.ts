@@ -7,14 +7,30 @@ import { RateLimitedError } from "./rate-limit";
  * mirror the server's playlist-builder; the words for them live here.
  */
 
-export type PlaylistRecipe = "liked" | "friends" | "returned" | "mix";
+export type PlaylistRecipe = "liked" | "friends" | "returned" | "mix" | "now";
 
 export const RECIPES: { id: PlaylistRecipe; name: string; blurb: string }[] = [
+    { id: "now", name: "Right about now", blurb: "What you play at this hour, made fresh through the day." },
     { id: "liked", name: "Liked in Discover", blurb: "Everything you swiped right on, newest first." },
     { id: "friends", name: "On repeat with friends", blurb: "What your friends kept playing this week." },
     { id: "returned", name: "On repeat with Tempo", blurb: "The songs you keep coming back to." },
     { id: "mix", name: "Your mix", blurb: "Likes, your plays and your friends', weighed together." },
 ];
+
+/** The recipe that is built against the clock, and so is rebuilt through the day rather than once a week. */
+export function isDynamic(recipe: PlaylistRecipe): boolean {
+    return recipe === "now";
+}
+
+/** The part of the day a song is the listener's, as the server names it. */
+export type DayPart = "morning" | "afternoon" | "evening" | "night";
+
+const DAY_PARTS: Record<DayPart, string> = {
+    morning: "in the morning",
+    afternoon: "in the afternoon",
+    evening: "in the evening",
+    night: "late at night",
+};
 
 export function recipeNamed(recipe: PlaylistRecipe): { name: string; blurb: string } {
     return RECIPES.find(v => v.id === recipe) ?? { name: "Playlist", blurb: "" };
@@ -25,6 +41,8 @@ export type PlaylistReason =
     | { type: "friend"; userId: string; username: string; how: "repeat" | "through" | "played"; at: number; others: number }
     | { type: "returned"; days: number; lastAt: number }
     | { type: "played"; plays: number; replays: number; lastAt: number }
+    /** A song the listener plays at about this hour: the dynamic recipe's own reason. */
+    | { type: "daypart"; part: DayPart; plays: number; lastAt: number }
     /** A friend's reason the listener may no longer be shown: the friend has stopped sharing, or being one. */
     | { type: "kept"; at: number };
 
@@ -111,6 +129,15 @@ export function reasonLine(reason: PlaylistReason, now: number = Date.now()): st
             return `You played this ${times}${repeats} · ${describeWhen(reason.lastAt, now)}`;
         }
 
+        case "daypart": {
+            const when = DAY_PARTS[reason.part] ?? "around now";
+
+            if (reason.plays <= 1)
+                return `You played this ${when} · ${describeWhen(reason.lastAt, now)}`;
+
+            return `You play this ${when}, ${reason.plays} times · ${describeWhen(reason.lastAt, now)}`;
+        }
+
         case "kept":
             return `In this playlist · ${describeWhen(reason.at, now)}`;
     }
@@ -133,20 +160,29 @@ export function describeError(ex: unknown, fallback: string): string {
     return fallback;
 }
 
-/** "Refreshed every week · next Tuesday", or just the first half without a date. */
-export function refreshLine(refreshesAt: number | undefined, now: number = Date.now()): string {
+/**
+ * "Refreshed every week · next Tuesday", or just the first half without a
+ * date. The dynamic recipe is rebuilt with the hour rather than with the
+ * week, so it says the time instead of the day: "next at 6:00 pm".
+ */
+export function refreshLine(refreshesAt: number | undefined, recipe: PlaylistRecipe = "mix", now: number = Date.now()): string {
+    const every = isDynamic(recipe) ? "Made fresh through the day" : "Refreshed every week";
+
     if (refreshesAt === undefined)
-        return "Refreshed every week.";
+        return `${every}.`;
+
+    if (refreshesAt <= now)
+        return `${every} · due now.`;
+
+    if (isDynamic(recipe))
+        return `${every} · next at ${new Date(refreshesAt).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}.`;
 
     const days = Math.ceil((refreshesAt - now) / (24 * 3600e3));
 
-    if (days <= 0)
-        return "Refreshed every week · due now.";
-
     if (days === 1)
-        return "Refreshed every week · next tomorrow.";
+        return `${every} · next tomorrow.`;
 
-    return `Refreshed every week · next ${new Date(refreshesAt).toLocaleDateString(undefined, { weekday: "long" })}.`;
+    return `${every} · next ${new Date(refreshesAt).toLocaleDateString(undefined, { weekday: "long" })}.`;
 }
 
 /** "12 songs", "1 song", "No songs". */

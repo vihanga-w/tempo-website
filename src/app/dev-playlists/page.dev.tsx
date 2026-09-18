@@ -52,12 +52,15 @@ function songsFor(recipe: PlaylistRecipe, now: number): PlaylistSong[] {
         song("s5", "Save Your Tears", ["The Weeknd"], ART.afterhours, { type: "friend", userId: "u-jon", username: "Jon", how: "through", at: now - 30 * HOUR, others: 0 }),
         song("s6", "Cherry-coloured Funk", ["Cocteau Twins"], ART.depcherry, { type: "liked", at: now - 5 * DAY, strength: 2 }),
         song("s7", "Lithium", ["Nirvana"], ART.nevermind, { type: "friend", userId: "u-sam", username: "Sam", how: "played", at: now - 2 * DAY, others: 3 }, true),
+        song("s8", "Motion Sickness", ["Phoebe Bridgers"], ART.blonde, { type: "daypart", part: "evening", plays: 4, lastAt: now - 20 * HOUR }),
+        song("s9", "Redbone", ["Childish Gambino"], ART.tpab, { type: "daypart", part: "night", plays: 1, lastAt: now - 9 * HOUR }),
     ];
 
     switch (recipe) {
         case "liked": return all.filter(v => v.reason.type === "liked");
         case "friends": return all.filter(v => v.reason.type === "friend");
         case "returned": return all.filter(v => v.reason.type === "returned" || v.reason.type === "played");
+        case "now": return all.filter(v => v.reason.type === "daypart" || v.reason.type === "liked");
         case "mix": return all;
     }
 }

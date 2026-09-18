@@ -1,5 +1,28 @@
 # Changelog
 
+## Playlists
+
+### 🕗 Right about now
+
+There's a fifth recipe on New Playlist. It builds from what you actually play
+at this time of day — your morning songs in the morning, your late ones late —
+rather than from your listening as one flat pile, and it takes your friends'
+plays the same way, weighted by the hour they played them at.
+
+Every song still says why it is there: "You play this in the evening, 4 times",
+with when you last did.
+
+### 🎲 A different playlist by the afternoon
+
+It shuffles. Not enough to move the songs you are plainly in the mood for, but
+enough that the ones behind them take turns, so the playlist you open after
+lunch is not the one you opened at breakfast.
+
+It rebuilds itself through the day instead of once a week, and again whenever
+you open it, so it is never a playlist for an hour that has passed. The page
+says when it is next due — "Made fresh through the day · next at 6:00 pm" —
+and your copy in Spotify is kept in step with it.
+
 ## Passport
 
 ### 🌍 Your listening, as somewhere you've been

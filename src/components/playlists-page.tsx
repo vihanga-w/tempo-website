@@ -423,7 +423,7 @@ function OpenPlaylist({
                     </Text>
                     <Text fontSize="14px" color={INK_DIM}>{line}</Text>
                     <Text fontFamily="Inter" fontWeight="600" fontSize="12px" color={colour.accentInk} opacity="0.9">
-                        {playlist.spotify ? "Saved in Spotify · " : ""}{refreshLine(playlist.refreshesAt, now).replace(/\.$/, "")}
+                        {playlist.spotify ? "Saved in Spotify · " : ""}{refreshLine(playlist.refreshesAt, playlist.recipe, now).replace(/\.$/, "")}
                     </Text>
                 </Stack>
 
@@ -431,7 +431,8 @@ function OpenPlaylist({
                   * The one thing people do with a playlist, as small glass,
                   * which flips its tone with the wash behind it. Sending to
                   * Spotify happens as a playlist is made and refreshing
-                  * happens weekly, so neither needs a button. Nothing else
+                  * happens on its recipe's own clock — weekly, or with the
+                  * hour — so neither needs a button. Nothing else
                   * sits beside the glass: content that moved next to it left
                   * WebKit's blur painting a stale strip on the pill.
                   */}
