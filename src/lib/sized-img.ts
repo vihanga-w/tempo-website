@@ -15,10 +15,44 @@ export function getSizedImageUrl(url: string | undefined | null, width: number, 
      * artwork. Nothing in, nothing out: an image with no source draws nothing,
      * which is what a missing cover should look like.
      */
-    if (!url || !url.startsWith("https://i.scdn.co/image/"))
-        return url ?? "";
+    if (!url)
+        return "";
+
+    if (!url.startsWith("https://i.scdn.co/image/"))
+        return (isAppleArtwork(url) ? appleArtworkAt(url, width, height) : url);
 
     const imageId = url.slice("https://i.scdn.co/image/".length);
 
     return `${API_URL}/img/${imageId}?s=${width}x${height}`;
+}
+
+/**
+ * Apple Music's artwork host. Its covers are not proxied: Apple sizes them
+ * itself, from the dimensions in the file name.
+ */
+function isAppleArtwork(url: string) {
+    try {
+        return /(^|\.)mzstatic\.com$/.test(new URL(url).hostname);
+    } catch {
+        return false;
+    }
+}
+
+/**
+ * An Apple Music cover at `width` by `height`.
+ *
+ * The API hands artwork out as a template — "{w}x{h}" where the size goes,
+ * and sometimes "{c}" for the crop ("bb", the whole cover) and "{f}" for the
+ * format — and a filled-in URL has the size in the
+ * same place, followed by a crop code and sometimes a quality
+ * ("…/600x600bb.jpg", "…/1200x630bf-60.jpg"). Either is sized by replacing it.
+ */
+function appleArtworkAt(url: string, width: number, height: number) {
+    const w = String(Math.max(1, Math.round(width)));
+    const h = String(Math.max(1, Math.round(height)));
+
+    if (url.includes("{w}") || url.includes("{h}"))
+        return url.replace("{w}", w).replace("{h}", h).replace("{c}", "bb").replace("{f}", "jpg");
+
+    return url.replace(/\/\d+x\d+([a-z]{2})?(-\d+)?(\.[a-z]+)$/i, `/${w}x${h}$1$2$3`);
 }

@@ -8,7 +8,8 @@ import { useFitLines } from "@/lib/use-fit-lines";
 import { useTurntable } from "@/lib/use-turntable";
 import { grooveRingsFor, separationsFor } from "@/lib/record-grooves";
 import { useScrollFade } from "@/lib/use-scroll-fade";
-import { getSpotifyDeeplink, SkeletonImage } from "./playback-state";
+import { SkeletonImage } from "./playback-state";
+import { openSong, songLink } from "../lib/music-links";
 import {
     chipFill,
     extractArtworkColour,
@@ -792,12 +793,14 @@ function NowSpinning({
                         fontWeight="semibold"
                         color="rgba(255,255,255,0.82)"
                         cursor="pointer"
+                        // Hidden rather than removed, so the clocks either side
+                        // stay where they are
+                        visibility={songLink(state.songId).url ? "visible" : "hidden"}
                         onClick={() => {
-                            if (state.songId)
-                                window.open(getSpotifyDeeplink(state.songId));
+                            openSong(songLink(state.songId, state.mediaType));
                         }}
                     >
-                        Open in Spotify
+                        Open in {songLink(state.songId).serviceName}
                     </Text>
                     <Text fontSize="11px" color="rgba(255,255,255,0.6)" sx={{ fontVariantNumeric: "tabular-nums" }}>
                         {formatClock(state.duration ?? 0)}

@@ -4,7 +4,8 @@ import { MdExplicit } from "react-icons/md";
 
 import { reasonLine, type PlaylistSong } from "@/lib/playlists";
 import { getSizedImageUrl } from "@/lib/sized-img";
-import { getSpotifyDeeplink, SkeletonImage } from "./playback-state";
+import { SkeletonImage } from "./playback-state";
+import { openSong, songLink } from "../lib/music-links";
 import { FriendChip, type CoverFriend } from "./playlist-cover";
 
 /** The page's ink, as Discover sets it. */
@@ -51,8 +52,8 @@ export function PlaylistSongRow({
         <HStack gap="12px" alignItems="center" minWidth="0" paddingY="8px">
             <Box
                 as="button"
-                aria-label={`Open ${song.title} in Spotify`}
-                onClick={() => window.open(getSpotifyDeeplink(song.id))}
+                aria-label={`Open ${song.title} in ${songLink(song.id).serviceName}`}
+                onClick={() => openSong(songLink(song.id))}
                 flexShrink={0}
                 width="56px"
                 height="56px"

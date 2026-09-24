@@ -9,6 +9,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         // Set the window's background color to #0D0D0E
         window?.backgroundColor = UIColor(red: 13/255, green: 13/255, blue: 14/255, alpha: 1.0)
+
+        // Registered before launching finishes, which iOS requires; and resumed
+        // for a listener already set up, including when iOS launches the app in
+        // the background to refresh
+        LiveTracker.registerBackgroundRefresh()
+        LiveTracker.shared.resumeIfConfigured()
+
         return true
     }
 
