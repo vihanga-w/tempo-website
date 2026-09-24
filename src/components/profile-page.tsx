@@ -793,6 +793,9 @@ function NowSpinning({
                         fontWeight="semibold"
                         color="rgba(255,255,255,0.82)"
                         cursor="pointer"
+                        // Hidden rather than removed, so the clocks either side
+                        // stay where they are
+                        visibility={songLink(state.songId).url ? "visible" : "hidden"}
                         onClick={() => {
                             openSong(songLink(state.songId, state.mediaType));
                         }}

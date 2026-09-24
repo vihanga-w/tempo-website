@@ -402,7 +402,7 @@ export function PlaybackState({
                                         <MdExplicit />
                                     )}
                                 </HStack>
-                                {!hideSpotifyCallout && (
+                                {!hideSpotifyCallout && songLink(data?.state?.songId).url && (
                                     <HStack pos="absolute" top="0" right="0" gap="5px" onClick={() => {
                                         openSong(songLink(data?.state?.songId, data?.state?.mediaType));
                                     }}>

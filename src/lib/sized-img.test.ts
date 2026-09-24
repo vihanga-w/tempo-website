@@ -24,6 +24,11 @@ describe("getSizedImageUrl", () => {
             .toBe("https://is1-ssl.mzstatic.com/image/thumb/a/source/96x96bf-60.jpg");
     });
 
+    it("fills in a template's crop", () => {
+        expect(getSizedImageUrl("https://is1-ssl.mzstatic.com/image/thumb/a/source/{w}x{h}{c}.{f}", 96, 96))
+            .toBe("https://is1-ssl.mzstatic.com/image/thumb/a/source/96x96bb.jpg");
+    });
+
     it("fills in a template's format", () => {
         expect(getSizedImageUrl("https://is1-ssl.mzstatic.com/image/thumb/a/source/{w}x{h}bb.{f}", 96, 96))
             .toBe("https://is1-ssl.mzstatic.com/image/thumb/a/source/96x96bb.jpg");

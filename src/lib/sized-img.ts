@@ -42,7 +42,8 @@ function isAppleArtwork(url: string) {
  * An Apple Music cover at `width` by `height`.
  *
  * The API hands artwork out as a template — "{w}x{h}" where the size goes,
- * and sometimes "{f}" for the format — and a filled-in URL has the size in the
+ * and sometimes "{c}" for the crop ("bb", the whole cover) and "{f}" for the
+ * format — and a filled-in URL has the size in the
  * same place, followed by a crop code and sometimes a quality
  * ("…/600x600bb.jpg", "…/1200x630bf-60.jpg"). Either is sized by replacing it.
  */
@@ -51,7 +52,7 @@ function appleArtworkAt(url: string, width: number, height: number) {
     const h = String(Math.max(1, Math.round(height)));
 
     if (url.includes("{w}") || url.includes("{h}"))
-        return url.replace("{w}", w).replace("{h}", h).replace("{f}", "jpg");
+        return url.replace("{w}", w).replace("{h}", h).replace("{c}", "bb").replace("{f}", "jpg");
 
     return url.replace(/\/\d+x\d+([a-z]{2})?(-\d+)?(\.[a-z]+)$/i, `/${w}x${h}$1$2$3`);
 }

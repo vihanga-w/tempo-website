@@ -187,8 +187,10 @@ export function FriendNowPlayingCard({
                     width="76px"
                     height="76px"
                     flexShrink="0"
-                    role="button"
-                    aria-label={`Play ${state.name} on ${songLink(state.songId).serviceName}`}
+                    // Not a control for a song with nothing to open, such as a
+                    // local file
+                    role={songLink(state.songId).url ? "button" : undefined}
+                    aria-label={songLink(state.songId).url ? `Play ${state.name} on ${songLink(state.songId).serviceName}` : undefined}
                     onClick={e => {
                         e.stopPropagation();
 
