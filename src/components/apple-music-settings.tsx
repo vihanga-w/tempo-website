@@ -1,0 +1,123 @@
+import { Button, Divider, Heading, HStack, Text, VStack } from "@chakra-ui/react";
+import { useCallback, useEffect, useState } from "react";
+import { SiApplemusic } from "react-icons/si";
+
+import {
+    AppleMusicNotAllowedError,
+    canLinkAppleMusicHere,
+    getLinkedAccounts,
+    linkAppleMusic,
+    LinkedAccountsStatus,
+    unlinkAppleMusic,
+} from "@/lib/apple-music";
+
+/**
+ * Linking Apple Music, beside Spotify.
+ *
+ * Both can be linked at once, and Tempo keeps listening on both: what is
+ * played on either lands in the same history. Nothing here while the server
+ * does not offer Apple Music, so the section does not appear before it works.
+ */
+export function AppleMusicSettings({ authHeaders }: { authHeaders: () => Record<string, string> }) {
+    const [status, setStatus] = useState<LinkedAccountsStatus | null>(null);
+    const [busy, setBusy] = useState(false);
+    const [message, setMessage] = useState<string | null>(null);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        getLinkedAccounts(authHeaders())
+            .then(next => { if (!cancelled) setStatus(next); })
+            .catch(ex => console.warn("Could not read linked accounts:", ex));
+
+        return () => { cancelled = true; };
+    }, [authHeaders]);
+
+    const link = useCallback(async () => {
+        setBusy(true);
+        setMessage(null);
+
+        try {
+            const next = await linkAppleMusic(authHeaders());
+
+            setStatus(current => (current ? { ...current, accounts: next.accounts } : current));
+            setMessage("Tempo will start keeping your Apple Music listening from now on.");
+        } catch (ex) {
+            setMessage(ex instanceof AppleMusicNotAllowedError
+                ? "Tempo needs access to Apple Music to link it. You can allow it in Settings › Tempo."
+                : (ex instanceof Error ? ex.message : "Apple Music could not be linked. Try again in a moment."));
+        } finally {
+            setBusy(false);
+        }
+    }, [authHeaders]);
+
+    const unlink = useCallback(async () => {
+        if (!confirm("Unlink Apple Music?\n\nWhat you have already played stays in your history. Tempo stops keeping anything new from Apple Music."))
+            return;
+
+        setBusy(true);
+        setMessage(null);
+
+        try {
+            const next = await unlinkAppleMusic(authHeaders());
+
+            setStatus(current => (current ? { ...current, accounts: next.accounts } : current));
+        } catch (ex) {
+            setMessage(ex instanceof Error ? ex.message : "Apple Music could not be unlinked.");
+        } finally {
+            setBusy(false);
+        }
+    }, [authHeaders]);
+
+    if (!status?.appleMusicAvailable)
+        return null;
+
+    const linked = status.accounts.appleMusic;
+    const linkable = canLinkAppleMusicHere();
+
+    let description: string;
+
+    if (!linked)
+        description = "Link Apple Music to keep what you play there too. Spotify stays linked, and Tempo follows both.";
+    else if (linked.needsToken)
+        description = "Apple Music needs you to sign in again before Tempo can see what you play there.";
+    else
+        description = "Tempo is keeping what you play on Apple Music. It checks every few minutes, so plays arrive a little after you hear them.";
+
+    return (
+        <>
+            <Divider />
+
+            <VStack alignItems="flex-start" gap="0px">
+                <HStack spacing="8px" alignItems="center" mb={2}>
+                    <Heading fontSize="26px" textAlign="left">Apple Music</Heading>
+                    <SiApplemusic size="18px" style={{ marginTop: "4px", opacity: 0.85 }} />
+                </HStack>
+                <Text fontSize="sm" mb={3.5} color="gray.400">
+                    {description}
+                    {!linkable && (!linked || linked.needsToken) && (
+                        <>
+                            <br /><br />
+                            Linking Apple Music works from the iPhone app or tempo in a browser.
+                        </>
+                    )}
+                </Text>
+                {message && (
+                    <Text fontSize="sm" mb={3.5} color="gray.300">{message}</Text>
+                )}
+                <HStack spacing="8px">
+                    {linkable && (!linked || linked.needsToken) && (
+                        <Button colorScheme="accent.dark" variant="outline" size="sm" isLoading={busy} onClick={link}>
+                            {linked ? "Sign in to Apple Music again" : "Link Apple Music"}
+                        </Button>
+                    )}
+                    {linked && (
+                        <Button variant="ghost" size="sm" isDisabled={busy} onClick={unlink}>
+                            Unlink
+                        </Button>
+                    )}
+                </HStack>
+            </VStack>
+        </>
+    );
+}

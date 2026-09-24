@@ -9,6 +9,7 @@ import { DataStreamer } from "./live-ingest";
 import { getCachedObject, setCachedObject } from "./client-cache";
 import { fetchThroughRateLimit, rateLimitPauseMs, backoffPauseMs, RateLimitedError } from "./rate-limit";
 import { PlaylistNeedsSignInError, type Playlist, type PlaylistRecipe, type PlaylistSong, type PlaylistSummary } from "./playlists";
+import { refreshAppleMusicLink } from "./apple-music";
 
 /** A pick, as the feed sends it: a taste pick, or a friends' pick with likeness over 1. See lib/discover-feed.ts. */
 export interface Song {
@@ -226,6 +227,14 @@ export default class User extends EventEmitter {
         }
 
         await this.refreshDetails();
+
+        // Apple's tokens expire without warning and the server cannot renew
+        // them, so each launch hands over the current one. Not awaited: nothing
+        // on screen waits for it
+        if (this.isLoggedIn) {
+            refreshAppleMusicLink(this.getAuthHeaders())
+                .catch(ex => console.warn("Could not refresh the Apple Music link:", ex));
+        }
 
         this.emit("user-init");
     }

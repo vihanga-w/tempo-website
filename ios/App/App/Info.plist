@@ -24,6 +24,8 @@
 	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSAppleMusicUsageDescription</key>
+	<string>Tempo reads what you play on Apple Music to keep your listening history, stats and streaks, and to show your friends what you are listening to.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>remote-notification</string>

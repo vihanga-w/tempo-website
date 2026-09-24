@@ -23,7 +23,7 @@ import {
 } from "@chakra-ui/react";
 import { keyframes } from "@emotion/react";
 import { formatTimeToMinAndHour, SkeletonImage } from "@/components/playback-state";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { findBestSCDNImageSize } from "@/lib/utils";
 import { getSizedImageUrl } from "@/lib/sized-img";
 import User, { ClientUserAccount } from "@/lib/usrlib";
@@ -31,6 +31,7 @@ import { DataStreamer, UpdateEvent } from "@/lib/live-ingest";
 import { MdEdit } from "react-icons/md";
 import { enablePushNotifications, getPushStatus, type PushStatus } from "@/lib/notify";
 import { InitialAvatar } from "./initial-avatar";
+import { AppleMusicSettings } from "./apple-music-settings";
 
 const ripple = keyframes`
     0% {
@@ -96,6 +97,8 @@ function Toggle({
 
 export default function UserPreferencesPage({ user }: { user: User }) {
     const { isOpen, onOpen, onClose } = useDisclosure();
+    // Stable, so the Apple Music section reads the linked accounts once
+    const appleMusicAuthHeaders = useCallback(() => user.getAuthHeaders(), [user]);
     const [profileData, setProfileData] = useState<ClientUserAccount | undefined>(user.object);
     const [playbackState, setPlaybackState] = useState<UpdateEvent | null>(null);
     const [pfpLoadFailed, setPfpLoadFailed] = useState(false);
@@ -535,6 +538,8 @@ export default function UserPreferencesPage({ user }: { user: User }) {
                         Reconnect Spotify
                     </Button>
                 </VStack>
+
+                <AppleMusicSettings authHeaders={appleMusicAuthHeaders} />
 
                 <Divider />
 
