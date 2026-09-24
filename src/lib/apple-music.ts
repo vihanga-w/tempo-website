@@ -1,7 +1,7 @@
 import { Capacitor, registerPlugin } from "@capacitor/core";
 import { Preferences } from "@capacitor/preferences";
 
-import { API_URL } from "./const";
+import { API_URL, APP_CLIENT_VERSION } from "./const";
 import { fetchThroughRateLimit } from "./rate-limit";
 
 /**
@@ -35,6 +35,8 @@ interface AppleMusicPlugin {
     authorizationStatus(): Promise<{ status: AuthorizationStatus }>;
     authorize(options: { developerToken: string }): Promise<UserTokenResult>;
     userToken(options: { developerToken: string; fresh?: boolean }): Promise<UserTokenResult>;
+    startLiveTracking(options: { endpoint: string; authToken: string; clientVersion?: string }): Promise<void>;
+    stopLiveTracking(): Promise<void>;
 }
 
 const NativeAppleMusic = registerPlugin<AppleMusicPlugin>("AppleMusic");
@@ -321,6 +323,7 @@ export async function linkAppleMusic(headers: Record<string, string>, tempoId: s
     const linked = await sendUserToken(headers, result.userToken, false);
 
     await setLinkedHere(tempoId);
+    await syncLiveTracking(tempoId, headers["x-api-token"]);
 
     return linked;
 }
@@ -329,8 +332,37 @@ export async function unlinkAppleMusic(headers: Record<string, string>) {
     const unlinked = await api<Pick<LinkedAccountsStatus, "accounts">>("/me/accounts/apple-music", headers, { method: "DELETE" });
 
     await setLinkedHere(null);
+    await stopLiveTracking();
 
     return unlinked;
+}
+
+/**
+ * Starts the app's native tracker for the listener who linked Apple Music on
+ * this device, or stops it for anybody else: what the Music app plays is
+ * reported as theirs. iOS only; see ios/App/App/LiveTracker.swift.
+ *
+ * @param authToken the listener's Tempo token, which the tracker sends its
+ *                  reports with, from outside the web app
+ */
+export async function syncLiveTracking(tempoId: string, authToken: string | undefined) {
+    if (Capacitor.getPlatform() !== "ios")
+        return;
+
+    if (tempoId && authToken && await linkedHere() === tempoId) {
+        await NativeAppleMusic.startLiveTracking({ endpoint: API_URL, authToken, clientVersion: String(APP_CLIENT_VERSION) })
+            .catch(ex => console.warn("Could not start tracking what the Music app plays:", ex));
+    } else {
+        await stopLiveTracking();
+    }
+}
+
+async function stopLiveTracking() {
+    if (Capacitor.getPlatform() !== "ios")
+        return;
+
+    await NativeAppleMusic.stopLiveTracking()
+        .catch(ex => console.warn("Could not stop tracking what the Music app plays:", ex));
 }
 
 /**
@@ -340,6 +372,8 @@ export async function unlinkAppleMusic(headers: Record<string, string>) {
  */
 export function forgetAppleMusicHere() {
     setLinkedHere(null).catch(() => { });
+    // Before anything else can fail: it holds the Tempo token of whoever signed out
+    stopLiveTracking().catch(() => { });
 
     if (preparedMusicKit)
         signOutOfMusicKit(preparedMusicKit).catch(() => { });
@@ -368,6 +402,7 @@ export async function refreshAppleMusicLink(headers: Record<string, string>, tem
     if (!status.appleMusicAvailable || !link) {
         // Unlinked somewhere else since
         await setLinkedHere(null);
+        await stopLiveTracking();
 
         return;
     }

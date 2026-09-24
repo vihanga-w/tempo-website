@@ -26,8 +26,13 @@
 	<true/>
 	<key>NSAppleMusicUsageDescription</key>
 	<string>Tempo reads what you play on Apple Music to keep your listening history, stats and streaks, and to show your friends what you are listening to.</string>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>xyz.vihangaw.tempo.library-sync</string>
+	</array>
 	<key>UIBackgroundModes</key>
 	<array>
+		<string>fetch</string>
 		<string>remote-notification</string>
 	</array>
 	<key>UILaunchStoryboardName</key>

@@ -23,7 +23,34 @@ public class AppleMusicPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "authorizationStatus", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "authorize", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "userToken", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "startLiveTracking", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "stopLiveTracking", returnType: CAPPluginReturnPromise),
     ]
+
+    /**
+     * Starts telling Tempo's server what the Music app is playing, whenever iOS
+     * lets Tempo run; see LiveTracker. Kept across launches until stopped.
+     *
+     * Takes { endpoint, authToken, clientVersion? }: the API's origin and the
+     * signed-in listener's token, since the reports are sent from here, where
+     * they still go out after the web app has been paused.
+     */
+    @objc func startLiveTracking(_ call: CAPPluginCall) {
+        guard let endpoint = call.getString("endpoint"), !endpoint.isEmpty,
+              let authToken = call.getString("authToken"), !authToken.isEmpty else {
+            call.reject("endpoint and authToken are required")
+            return
+        }
+
+        LiveTracker.shared.start(endpoint: endpoint, authToken: authToken, clientVersion: call.getString("clientVersion"))
+        call.resolve()
+    }
+
+    /** Stops it, and forgets the listener's token. For signing out, or unlinking Apple Music. */
+    @objc func stopLiveTracking(_ call: CAPPluginCall) {
+        LiveTracker.shared.stop()
+        call.resolve()
+    }
 
     /** Whether the listener has let Tempo use Apple Music. Never asks. */
     @objc func authorizationStatus(_ call: CAPPluginCall) {

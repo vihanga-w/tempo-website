@@ -4,6 +4,8 @@ const native = vi.hoisted(() => ({
     platform: "ios",
     authorize: vi.fn(),
     userToken: vi.fn(),
+    startLiveTracking: vi.fn(async () => { }),
+    stopLiveTracking: vi.fn(async () => { }),
 }));
 
 vi.mock("@capacitor/core", () => ({
@@ -11,6 +13,8 @@ vi.mock("@capacitor/core", () => ({
     registerPlugin: () => ({
         authorize: native.authorize,
         userToken: native.userToken,
+        startLiveTracking: native.startLiveTracking,
+        stopLiveTracking: native.stopLiveTracking,
         authorizationStatus: vi.fn(),
     }),
 }));
@@ -63,6 +67,8 @@ describe("apple-music", () => {
         native.platform = "ios";
         native.authorize.mockReset();
         native.userToken.mockReset();
+        native.startLiveTracking.mockClear();
+        native.stopLiveTracking.mockClear();
     });
 
     afterEach(() => {
@@ -340,6 +346,69 @@ describe("apple-music", () => {
             const { linkAppleMusic } = await load();
 
             await expect(linkAppleMusic({}, "u1")).rejects.toThrow(/did not finish/);
+        });
+    });
+    describe("tracking what the Music app plays", () => {
+        it("starts for the listener who links Apple Music here, with their token", async () => {
+            window.localStorage.clear();
+
+            serve({
+                "GET /apple-music/developer-token": { body: { token: "dev", expiresAt: 0 } },
+                "PUT /me/accounts/apple-music": { body: { accounts: LINKED.accounts } },
+            });
+
+            native.authorize.mockResolvedValue({ status: "authorized", userToken: "user-token" });
+
+            const { linkAppleMusic } = await load();
+            await linkAppleMusic({ "x-api-token": "tempo-token" }, "u1");
+
+            expect(native.startLiveTracking).toHaveBeenCalledWith(expect.objectContaining({ authToken: "tempo-token" }));
+        });
+
+        it("stops on unlinking", async () => {
+            serve({ "DELETE /me/accounts/apple-music": { body: { accounts: {} } } });
+
+            const { unlinkAppleMusic } = await load();
+            await unlinkAppleMusic({});
+
+            expect(native.stopLiveTracking).toHaveBeenCalled();
+        });
+
+        it("stops for anybody but the listener who linked it here", async () => {
+            const { syncLiveTracking } = await load();
+
+            await syncLiveTracking("u2", "their-token");
+
+            expect(native.startLiveTracking).not.toHaveBeenCalled();
+            expect(native.stopLiveTracking).toHaveBeenCalled();
+        });
+
+        it("stops without a token to report with", async () => {
+            const { syncLiveTracking } = await load();
+
+            await syncLiveTracking("u1", undefined);
+
+            expect(native.startLiveTracking).not.toHaveBeenCalled();
+            expect(native.stopLiveTracking).toHaveBeenCalled();
+        });
+
+        it("stops on signing out", async () => {
+            const { forgetAppleMusicHere } = await load();
+
+            forgetAppleMusicHere();
+
+            expect(native.stopLiveTracking).toHaveBeenCalled();
+        });
+
+        it("does nothing outside the iOS app", async () => {
+            native.platform = "web";
+
+            const { syncLiveTracking } = await load();
+
+            await syncLiveTracking("u1", "token");
+
+            expect(native.startLiveTracking).not.toHaveBeenCalled();
+            expect(native.stopLiveTracking).not.toHaveBeenCalled();
         });
     });
 });

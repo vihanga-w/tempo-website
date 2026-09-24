@@ -119,7 +119,9 @@ export function AppleMusicSettings({ authHeaders, tempoId }: { authHeaders: () =
     else if (!isLinkedHere && linkable)
         description = "Tempo is keeping what you play on Apple Music. Apple Music was linked from another device; use this one too so Tempo stays signed in from here.";
     else
-        description = "Tempo is keeping what you play on Apple Music. It checks every few minutes, so plays arrive a little after you hear them.";
+        description = (Capacitor.getPlatform() === "ios"
+            ? "Tempo is keeping what you play on Apple Music. Friends see it live while Tempo is open on this iPhone, and within a few minutes otherwise. Swiping Tempo away pauses that until you open it again."
+            : "Tempo is keeping what you play on Apple Music. It checks every few minutes, so plays arrive a little after you hear them.");
 
     // A healthy link made elsewhere, or before this device remembered making
     // it, can be taken up here, so this device keeps its token fresh
