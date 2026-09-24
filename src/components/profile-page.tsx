@@ -8,7 +8,8 @@ import { useFitLines } from "@/lib/use-fit-lines";
 import { useTurntable } from "@/lib/use-turntable";
 import { grooveRingsFor, separationsFor } from "@/lib/record-grooves";
 import { useScrollFade } from "@/lib/use-scroll-fade";
-import { getSpotifyDeeplink, SkeletonImage } from "./playback-state";
+import { SkeletonImage } from "./playback-state";
+import { songLink } from "../lib/music-links";
 import {
     chipFill,
     extractArtworkColour,
@@ -794,10 +795,10 @@ function NowSpinning({
                         cursor="pointer"
                         onClick={() => {
                             if (state.songId)
-                                window.open(getSpotifyDeeplink(state.songId));
+                                window.open(songLink(state.songId).url);
                         }}
                     >
-                        Open in Spotify
+                        Open in {state.songId ? songLink(state.songId).serviceName : "Spotify"}
                     </Text>
                     <Text fontSize="11px" color="rgba(255,255,255,0.6)" sx={{ fontVariantNumeric: "tabular-nums" }}>
                         {formatClock(state.duration ?? 0)}

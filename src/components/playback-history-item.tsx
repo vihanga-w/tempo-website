@@ -5,6 +5,7 @@ import { FriendListenershipItem } from "@/lib/usrlib";
 import { getSizedImageUrl } from "@/lib/sized-img";
 import { memo } from "react";
 import { SkeletonImage } from "./playback-state";
+import { songLink } from "@/lib/music-links";
 
 const INK = "#f5f5f5";
 const INK_DIM = "#a0a0a0";
@@ -22,10 +23,6 @@ function formatTime(ms: number) {
   const secs = Math.floor(seconds % 60);
 
   return `${minutes}:${secs < 10 ? "0" : ""}${secs}`;
-}
-
-function getSpotifyDeeplink(trackId: string, itemType: FriendListenershipItem["item"]["track"]["type"]) {
-  return (itemType == "track" ? `spotify://track/${trackId}` : `spotify://episode/${trackId}`);
 }
 
 /** "09:24" — the clock time, zero padded so a column of them lines up. */
@@ -63,9 +60,9 @@ export const PlaybackHistoryItem = memo(function PlaybackHistoryItem({
       paddingY="2px"
       cursor="pointer"
       role="button"
-      aria-label={`${track.name} — open in Spotify`}
+      aria-label={`${track.name} — open in ${songLink(track.id).serviceName}`}
       onClick={() => {
-        window.open(getSpotifyDeeplink(track.id, track.type), "_blank");
+        window.open(songLink(track.id, track.type == "episode" ? "episode" : "track").url, "_blank");
       }}
     >
       <SkeletonImage

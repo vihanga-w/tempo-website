@@ -4,7 +4,8 @@ import { Box, HStack, Image, Stack, Text } from "@chakra-ui/react";
 import { InitialAvatar } from "./initial-avatar";
 import { SkeletonImage } from "./playback-state";
 import { useEffect, useMemo, useState } from "react";
-import { formatTimeToMinAndHour, getSpotifyDeeplink } from "./playback-state";
+import { formatTimeToMinAndHour } from "./playback-state";
+import { songLink } from "../lib/music-links";
 
 /** Long enough to read as a crossfade rather than a flicker. */
 const FACT_FADE_MS = 650;
@@ -187,12 +188,12 @@ export function FriendNowPlayingCard({
                     height="76px"
                     flexShrink="0"
                     role="button"
-                    aria-label={`Play ${state.name} on Spotify`}
+                    aria-label={`Play ${state.name} on ${state.songId ? songLink(state.songId).serviceName : "Spotify"}`}
                     onClick={e => {
                         e.stopPropagation();
 
                         if (state.songId)
-                            window.open(getSpotifyDeeplink(state.songId));
+                            window.open(songLink(state.songId).url);
                     }}
                     sx={{
                         "&:active": { transform: "scale(0.96)" },

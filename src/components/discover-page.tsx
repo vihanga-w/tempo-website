@@ -27,7 +27,8 @@ import { decideSwipe, ratingStrength } from "@/lib/swipe";
 import { feelPattern } from "@/lib/native-haptics";
 import { useCalm } from "@/lib/use-calm";
 import { ArtworkWash } from "./artwork-wash";
-import { getSpotifyDeeplink, SkeletonImage } from "./playback-state";
+import { SkeletonImage } from "./playback-state";
+import { songLink } from "../lib/music-links";
 import { InitialAvatar } from "./initial-avatar";
 
 /**
@@ -1792,7 +1793,7 @@ const SongCard = memo(function SongCard({
                             </Text>
                             <Text
                                 as="a"
-                                href={getSpotifyDeeplink(song.id)}
+                                href={songLink(song.id).url}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 alignSelf="flex-start"
@@ -1802,7 +1803,7 @@ const SongCard = memo(function SongCard({
                                 color={accentInk}
                                 transition="color .45s"
                             >
-                                {preview === null ? "No preview · open in Spotify" : "Open in Spotify"}
+                                {preview === null ? `No preview · open in ${songLink(song.id).serviceName}` : `Open in ${songLink(song.id).serviceName}`}
                             </Text>
                         </Stack>
 
