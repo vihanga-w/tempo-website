@@ -23,10 +23,21 @@ describe("songLink", () => {
 
     it("opens an Apple Music song in Apple Music", () => {
         expect(songLink("am:123")).toEqual({
-            url: "music://music.apple.com/us/song/123",
+            url: "https://music.apple.com/us/song/123",
             service: "appleMusic",
             serviceName: "Apple Music",
         });
+    });
+
+    it("opens anything but an episode as a track", () => {
+        expect(songLink("sp1", "unknown").url).toBe("spotify://track/sp1");
+    });
+
+    it("has no link, and does not throw, for a song with no id", () => {
+        // Spotify's local files are sent with an id of null
+        for (const id of [null, undefined, ""]) {
+            expect(songLink(id)).toEqual({ url: undefined, service: "spotify", serviceName: "Spotify" });
+        }
     });
 
     it("cannot be steered off the song by what is in the id", () => {

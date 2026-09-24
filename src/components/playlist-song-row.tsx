@@ -5,7 +5,7 @@ import { MdExplicit } from "react-icons/md";
 import { reasonLine, type PlaylistSong } from "@/lib/playlists";
 import { getSizedImageUrl } from "@/lib/sized-img";
 import { SkeletonImage } from "./playback-state";
-import { songLink } from "../lib/music-links";
+import { openSong, songLink } from "../lib/music-links";
 import { FriendChip, type CoverFriend } from "./playlist-cover";
 
 /** The page's ink, as Discover sets it. */
@@ -53,7 +53,7 @@ export function PlaylistSongRow({
             <Box
                 as="button"
                 aria-label={`Open ${song.title} in ${songLink(song.id).serviceName}`}
-                onClick={() => window.open(songLink(song.id).url)}
+                onClick={() => openSong(songLink(song.id))}
                 flexShrink={0}
                 width="56px"
                 height="56px"

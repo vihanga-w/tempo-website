@@ -5,7 +5,7 @@ import { InitialAvatar } from "./initial-avatar";
 import { SkeletonImage } from "./playback-state";
 import { useEffect, useMemo, useState } from "react";
 import { formatTimeToMinAndHour } from "./playback-state";
-import { songLink } from "../lib/music-links";
+import { openSong, songLink } from "../lib/music-links";
 
 /** Long enough to read as a crossfade rather than a flicker. */
 const FACT_FADE_MS = 650;
@@ -188,12 +188,11 @@ export function FriendNowPlayingCard({
                     height="76px"
                     flexShrink="0"
                     role="button"
-                    aria-label={`Play ${state.name} on ${state.songId ? songLink(state.songId).serviceName : "Spotify"}`}
+                    aria-label={`Play ${state.name} on ${songLink(state.songId).serviceName}`}
                     onClick={e => {
                         e.stopPropagation();
 
-                        if (state.songId)
-                            window.open(songLink(state.songId).url);
+                        openSong(songLink(state.songId, state.mediaType));
                     }}
                     sx={{
                         "&:active": { transform: "scale(0.96)" },

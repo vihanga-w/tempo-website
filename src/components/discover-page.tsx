@@ -1659,6 +1659,7 @@ const SongCard = memo(function SongCard({
     openProfile?: (userId: string) => void;
 }>) {
     const { song } = card;
+    const link = songLink(song.id);
     const reveal = useContext(Reveal);
     /*
      * Playable only with a URL in hand. While the lookup is still out the
@@ -1793,7 +1794,7 @@ const SongCard = memo(function SongCard({
                             </Text>
                             <Text
                                 as="a"
-                                href={songLink(song.id).url}
+                                href={link.url}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 alignSelf="flex-start"
@@ -1803,7 +1804,7 @@ const SongCard = memo(function SongCard({
                                 color={accentInk}
                                 transition="color .45s"
                             >
-                                {preview === null ? `No preview · open in ${songLink(song.id).serviceName}` : `Open in ${songLink(song.id).serviceName}`}
+                                {preview === null ? `No preview · open in ${link.serviceName}` : `Open in ${link.serviceName}`}
                             </Text>
                         </Stack>
 

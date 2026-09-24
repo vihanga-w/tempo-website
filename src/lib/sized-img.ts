@@ -18,11 +18,8 @@ export function getSizedImageUrl(url: string | undefined | null, width: number, 
     if (!url)
         return "";
 
-    if (isAppleArtwork(url))
-        return appleArtworkAt(url, width, height);
-
     if (!url.startsWith("https://i.scdn.co/image/"))
-        return url;
+        return (isAppleArtwork(url) ? appleArtworkAt(url, width, height) : url);
 
     const imageId = url.slice("https://i.scdn.co/image/".length);
 
@@ -44,16 +41,17 @@ function isAppleArtwork(url: string) {
 /**
  * An Apple Music cover at `width` by `height`.
  *
- * The API hands artwork out as a template with "{w}x{h}" where the size goes,
- * and a filled-in URL has the size in the same place ("…/600x600bb.jpg"), so
- * either is sized by replacing it.
+ * The API hands artwork out as a template — "{w}x{h}" where the size goes,
+ * and sometimes "{f}" for the format — and a filled-in URL has the size in the
+ * same place, followed by a crop code and sometimes a quality
+ * ("…/600x600bb.jpg", "…/1200x630bf-60.jpg"). Either is sized by replacing it.
  */
 function appleArtworkAt(url: string, width: number, height: number) {
-    const w = Math.max(1, Math.round(width));
-    const h = Math.max(1, Math.round(height));
+    const w = String(Math.max(1, Math.round(width)));
+    const h = String(Math.max(1, Math.round(height)));
 
     if (url.includes("{w}") || url.includes("{h}"))
-        return url.replace("{w}", String(w)).replace("{h}", String(h));
+        return url.replace("{w}", w).replace("{h}", h).replace("{f}", "jpg");
 
-    return url.replace(/\/\d+x\d+(bb|cc|sr)?(\.[a-z]+)$/i, `/${w}x${h}$1$2`);
+    return url.replace(/\/\d+x\d+([a-z]{2})?(-\d+)?(\.[a-z]+)$/i, `/${w}x${h}$1$2$3`);
 }

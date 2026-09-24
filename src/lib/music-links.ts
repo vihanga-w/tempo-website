@@ -30,8 +30,8 @@ export function serviceTrackOf(songId: string): { service: MusicService; id: str
 }
 
 export interface SongLink {
-    /** Opens the song in its service's app. */
-    url: string;
+    /** Opens the song in its service's app, or undefined when there is no song to open. */
+    url: string | undefined;
     service: MusicService;
     /** "Spotify", "Apple Music" — for "Open in …". */
     serviceName: string;
@@ -40,15 +40,32 @@ export interface SongLink {
 /**
  * Where to open a song in the app of the service it came from.
  *
- * Only Spotify has episodes. Apple Music links name a storefront, and any
- * storefront's link opens in the listener's own.
+ * Takes whatever a payload holds, because a payload can hold nothing: Spotify
+ * reports a local file with an id of null, and it is stored and sent that way.
+ * That has no link, and is treated as Spotify's, since only Spotify has them.
+ * This runs while rendering, where a throw takes the whole page down with it.
+ *
+ * Only Spotify has episodes; anything but "episode" opens as a track. Apple
+ * Music links are https ones: music.apple.com opens the Music app wherever it
+ * is installed, and the web player on Android and the web, where a music://
+ * link opens nothing.
  */
-export function songLink(songId: string, type: "track" | "episode" = "track"): SongLink {
+export function songLink(songId: string | null | undefined, mediaType?: string): SongLink {
+    if (typeof songId !== "string" || songId === "")
+        return { url: undefined, service: "spotify", serviceName: serviceName("spotify") };
+
     const track = serviceTrackOf(songId);
+    const id = encodeURIComponent(track.id);
 
     const url = (track.service === "appleMusic"
-        ? `music://music.apple.com/us/song/${encodeURIComponent(track.id)}`
-        : `spotify://${type}/${encodeURIComponent(track.id)}`);
+        ? `https://music.apple.com/us/song/${id}`
+        : `spotify://${mediaType === "episode" ? "episode" : "track"}/${id}`);
 
     return { url, service: track.service, serviceName: serviceName(track.service) };
+}
+
+/** Opens a song's link, when it has one. */
+export function openSong(link: SongLink) {
+    if (link.url)
+        window.open(link.url);
 }

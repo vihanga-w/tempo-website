@@ -5,7 +5,7 @@ import { FriendListenershipItem } from "@/lib/usrlib";
 import { getSizedImageUrl } from "@/lib/sized-img";
 import { memo } from "react";
 import { SkeletonImage } from "./playback-state";
-import { songLink } from "@/lib/music-links";
+import { openSong, songLink } from "@/lib/music-links";
 
 const INK = "#f5f5f5";
 const INK_DIM = "#a0a0a0";
@@ -62,7 +62,7 @@ export const PlaybackHistoryItem = memo(function PlaybackHistoryItem({
       role="button"
       aria-label={`${track.name} — open in ${songLink(track.id).serviceName}`}
       onClick={() => {
-        window.open(songLink(track.id, track.type == "episode" ? "episode" : "track").url, "_blank");
+        openSong(songLink(track.id, track.type));
       }}
     >
       <SkeletonImage

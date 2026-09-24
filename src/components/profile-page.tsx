@@ -9,7 +9,7 @@ import { useTurntable } from "@/lib/use-turntable";
 import { grooveRingsFor, separationsFor } from "@/lib/record-grooves";
 import { useScrollFade } from "@/lib/use-scroll-fade";
 import { SkeletonImage } from "./playback-state";
-import { songLink } from "../lib/music-links";
+import { openSong, songLink } from "../lib/music-links";
 import {
     chipFill,
     extractArtworkColour,
@@ -794,11 +794,10 @@ function NowSpinning({
                         color="rgba(255,255,255,0.82)"
                         cursor="pointer"
                         onClick={() => {
-                            if (state.songId)
-                                window.open(songLink(state.songId).url);
+                            openSong(songLink(state.songId, state.mediaType));
                         }}
                     >
-                        Open in {state.songId ? songLink(state.songId).serviceName : "Spotify"}
+                        Open in {songLink(state.songId).serviceName}
                     </Text>
                     <Text fontSize="11px" color="rgba(255,255,255,0.6)" sx={{ fontVariantNumeric: "tabular-nums" }}>
                         {formatClock(state.duration ?? 0)}

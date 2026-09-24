@@ -17,6 +17,18 @@ describe("getSizedImageUrl", () => {
             .toBe("https://is1-ssl.mzstatic.com/image/thumb/Music/v4/aa/source/96x96bb.jpg");
     });
 
+    it("resizes a filled-in cover with a quality or another crop code", () => {
+        expect(getSizedImageUrl("https://is1-ssl.mzstatic.com/image/thumb/a/source/600x600bb-60.jpg", 96, 96))
+            .toBe("https://is1-ssl.mzstatic.com/image/thumb/a/source/96x96bb-60.jpg");
+        expect(getSizedImageUrl("https://is1-ssl.mzstatic.com/image/thumb/a/source/1200x630bf-60.jpg", 96, 96))
+            .toBe("https://is1-ssl.mzstatic.com/image/thumb/a/source/96x96bf-60.jpg");
+    });
+
+    it("fills in a template's format", () => {
+        expect(getSizedImageUrl("https://is1-ssl.mzstatic.com/image/thumb/a/source/{w}x{h}bb.{f}", 96, 96))
+            .toBe("https://is1-ssl.mzstatic.com/image/thumb/a/source/96x96bb.jpg");
+    });
+
     it("leaves any other image as it is", () => {
         expect(getSizedImageUrl("https://example.com/cover/600x600bb.jpg", 96, 96)).toBe("https://example.com/cover/600x600bb.jpg");
     });
