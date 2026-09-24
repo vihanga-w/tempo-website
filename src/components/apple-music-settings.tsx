@@ -8,6 +8,7 @@ import {
     getLinkedAccounts,
     linkAppleMusic,
     LinkedAccountsStatus,
+    prepareAppleMusicLink,
     unlinkAppleMusic,
 } from "@/lib/apple-music";
 
@@ -27,7 +28,16 @@ export function AppleMusicSettings({ authHeaders }: { authHeaders: () => Record<
         let cancelled = false;
 
         getLinkedAccounts(authHeaders())
-            .then(next => { if (!cancelled) setStatus(next); })
+            .then(next => {
+                if (cancelled)
+                    return;
+
+                setStatus(next);
+
+                // So that tapping "Link" can open Apple's sign-in at once
+                if (next.appleMusicAvailable && canLinkAppleMusicHere())
+                    prepareAppleMusicLink(authHeaders()).catch(ex => console.warn("Could not get Apple Music ready:", ex));
+            })
             .catch(ex => console.warn("Could not read linked accounts:", ex));
 
         return () => { cancelled = true; };

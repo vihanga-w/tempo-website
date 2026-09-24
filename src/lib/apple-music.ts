@@ -42,6 +42,13 @@ export interface LinkedAccountsStatus {
     appleMusicAvailable: boolean;
 }
 
+/** The listener has no Apple Music subscription, which Tempo needs to see what they play. */
+export class AppleMusicNoSubscriptionError extends Error {
+    constructor() {
+        super("Tempo can only see what you play with an Apple Music subscription.");
+    }
+}
+
 /** Linking was not allowed, so there is nothing to link. */
 export class AppleMusicNotAllowedError extends Error {
     constructor(public status: AuthorizationStatus) {
@@ -116,6 +123,14 @@ function loadMusicKit(): Promise<MusicKitGlobal> {
 
 let configuredWith: string | undefined;
 
+/**
+ * The configured MusicKit instance, once there is one. Kept so linking can
+ * open Apple's sign-in straight from the tap: a browser only lets a page open
+ * a pop-up while it is still answering one, and a request or a script load in
+ * between is enough for Safari to block it.
+ */
+let preparedMusicKit: MusicKitInstance | undefined;
+
 async function webMusicKit(developerToken: string): Promise<MusicKitInstance> {
     const MusicKit = await loadMusicKit();
 
@@ -124,7 +139,9 @@ async function webMusicKit(developerToken: string): Promise<MusicKitInstance> {
         configuredWith = developerToken;
     }
 
-    return MusicKit.getInstance();
+    preparedMusicKit = MusicKit.getInstance();
+
+    return preparedMusicKit;
 }
 
 /* ---------- Either ---------- */
@@ -148,9 +165,15 @@ async function musicUserToken(developerToken: string, ask: boolean, fresh: boole
     if (music.isAuthorized && music.musicUserToken && !fresh)
         return { status: "authorized", userToken: music.musicUserToken };
 
+    // The web has no way to get a new token without signing in again, and the
+    // one it holds is the one refused
     if (!ask)
-        return { status: music.isAuthorized ? "authorized" : "notDetermined", userToken: music.musicUserToken };
+        return { status: "notDetermined" };
 
+    return webAuthorize(music);
+}
+
+async function webAuthorize(music: MusicKitInstance): Promise<UserTokenResult> {
     try {
         const userToken = await music.authorize();
 
@@ -186,26 +209,46 @@ async function developerToken(headers: Record<string, string>) {
     return (await api<{ token: string; expiresAt: number }>("/apple-music/developer-token", headers)).token;
 }
 
-function sendUserToken(headers: Record<string, string>, userToken: string) {
+/**
+ * @param refresh only update an existing link; see PUT /me/accounts/apple-music
+ */
+function sendUserToken(headers: Record<string, string>, userToken: string, refresh: boolean) {
     return api<Pick<LinkedAccountsStatus, "accounts">>("/me/accounts/apple-music", headers, {
         method: "PUT",
-        body: JSON.stringify({ userToken }),
+        body: JSON.stringify({ userToken, refresh }),
     });
+}
+
+/**
+ * Gets MusicKit ready before the listener asks to link, so that asking opens
+ * Apple's sign-in straight away. Only does anything in a browser.
+ */
+export async function prepareAppleMusicLink(headers: Record<string, string>) {
+    if (Capacitor.getPlatform() !== "web" || preparedMusicKit)
+        return;
+
+    await webMusicKit(await developerToken(headers));
 }
 
 /**
  * Links Apple Music, asking the listener for access if they have not given it.
  *
- * Throws AppleMusicNotAllowedError when they say no.
+ * Throws AppleMusicNotAllowedError when they say no, and
+ * AppleMusicNoSubscriptionError when there is nothing Tempo could see.
  */
 export async function linkAppleMusic(headers: Record<string, string>) {
-    const token = await developerToken(headers);
-    const result = await musicUserToken(token, true, true);
+    // In a browser, before anything is awaited; see preparedMusicKit
+    const prepared = (Capacitor.getPlatform() === "web" && preparedMusicKit ? webAuthorize(preparedMusicKit) : undefined);
+
+    const result = await (prepared ?? musicUserToken(await developerToken(headers), true, true));
 
     if (result.status !== "authorized" || !result.userToken)
         throw new AppleMusicNotAllowedError(result.status);
 
-    return sendUserToken(headers, result.userToken);
+    if (result.canPlayCatalogContent === false)
+        throw new AppleMusicNoSubscriptionError();
+
+    return sendUserToken(headers, result.userToken, false);
 }
 
 export function unlinkAppleMusic(headers: Record<string, string>) {
@@ -238,5 +281,5 @@ export async function refreshAppleMusicLink(headers: Record<string, string>) {
     const result = await musicUserToken(token, false, link.needsToken);
 
     if (result.status === "authorized" && result.userToken)
-        await sendUserToken(headers, result.userToken);
+        await sendUserToken(headers, result.userToken, true);
 }

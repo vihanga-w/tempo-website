@@ -69,7 +69,7 @@ describe("apple-music", () => {
             const result = await linkAppleMusic({});
 
             expect(native.authorize).toHaveBeenCalledWith({ developerToken: "dev" });
-            expect(calls.at(-1)).toEqual({ path: "/me/accounts/apple-music", method: "PUT", body: { userToken: "user-token" } });
+            expect(calls.at(-1)).toEqual({ path: "/me/accounts/apple-music", method: "PUT", body: { userToken: "user-token", refresh: false } });
             expect(result.accounts.appleMusic?.storefront).toBe("us");
         });
 
@@ -81,6 +81,17 @@ describe("apple-music", () => {
             const { linkAppleMusic, AppleMusicNotAllowedError } = await load();
 
             await expect(linkAppleMusic({})).rejects.toBeInstanceOf(AppleMusicNotAllowedError);
+            expect(calls.some(call => call.method === "PUT")).toBe(false);
+        });
+
+        it("says a subscription is needed, and links nothing, without one", async () => {
+            const calls = serve({ "GET /apple-music/developer-token": { body: { token: "dev", expiresAt: 0 } } });
+
+            native.authorize.mockResolvedValue({ status: "authorized", userToken: "user-token", canPlayCatalogContent: false });
+
+            const { linkAppleMusic, AppleMusicNoSubscriptionError } = await load();
+
+            await expect(linkAppleMusic({})).rejects.toBeInstanceOf(AppleMusicNoSubscriptionError);
             expect(calls.some(call => call.method === "PUT")).toBe(false);
         });
 
@@ -113,7 +124,8 @@ describe("apple-music", () => {
 
             expect(native.authorize).not.toHaveBeenCalled();
             expect(native.userToken).toHaveBeenCalledWith({ developerToken: "dev", fresh: false });
-            expect(calls.at(-1)?.body).toEqual({ userToken: "current" });
+            // Only ever updates a link, so one removed meanwhile stays removed
+            expect(calls.at(-1)?.body).toEqual({ userToken: "current", refresh: true });
         });
 
         it("skips MusicKit's cached token when the server has refused one", async () => {
@@ -175,6 +187,58 @@ describe("apple-music", () => {
 
             expect(canLinkAppleMusicHere()).toBe(false);
             expect(calls.length).toBe(0);
+        });
+    });
+
+    describe("in a browser", () => {
+        function musicKit(instance: { isAuthorized: boolean; musicUserToken?: string; authorize: () => Promise<string> }) {
+            vi.stubGlobal("MusicKit", {
+                configure: vi.fn(async () => instance),
+                getInstance: () => instance,
+            });
+        }
+
+        it("does not hand back a token the server has refused", async () => {
+            native.platform = "web";
+
+            const calls = serve({
+                "GET /me/accounts": { body: { ...LINKED, accounts: { appleMusic: { ...LINKED.accounts.appleMusic, needsToken: true } } } },
+                "GET /apple-music/developer-token": { body: { token: "dev", expiresAt: 0 } },
+            });
+
+            const authorize = vi.fn(async () => "new");
+
+            musicKit({ isAuthorized: true, musicUserToken: "refused", authorize });
+
+            const { refreshAppleMusicLink } = await load();
+            await refreshAppleMusicLink({});
+
+            expect(calls.some(call => call.method === "PUT")).toBe(false);
+            // Nor asks: that is for the settings page, on a tap
+            expect(authorize).not.toHaveBeenCalled();
+        });
+
+        it("opens Apple's sign-in before waiting on anything, once prepared", async () => {
+            native.platform = "web";
+
+            serve({
+                "GET /apple-music/developer-token": { body: { token: "dev", expiresAt: 0 } },
+                "PUT /me/accounts/apple-music": { body: { accounts: LINKED.accounts } },
+            });
+
+            const authorize = vi.fn(async () => "user-token");
+
+            musicKit({ isAuthorized: false, authorize });
+
+            const { linkAppleMusic, prepareAppleMusicLink } = await load();
+            await prepareAppleMusicLink({});
+
+            const linking = linkAppleMusic({});
+
+            // Called in the same turn as the tap
+            expect(authorize).toHaveBeenCalledTimes(1);
+
+            await linking;
         });
     });
 });
