@@ -38,6 +38,9 @@ final class LiveTracker {
     private var lastSent: Snapshot?
     private var lastSentAt: Date = .distantPast
     private var running = false
+    /** Main thread only. One library sync at a time, and not twice in a minute. */
+    private var librarySyncing = false
+    private var librarySyncStartedAt: Date = .distantPast
 
     /** How often the player is looked at while Tempo runs; its notifications are not dependable on their own. */
     private let pollInterval: TimeInterval = 2
@@ -104,11 +107,18 @@ final class LiveTracker {
      * resumes on its own, in the background too, until stopped.
      */
     func start(endpoint: String, authToken: String, clientVersion: String?) {
-        defaults.set(endpoint, forKey: Key.endpoint)
-        defaults.set(authToken, forKey: Key.authToken)
-        defaults.set(clientVersion, forKey: Key.clientVersion)
+        // On the main queue, like stop(), so the two happen in the order they
+        // were asked for: a stop still waiting to run must not clear a start
+        // that came after it
+        DispatchQueue.main.async {
+            self.defaults.set(endpoint, forKey: Key.endpoint)
+            self.defaults.set(authToken, forKey: Key.authToken)
+            self.defaults.set(clientVersion, forKey: Key.clientVersion)
 
-        DispatchQueue.main.async { self.resume() }
+            // A new token may be for somebody else: start over
+            self.pause()
+            self.resume()
+        }
     }
 
     /**
@@ -121,14 +131,19 @@ final class LiveTracker {
                 self.send(Snapshot(state: "stopped", catalogId: nil, title: nil, artist: nil, album: nil, durationMs: 0, positionMs: 0), appState: "background")
             }
 
-            self.pause()
-
-            for key in [Key.endpoint, Key.authToken, Key.clientVersion, Key.librarySyncedAt] {
-                self.defaults.removeObject(forKey: key)
-            }
-
-            BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: Self.refreshTaskId)
+            self.forget()
         }
+    }
+
+    /** Main thread. Stops, and forgets who for. */
+    private func forget() {
+        pause()
+
+        for key in [Key.endpoint, Key.authToken, Key.clientVersion, Key.librarySyncedAt] {
+            defaults.removeObject(forKey: key)
+        }
+
+        BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: Self.refreshTaskId)
     }
 
     /** Resumes where a previous launch was configured. Call once the app has launched. */
@@ -283,10 +298,12 @@ final class LiveTracker {
         URLSession.shared.dataTask(with: request) { [weak self] _, response, _ in
             let status = (response as? HTTPURLResponse)?.statusCode
 
-            // Signed out elsewhere, or Apple Music unlinked: stop, rather than
-            // report every few seconds to be refused every time
+            // Signed out, or Apple Music unlinked: stop, and forget the token,
+            // rather than report every few seconds and every background refresh
+            // to be refused every time. The app starts it again on its next
+            // launch if the listener is still signed in and linked.
             if status == 401 || status == 403 || status == 409 {
-                DispatchQueue.main.async { self?.pause() }
+                DispatchQueue.main.async { self?.forget() }
             }
 
             completion?(status)
@@ -342,11 +359,29 @@ final class LiveTracker {
             return
         }
 
+        // Launching asks twice (resuming, then becoming active), and a refresh
+        // launch twice more; once is enough
+        guard !librarySyncing, Date().timeIntervalSince(librarySyncStartedAt) >= 60 else {
+            completion?(true)
+            return
+        }
+
+        librarySyncing = true
+        librarySyncStartedAt = Date()
+
+        let finish: (Bool) -> Void = { ok in
+            DispatchQueue.main.async { self.librarySyncing = false }
+            completion?(ok)
+        }
+
         let since = defaults.object(forKey: Key.librarySyncedAt) as? Date ?? Date().addingTimeInterval(-6 * 3600)
         let startedAt = Date()
 
         DispatchQueue.global(qos: .utility).async { [weak self] in
-            guard let self = self else { return }
+            guard let self = self else {
+                finish(false)
+                return
+            }
 
             let items = (MPMediaQuery.songs().items ?? [])
                 .filter { ($0.lastPlayedDate ?? .distantPast) > since && !$0.playbackStoreID.isEmpty && $0.playbackStoreID != "0" }
@@ -362,12 +397,12 @@ final class LiveTracker {
 
             if items.isEmpty {
                 self.defaults.set(startedAt, forKey: Key.librarySyncedAt)
-                completion?(true)
+                finish(true)
                 return
             }
 
             guard let request = self.request(path: "/me/library-plays", body: ["deviceId": self.deviceId, "items": Array(items)]) else {
-                completion?(false)
+                finish(false)
                 return
             }
 
@@ -380,7 +415,7 @@ final class LiveTracker {
                     self.defaults.set(startedAt, forKey: Key.librarySyncedAt)
                 }
 
-                completion?(ok)
+                finish(ok)
             }
         }
     }
