@@ -335,14 +335,10 @@ final class LiveTracker {
      * its way to the background.
      */
     private func post(_ request: URLRequest, completion: ((Int?) -> Void)? = nil) {
-        var task: UIBackgroundTaskIdentifier = .invalid
-
-        task = UIApplication.shared.beginBackgroundTask(withName: "tempo.live.report") {
-            UIApplication.shared.endBackgroundTask(task)
-            task = .invalid
-        }
+        let background = BackgroundTime(name: "tempo.live.report")
 
         URLSession.shared.dataTask(with: request) { [weak self] _, response, _ in
+            let tracker = self
             let status = (response as? HTTPURLResponse)?.statusCode
 
             // Signed out, or Apple Music unlinked: stop, and forget the token,
@@ -350,15 +346,12 @@ final class LiveTracker {
             // to be refused every time. The app starts it again on its next
             // launch if the listener is still signed in and linked.
             if status == 401 || status == 403 || status == 409 {
-                DispatchQueue.main.async { self?.forget() }
+                DispatchQueue.main.async { tracker?.forget() }
             }
 
             completion?(status)
 
-            if task != .invalid {
-                UIApplication.shared.endBackgroundTask(task)
-                task = .invalid
-            }
+            background.end()
         }.resume()
     }
 
@@ -492,13 +485,18 @@ final class LiveTracker {
 
     /** Registers the app refresh task. Must run before the app finishes launching. */
     static func registerBackgroundRefresh() {
-        BGTaskScheduler.shared.register(forTaskWithIdentifier: refreshTaskId, using: nil) { task in
+        // False when the identifier is missing from BGTaskSchedulerPermittedIdentifiers
+        let registered = BGTaskScheduler.shared.register(forTaskWithIdentifier: refreshTaskId, using: nil) { task in
             guard let refresh = task as? BGAppRefreshTask else {
                 task.setTaskCompleted(success: false)
                 return
             }
 
             LiveTracker.shared.handleRefresh(refresh)
+        }
+
+        if !registered {
+            print("[LiveTracker] Background refresh could not be registered; is \(refreshTaskId) in BGTaskSchedulerPermittedIdentifiers?")
         }
     }
 
@@ -537,6 +535,35 @@ final class LiveTracker {
             }
 
             self.syncLibrary { ok in task.setTaskCompleted(success: ok) }
+        }
+    }
+}
+
+/**
+ * Time asked of iOS to finish something after Tempo leaves the screen, given
+ * back exactly once: when the work is done, or when iOS says time is up,
+ * whichever comes first, on whatever thread either happens.
+ */
+private final class BackgroundTime {
+    private let lock = NSLock()
+    private var id: UIBackgroundTaskIdentifier = .invalid
+
+    init(name: String) {
+        let id = UIApplication.shared.beginBackgroundTask(withName: name) { [weak self] in self?.end() }
+
+        lock.lock()
+        self.id = id
+        lock.unlock()
+    }
+
+    func end() {
+        lock.lock()
+        let current = id
+        id = .invalid
+        lock.unlock()
+
+        if current != .invalid {
+            UIApplication.shared.endBackgroundTask(current)
         }
     }
 }
