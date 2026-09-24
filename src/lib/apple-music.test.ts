@@ -15,6 +15,16 @@ vi.mock("@capacitor/core", () => ({
     }),
 }));
 
+// The app keeps the marker in Preferences; here that is the same storage the
+// browser uses, so one assertion reads either
+vi.mock("@capacitor/preferences", () => ({
+    Preferences: {
+        get: async ({ key }: { key: string }) => ({ value: window.localStorage.getItem(key) }),
+        set: async ({ key, value }: { key: string; value: string }) => window.localStorage.setItem(key, value),
+        remove: async ({ key }: { key: string }) => window.localStorage.removeItem(key),
+    },
+}));
+
 type Answer = { status?: number; body: unknown };
 
 function serve(routes: Record<string, Answer>) {
@@ -212,6 +222,7 @@ describe("apple-music", () => {
             const { forgetAppleMusicHere } = await load();
 
             forgetAppleMusicHere();
+            await new Promise(resolve => setTimeout(resolve, 0));
 
             expect(window.localStorage.getItem("tempo.apple-music.linked-for")).toBeNull();
         });

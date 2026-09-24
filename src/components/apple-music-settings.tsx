@@ -1,11 +1,13 @@
 import { Button, Divider, Heading, HStack, Text, VStack } from "@chakra-ui/react";
 import { useCallback, useEffect, useState } from "react";
+import { Capacitor } from "@capacitor/core";
 import { SiApplemusic } from "react-icons/si";
 
 import {
     canLinkAppleMusicHere,
     getLinkedAccounts,
     linkAppleMusic,
+    linkedHere,
     LinkedAccountsStatus,
     prepareAppleMusicLink,
     unlinkAppleMusic,
@@ -22,6 +24,14 @@ export function AppleMusicSettings({ authHeaders, tempoId }: { authHeaders: () =
     const [status, setStatus] = useState<LinkedAccountsStatus | null>(null);
     const [busy, setBusy] = useState(false);
     const [message, setMessage] = useState<string | null>(null);
+    /** Whether this device is the one handing the server tokens. */
+    const [isLinkedHere, setIsLinkedHere] = useState(true);
+    /**
+     * In a browser, whether MusicKit is ready to open Apple's sign-in straight
+     * from a tap. Before then the tap would open it too late, and Safari would
+     * block it.
+     */
+    const [ready, setReady] = useState(Capacitor.getPlatform() !== "web");
 
     useEffect(() => {
         let cancelled = false;
@@ -37,13 +47,27 @@ export function AppleMusicSettings({ authHeaders, tempoId }: { authHeaders: () =
                 // only when there is a link to make
                 const apple = next.accounts.appleMusic;
 
-                if (next.appleMusicAvailable && canLinkAppleMusicHere() && (!apple || apple.needsToken))
-                    prepareAppleMusicLink(authHeaders()).catch(ex => console.warn("Could not get Apple Music ready:", ex));
+                linkedHere().then(id => {
+                    if (cancelled)
+                        return;
+
+                    const here = (id === tempoId);
+
+                    setIsLinkedHere(here);
+
+                    // Only where there is a link to make: getting ready signs
+                    // MusicKit out, which a working link here must not be
+                    if (next.appleMusicAvailable && canLinkAppleMusicHere() && (!apple || apple.needsToken || !here)) {
+                        prepareAppleMusicLink(authHeaders())
+                            .then(() => { if (!cancelled) setReady(true); })
+                            .catch(ex => console.warn("Could not get Apple Music ready:", ex));
+                    }
+                });
             })
             .catch(ex => console.warn("Could not read linked accounts:", ex));
 
         return () => { cancelled = true; };
-    }, [authHeaders]);
+    }, [authHeaders, tempoId]);
 
     const link = useCallback(async () => {
         setBusy(true);
@@ -53,6 +77,7 @@ export function AppleMusicSettings({ authHeaders, tempoId }: { authHeaders: () =
             const next = await linkAppleMusic(authHeaders(), tempoId);
 
             setStatus(current => (current ? { ...current, accounts: next.accounts } : current));
+            setIsLinkedHere(true);
             setMessage("Tempo will start keeping your Apple Music listening from now on.");
         } catch (ex) {
             setMessage(ex instanceof Error ? ex.message : "Apple Music could not be linked. Try again in a moment.");
@@ -91,8 +116,14 @@ export function AppleMusicSettings({ authHeaders, tempoId }: { authHeaders: () =
         description = "Link Apple Music to keep what you play there too. Spotify stays linked, and Tempo follows both.";
     else if (linked.needsToken)
         description = "Apple Music needs you to sign in again before Tempo can see what you play there.";
+    else if (!isLinkedHere && linkable)
+        description = "Tempo is keeping what you play on Apple Music. Apple Music was linked from another device; use this one too so Tempo stays signed in from here.";
     else
         description = "Tempo is keeping what you play on Apple Music. It checks every few minutes, so plays arrive a little after you hear them.";
+
+    // A healthy link made elsewhere, or before this device remembered making
+    // it, can be taken up here, so this device keeps its token fresh
+    const offerLink = linkable && (!linked || linked.needsToken || !isLinkedHere);
 
     return (
         <>
@@ -116,9 +147,9 @@ export function AppleMusicSettings({ authHeaders, tempoId }: { authHeaders: () =
                     <Text fontSize="sm" mb={3.5} color="gray.300">{message}</Text>
                 )}
                 <HStack spacing="8px">
-                    {linkable && (!linked || linked.needsToken) && (
-                        <Button colorScheme="accent.dark" variant="outline" size="sm" isLoading={busy} onClick={link}>
-                            {linked ? "Sign in to Apple Music again" : "Link Apple Music"}
+                    {offerLink && (
+                        <Button colorScheme="accent.dark" variant="outline" size="sm" isLoading={busy || !ready} onClick={link}>
+                            {!linked ? "Link Apple Music" : linked.needsToken ? "Sign in to Apple Music again" : "Use this device"}
                         </Button>
                     )}
                     {linked && (

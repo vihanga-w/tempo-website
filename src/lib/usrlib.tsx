@@ -286,6 +286,14 @@ export default class User extends EventEmitter {
     public async logout() {
         let confirmed = false;
 
+        // First, and on its own: whoever signs in next is not necessarily
+        // whoever linked Apple Music here, and nothing below may stop this
+        try {
+            forgetAppleMusicHere();
+        } catch (ex) {
+            console.warn("Could not forget Apple Music on this device:", ex);
+        }
+
         try {
             const req = await fetchThroughRateLimit(API_URL + "/logout", {
                 method: "POST",
@@ -322,8 +330,6 @@ export default class User extends EventEmitter {
 
         try {
             window.localStorage.removeItem("tempo.a");
-            // Whoever signs in next is not necessarily whoever linked it
-            forgetAppleMusicHere();
         } catch (ex) {
             console.warn("Could not clear the stored token, error:", ex);
         }

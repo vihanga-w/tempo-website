@@ -1,4 +1,5 @@
 import { Capacitor, registerPlugin } from "@capacitor/core";
+import { Preferences } from "@capacitor/preferences";
 
 import { API_URL } from "./const";
 import { fetchThroughRateLimit } from "./rate-limit";
@@ -78,17 +79,29 @@ export class AppleMusicNotAllowedError extends Error {
  */
 const LINKED_HERE_KEY = "tempo.apple-music.linked-for";
 
-function linkedHere(): string | null {
+/*
+ * In the app, kept where the sign-in token is: iOS may clear a web view's
+ * storage, and a device that forgot it linked Apple Music would stop handing
+ * over tokens without anybody noticing until the link lapsed.
+ */
+const native = () => Capacitor.getPlatform() !== "web";
+
+export async function linkedHere(): Promise<string | null> {
     try {
+        if (native())
+            return (await Preferences.get({ key: LINKED_HERE_KEY })).value;
+
         return window.localStorage.getItem(LINKED_HERE_KEY);
     } catch {
         return null;
     }
 }
 
-function setLinkedHere(tempoId: string | null) {
+async function setLinkedHere(tempoId: string | null) {
     try {
-        if (tempoId)
+        if (native())
+            await (tempoId ? Preferences.set({ key: LINKED_HERE_KEY, value: tempoId }) : Preferences.remove({ key: LINKED_HERE_KEY }));
+        else if (tempoId)
             window.localStorage.setItem(LINKED_HERE_KEY, tempoId);
         else
             window.localStorage.removeItem(LINKED_HERE_KEY);
@@ -307,7 +320,7 @@ export async function linkAppleMusic(headers: Record<string, string>, tempoId: s
 
     const linked = await sendUserToken(headers, result.userToken, false);
 
-    setLinkedHere(tempoId);
+    await setLinkedHere(tempoId);
 
     return linked;
 }
@@ -315,7 +328,7 @@ export async function linkAppleMusic(headers: Record<string, string>, tempoId: s
 export async function unlinkAppleMusic(headers: Record<string, string>) {
     const unlinked = await api<Pick<LinkedAccountsStatus, "accounts">>("/me/accounts/apple-music", headers, { method: "DELETE" });
 
-    setLinkedHere(null);
+    await setLinkedHere(null);
 
     return unlinked;
 }
@@ -326,7 +339,7 @@ export async function unlinkAppleMusic(headers: Record<string, string>) {
  * again signs it out first anyway.
  */
 export function forgetAppleMusicHere() {
-    setLinkedHere(null);
+    setLinkedHere(null).catch(() => { });
 
     if (preparedMusicKit)
         signOutOfMusicKit(preparedMusicKit).catch(() => { });
@@ -344,7 +357,7 @@ let refreshedThisLaunch = false;
  * the server nothing, and loads nothing, on a device that never linked.
  */
 export async function refreshAppleMusicLink(headers: Record<string, string>, tempoId: string) {
-    if (refreshedThisLaunch || !canLinkAppleMusicHere() || !tempoId || linkedHere() !== tempoId)
+    if (refreshedThisLaunch || !canLinkAppleMusicHere() || !tempoId || await linkedHere() !== tempoId)
         return;
 
     refreshedThisLaunch = true;
@@ -354,7 +367,7 @@ export async function refreshAppleMusicLink(headers: Record<string, string>, tem
 
     if (!status.appleMusicAvailable || !link) {
         // Unlinked somewhere else since
-        setLinkedHere(null);
+        await setLinkedHere(null);
 
         return;
     }
