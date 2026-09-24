@@ -63,7 +63,7 @@ final class LiveTracker {
         static let endpoint = "tempo.live.endpoint"
         static let authToken = "tempo.live.authToken"
         static let clientVersion = "tempo.live.clientVersion"
-        static let deviceId = "tempo.live.deviceId"
+        static let installId = "tempo.live.installId"
         static let seq = "tempo.live.seq"
         static let librarySyncedAt = "tempo.live.librarySyncedAt"
     }
@@ -97,19 +97,29 @@ final class LiveTracker {
 
     /**
      * This device, so the server can tell this phone's reports from an iPad's.
+     * Main thread only.
      *
      * The vendor identifier, not one kept in UserDefaults: those are restored
      * from a backup onto a new phone, and two phones with one id would reject
-     * each other's reports. A stored one only where iOS has no vendor
-     * identifier to give yet.
+     * each other's reports. Nil before the phone is first unlocked, when iOS
+     * has none to give; nothing is reported then, rather than under a second
+     * id that would split this phone in two.
      */
-    private var deviceId: String {
-        if let id = UIDevice.current.identifierForVendor?.uuidString { return id }
-        if let id = defaults.string(forKey: Key.deviceId) { return id }
+    private var deviceId: String? {
+        UIDevice.current.identifierForVendor?.uuidString
+    }
+
+    /**
+     * This install of the app, which report numbers count within. Kept in
+     * UserDefaults, which a reinstall clears along with the count, so the
+     * server does not take a fresh count for old reports.
+     */
+    private var installId: String {
+        if let id = defaults.string(forKey: Key.installId) { return id }
 
         let id = UUID().uuidString
 
-        defaults.set(id, forKey: Key.deviceId)
+        defaults.set(id, forKey: Key.installId)
 
         return id
     }
@@ -199,6 +209,10 @@ final class LiveTracker {
                 self?.check(force: true, appState: "background")
                 self?.stopTimer()
                 self?.scheduleRefresh()
+
+                // Whatever is paused when Tempo next runs was paused while
+                // nobody watched, maybe days ago: only playing makes it news
+                self?.seenPlaying = false
             },
         ]
 
@@ -285,7 +299,7 @@ final class LiveTracker {
         // counts a song as seen to its end when reports kept coming, and a
         // pause in front of the listener is still being watched
         let foreground = (UIApplication.shared.applicationState == .active)
-        let heartbeatDue = ((now.state == "playing" || (foreground && now.title != nil)) && elapsed >= heartbeatInterval)
+        let heartbeatDue = ((now.state == "playing" || (foreground && now.state == "paused")) && elapsed >= heartbeatInterval)
 
         // Nothing new, and no heartbeat due: nothing to say
         if !force && !changed && !heartbeatDue { return }
@@ -349,8 +363,11 @@ final class LiveTracker {
     }
 
     private func send(_ snapshot: Snapshot, appState: String) {
+        guard let deviceId = deviceId else { return }
+
         var body: [String: Any] = [
             "deviceId": deviceId,
+            "installId": installId,
             "seq": nextSeq(),
             "observedAt": Int(Date().timeIntervalSince1970 * 1000),
             "state": snapshot.state,
@@ -423,7 +440,10 @@ final class LiveTracker {
         let since = defaults.object(forKey: Key.librarySyncedAt) as? Date ?? Date().addingTimeInterval(-6 * 3600)
         let startedAt = Date()
         // Here, on the main thread, where UIDevice may be asked
-        let deviceId = self.deviceId
+        guard let deviceId = self.deviceId else {
+            finish(false)
+            return
+        }
 
         DispatchQueue.global(qos: .utility).async { [weak self] in
             guard let self = self else {
