@@ -178,6 +178,16 @@ describe("apple-music", () => {
             expect(native.userToken).toHaveBeenCalledWith({ developerToken: "dev", fresh: true });
         });
 
+        it("does not forget the link when the server is only not offering Apple Music for now", async () => {
+            serve({ "GET /me/accounts": { body: { ...LINKED, appleMusicAvailable: false } } });
+
+            const { refreshAppleMusicLink } = await load();
+            await refreshAppleMusicLink({}, "u1");
+
+            expect(window.localStorage.getItem("tempo.apple-music.linked-for")).toBe("u1");
+            expect(native.stopLiveTracking).not.toHaveBeenCalled();
+        });
+
         it("does nothing for somebody who has not linked Apple Music", async () => {
             const calls = serve({ "GET /me/accounts": { body: { accounts: {}, appleMusicAvailable: true } } });
 

@@ -399,7 +399,13 @@ export async function refreshAppleMusicLink(headers: Record<string, string>, tem
     const status = await getLinkedAccounts(headers);
     const link = status.accounts.appleMusic;
 
-    if (!status.appleMusicAvailable || !link) {
+    // The server not offering Apple Music right now (its key missing after a
+    // deploy, say) is not the listener unlinking: forgetting would stop this
+    // device keeping the link alive for good, even once the key is back
+    if (!status.appleMusicAvailable)
+        return;
+
+    if (!link) {
         // Unlinked somewhere else since
         await setLinkedHere(null);
         await stopLiveTracking();

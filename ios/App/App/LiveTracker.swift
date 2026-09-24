@@ -157,8 +157,10 @@ final class LiveTracker {
      */
     func stop() {
         DispatchQueue.main.async {
+            // Tempo stopping watching, marked as such: the song may play on,
+            // and must not be taken for ending here
             if self.endpoint != nil {
-                self.send(Snapshot(state: "stopped", catalogId: nil, title: nil, artist: nil, album: nil, durationMs: 0, positionMs: 0), appState: "background")
+                self.send(Snapshot(state: "stopped", catalogId: nil, title: nil, artist: nil, album: nil, durationMs: 0, positionMs: 0), appState: "background", untracked: true)
             }
 
             self.forget()
@@ -355,7 +357,7 @@ final class LiveTracker {
         }.resume()
     }
 
-    private func send(_ snapshot: Snapshot, appState: String) {
+    private func send(_ snapshot: Snapshot, appState: String, untracked: Bool = false) {
         guard let deviceId = deviceId else { return }
 
         var body: [String: Any] = [
@@ -367,6 +369,8 @@ final class LiveTracker {
             "appState": appState,
             "positionMs": snapshot.positionMs,
         ]
+
+        if untracked { body["untracked"] = true }
 
         if let title = snapshot.title {
             var track: [String: Any] = [

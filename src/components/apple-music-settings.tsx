@@ -57,17 +57,30 @@ export function AppleMusicSettings({ authHeaders, tempoId }: { authHeaders: () =
 
                     // Only where there is a link to make: getting ready signs
                     // MusicKit out, which a working link here must not be
-                    if (next.appleMusicAvailable && canLinkAppleMusicHere() && (!apple || apple.needsToken || !here)) {
-                        prepareAppleMusicLink(authHeaders())
-                            .then(() => { if (!cancelled) setReady(true); })
-                            .catch(ex => console.warn("Could not get Apple Music ready:", ex));
-                    }
+                    if (next.appleMusicAvailable && canLinkAppleMusicHere() && (!apple || apple.needsToken || !here))
+                        prepare();
                 });
             })
             .catch(ex => console.warn("Could not read linked accounts:", ex));
 
         return () => { cancelled = true; };
     }, [authHeaders, tempoId]);
+
+    /*
+     * Gets MusicKit ready for a tap. Failing, the button is let go anyway —
+     * a tap then opens Apple's sign-in late, which a browser may block, and
+     * says so — rather than spinning for ever with no way to try again.
+     */
+    const prepare = useCallback(() => {
+        setReady(Capacitor.getPlatform() !== "web");
+
+        prepareAppleMusicLink(authHeaders())
+            .catch(ex => {
+                console.warn("Could not get Apple Music ready:", ex);
+                setMessage("Apple Music could not be reached from this browser. You can still try linking.");
+            })
+            .finally(() => setReady(true));
+    }, [authHeaders]);
 
     const link = useCallback(async () => {
         setBusy(true);
@@ -97,12 +110,16 @@ export function AppleMusicSettings({ authHeaders, tempoId }: { authHeaders: () =
             const next = await unlinkAppleMusic(authHeaders());
 
             setStatus(current => (current ? { ...current, accounts: next.accounts } : current));
+
+            // Ready for linking again, which needs MusicKit signed out first
+            if (canLinkAppleMusicHere())
+                prepare();
         } catch (ex) {
             setMessage(ex instanceof Error ? ex.message : "Apple Music could not be unlinked.");
         } finally {
             setBusy(false);
         }
-    }, [authHeaders]);
+    }, [authHeaders, prepare]);
 
     if (!status?.appleMusicAvailable)
         return null;
