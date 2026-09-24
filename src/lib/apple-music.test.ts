@@ -47,6 +47,9 @@ async function load() {
 
 describe("apple-music", () => {
     beforeEach(() => {
+        window.localStorage.clear();
+        // Linked from this device, by the account signed in
+        window.localStorage.setItem("tempo.apple-music.linked-for", "u1");
         native.platform = "ios";
         native.authorize.mockReset();
         native.userToken.mockReset();
@@ -66,11 +69,27 @@ describe("apple-music", () => {
             native.authorize.mockResolvedValue({ status: "authorized", userToken: "user-token" });
 
             const { linkAppleMusic } = await load();
-            const result = await linkAppleMusic({});
+            const result = await linkAppleMusic({}, "u1");
 
             expect(native.authorize).toHaveBeenCalledWith({ developerToken: "dev" });
             expect(calls.at(-1)).toEqual({ path: "/me/accounts/apple-music", method: "PUT", body: { userToken: "user-token", refresh: false } });
             expect(result.accounts.appleMusic?.storefront).toBe("us");
+        });
+
+        it("remembers which account linked it here", async () => {
+            window.localStorage.clear();
+
+            serve({
+                "GET /apple-music/developer-token": { body: { token: "dev", expiresAt: 0 } },
+                "PUT /me/accounts/apple-music": { body: { accounts: LINKED.accounts } },
+            });
+
+            native.authorize.mockResolvedValue({ status: "authorized", userToken: "user-token" });
+
+            const { linkAppleMusic } = await load();
+            await linkAppleMusic({}, "u1");
+
+            expect(window.localStorage.getItem("tempo.apple-music.linked-for")).toBe("u1");
         });
 
         it("says so when the listener does not allow it, and sends nothing", async () => {
@@ -80,7 +99,7 @@ describe("apple-music", () => {
 
             const { linkAppleMusic, AppleMusicNotAllowedError } = await load();
 
-            await expect(linkAppleMusic({})).rejects.toBeInstanceOf(AppleMusicNotAllowedError);
+            await expect(linkAppleMusic({}, "u1")).rejects.toBeInstanceOf(AppleMusicNotAllowedError);
             expect(calls.some(call => call.method === "PUT")).toBe(false);
         });
 
@@ -91,7 +110,7 @@ describe("apple-music", () => {
 
             const { linkAppleMusic, AppleMusicNoSubscriptionError } = await load();
 
-            await expect(linkAppleMusic({})).rejects.toBeInstanceOf(AppleMusicNoSubscriptionError);
+            await expect(linkAppleMusic({}, "u1")).rejects.toBeInstanceOf(AppleMusicNoSubscriptionError);
             expect(calls.some(call => call.method === "PUT")).toBe(false);
         });
 
@@ -105,7 +124,7 @@ describe("apple-music", () => {
 
             const { linkAppleMusic } = await load();
 
-            await expect(linkAppleMusic({})).rejects.toThrow("Apple Music did not accept that sign-in.");
+            await expect(linkAppleMusic({}, "u1")).rejects.toThrow("Apple Music did not accept that sign-in.");
         });
     });
 
@@ -120,7 +139,7 @@ describe("apple-music", () => {
             native.userToken.mockResolvedValue({ status: "authorized", userToken: "current" });
 
             const { refreshAppleMusicLink } = await load();
-            await refreshAppleMusicLink({});
+            await refreshAppleMusicLink({}, "u1");
 
             expect(native.authorize).not.toHaveBeenCalled();
             expect(native.userToken).toHaveBeenCalledWith({ developerToken: "dev", fresh: false });
@@ -138,7 +157,7 @@ describe("apple-music", () => {
             native.userToken.mockResolvedValue({ status: "authorized", userToken: "current" });
 
             const { refreshAppleMusicLink } = await load();
-            await refreshAppleMusicLink({});
+            await refreshAppleMusicLink({}, "u1");
 
             expect(native.userToken).toHaveBeenCalledWith({ developerToken: "dev", fresh: true });
         });
@@ -147,7 +166,7 @@ describe("apple-music", () => {
             const calls = serve({ "GET /me/accounts": { body: { accounts: {}, appleMusicAvailable: true } } });
 
             const { refreshAppleMusicLink } = await load();
-            await refreshAppleMusicLink({});
+            await refreshAppleMusicLink({}, "u1");
 
             expect(calls.map(call => call.path)).toEqual(["/me/accounts"]);
             expect(native.userToken).not.toHaveBeenCalled();
@@ -162,17 +181,47 @@ describe("apple-music", () => {
             native.userToken.mockResolvedValue({ status: "denied" });
 
             const { refreshAppleMusicLink } = await load();
-            await refreshAppleMusicLink({});
+            await refreshAppleMusicLink({}, "u1");
 
             expect(calls.some(call => call.method === "PUT")).toBe(false);
+        });
+
+        it("hands over nothing for an account that linked somewhere else", async () => {
+            window.localStorage.clear();
+
+            const calls = serve({});
+
+            const { refreshAppleMusicLink } = await load();
+            await refreshAppleMusicLink({}, "u1");
+
+            expect(calls.length).toBe(0);
+            expect(native.userToken).not.toHaveBeenCalled();
+        });
+
+        it("hands over nothing for somebody else signed in after the one who linked it here", async () => {
+            // u1 linked here, signed out without it being forgotten, and u2 signed in
+            const calls = serve({});
+
+            const { refreshAppleMusicLink } = await load();
+            await refreshAppleMusicLink({}, "u2");
+
+            expect(calls.length).toBe(0);
+        });
+
+        it("forgets it was linked here on signing out", async () => {
+            const { forgetAppleMusicHere } = await load();
+
+            forgetAppleMusicHere();
+
+            expect(window.localStorage.getItem("tempo.apple-music.linked-for")).toBeNull();
         });
 
         it("runs once a launch", async () => {
             const calls = serve({ "GET /me/accounts": { body: { accounts: {}, appleMusicAvailable: true } } });
 
             const { refreshAppleMusicLink } = await load();
-            await refreshAppleMusicLink({});
-            await refreshAppleMusicLink({});
+            await refreshAppleMusicLink({}, "u1");
+            await refreshAppleMusicLink({}, "u1");
 
             expect(calls.length).toBe(1);
         });
@@ -183,7 +232,7 @@ describe("apple-music", () => {
             const calls = serve({});
 
             const { refreshAppleMusicLink, canLinkAppleMusicHere } = await load();
-            await refreshAppleMusicLink({});
+            await refreshAppleMusicLink({}, "u1");
 
             expect(canLinkAppleMusicHere()).toBe(false);
             expect(calls.length).toBe(0);
@@ -191,7 +240,12 @@ describe("apple-music", () => {
     });
 
     describe("in a browser", () => {
-        function musicKit(instance: { isAuthorized: boolean; musicUserToken?: string; authorize: () => Promise<string> }) {
+        function musicKit(instance: { isAuthorized: boolean; musicUserToken?: string; authorize: () => Promise<string>; unauthorize?: () => Promise<void> }) {
+            instance.unauthorize ??= vi.fn(async () => {
+                instance.isAuthorized = false;
+                instance.musicUserToken = undefined;
+            });
+
             vi.stubGlobal("MusicKit", {
                 configure: vi.fn(async () => instance),
                 getInstance: () => instance,
@@ -211,7 +265,7 @@ describe("apple-music", () => {
             musicKit({ isAuthorized: true, musicUserToken: "refused", authorize });
 
             const { refreshAppleMusicLink } = await load();
-            await refreshAppleMusicLink({});
+            await refreshAppleMusicLink({}, "u1");
 
             expect(calls.some(call => call.method === "PUT")).toBe(false);
             // Nor asks: that is for the settings page, on a tap
@@ -233,12 +287,48 @@ describe("apple-music", () => {
             const { linkAppleMusic, prepareAppleMusicLink } = await load();
             await prepareAppleMusicLink({});
 
-            const linking = linkAppleMusic({});
+            const linking = linkAppleMusic({}, "u1");
 
             // Called in the same turn as the tap
             expect(authorize).toHaveBeenCalledTimes(1);
 
             await linking;
+        });
+
+        it("signs MusicKit out before signing in again, so it cannot answer with the token it holds", async () => {
+            native.platform = "web";
+
+            const calls = serve({
+                "GET /apple-music/developer-token": { body: { token: "dev", expiresAt: 0 } },
+                "PUT /me/accounts/apple-music": { body: { accounts: LINKED.accounts } },
+            });
+
+            // Holds the refused token; a real sign-in yields a new one
+            const instance: { isAuthorized: boolean; musicUserToken?: string; authorize: () => Promise<string> } = {
+                isAuthorized: true,
+                musicUserToken: "refused",
+                authorize: vi.fn(async () => instance.musicUserToken ?? "new"),
+            };
+
+            musicKit(instance);
+
+            const { linkAppleMusic, prepareAppleMusicLink } = await load();
+            await prepareAppleMusicLink({});
+            await linkAppleMusic({}, "u1");
+
+            expect(calls.at(-1)?.body).toEqual({ userToken: "new", refresh: false });
+        });
+
+        it("says a sign-in that did not finish did not finish, rather than that access was refused", async () => {
+            native.platform = "web";
+
+            serve({ "GET /apple-music/developer-token": { body: { token: "dev", expiresAt: 0 } } });
+
+            musicKit({ isAuthorized: false, authorize: vi.fn(async () => { throw new Error("popup blocked"); }) });
+
+            const { linkAppleMusic } = await load();
+
+            await expect(linkAppleMusic({}, "u1")).rejects.toThrow(/did not finish/);
         });
     });
 });

@@ -1,6 +1,7 @@
 import { Capacitor, registerPlugin } from "@capacitor/core";
 
 import { API_URL } from "./const";
+import { fetchThroughRateLimit } from "./rate-limit";
 
 /**
  * Linking Apple Music.
@@ -16,7 +17,11 @@ import { API_URL } from "./const";
  * listener anything: only linking does.
  */
 
-type AuthorizationStatus = "authorized" | "denied" | "restricted" | "notDetermined" | "unknown";
+/**
+ * "failed" is MusicKit on the Web's sign-in not finishing — a pop-up blocked or
+ * closed, or Apple's page failing — which it does not tell apart from a no.
+ */
+type AuthorizationStatus = "authorized" | "denied" | "restricted" | "notDetermined" | "unknown" | "failed";
 
 interface UserTokenResult {
     status: AuthorizationStatus;
@@ -49,13 +54,45 @@ export class AppleMusicNoSubscriptionError extends Error {
     }
 }
 
-/** Linking was not allowed, so there is nothing to link. */
+/** Linking was not allowed, or did not finish, so there is nothing to link. */
 export class AppleMusicNotAllowedError extends Error {
     constructor(public status: AuthorizationStatus) {
         super(status === "restricted"
-            ? "Apple Music is restricted on this device"
-            : "Tempo was not allowed to use Apple Music");
+            ? "Apple Music is restricted on this device."
+            : status === "failed"
+                ? "Apple's sign-in did not finish. If your browser blocked a pop-up, allow pop-ups for Tempo and try again."
+                : Capacitor.getPlatform() === "ios"
+                    ? "Tempo needs access to Apple Music to link it. You can allow it in Settings › Tempo."
+                    : "Tempo was not allowed to use Apple Music.");
     }
+}
+
+/*
+ * Which Tempo account linked Apple Music on this device, if one did.
+ *
+ * The token MusicKit holds belongs to whoever signed in to Apple Music here,
+ * which after somebody signs out of Tempo is not necessarily whoever signs in
+ * next. So a token is only ever handed over for the account that linked it
+ * here: never for one that linked from another device, and never after
+ * signing out.
+ */
+const LINKED_HERE_KEY = "tempo.apple-music.linked-for";
+
+function linkedHere(): string | null {
+    try {
+        return window.localStorage.getItem(LINKED_HERE_KEY);
+    } catch {
+        return null;
+    }
+}
+
+function setLinkedHere(tempoId: string | null) {
+    try {
+        if (tempoId)
+            window.localStorage.setItem(LINKED_HERE_KEY, tempoId);
+        else
+            window.localStorage.removeItem(LINKED_HERE_KEY);
+    } catch { }
 }
 
 /**
@@ -79,6 +116,7 @@ interface MusicKitInstance {
     isAuthorized: boolean;
     musicUserToken?: string;
     authorize(): Promise<string>;
+    unauthorize(): Promise<void>;
 }
 
 interface MusicKitGlobal {
@@ -170,24 +208,33 @@ async function musicUserToken(developerToken: string, ask: boolean, fresh: boole
     if (!ask)
         return { status: "notDetermined" };
 
+    // authorize() hands back the token it already holds rather than signing
+    // in, and that token is the refused one, or somebody else's
+    await signOutOfMusicKit(music);
+
     return webAuthorize(music);
+}
+
+async function signOutOfMusicKit(music: MusicKitInstance) {
+    if (music.isAuthorized)
+        await music.unauthorize().catch(ex => console.warn("MusicKit would not sign out:", ex));
 }
 
 async function webAuthorize(music: MusicKitInstance): Promise<UserTokenResult> {
     try {
         const userToken = await music.authorize();
 
-        return (userToken ? { status: "authorized", userToken } : { status: "denied" });
+        return (userToken ? { status: "authorized", userToken } : { status: "failed" });
     } catch {
-        // MusicKit on the Web rejects when the pop-up is closed
-        return { status: "denied" };
+        // Rejected alike when the pop-up is blocked, closed, or Apple says no
+        return { status: "failed" };
     }
 }
 
 /* ---------- Tempo's server ---------- */
 
 async function api<T>(path: string, headers: Record<string, string>, init: RequestInit = {}): Promise<T> {
-    const res = await fetch(API_URL + path, {
+    const res = await fetchThroughRateLimit(API_URL + path, {
         ...init,
         headers: { "Content-Type": "application/json", ...headers, ...(init.headers as Record<string, string>) },
         credentials: "include",
@@ -222,12 +269,19 @@ function sendUserToken(headers: Record<string, string>, userToken: string, refre
 /**
  * Gets MusicKit ready before the listener asks to link, so that asking opens
  * Apple's sign-in straight away. Only does anything in a browser.
+ *
+ * Signs MusicKit out, too, ahead of the tap: it would otherwise answer the tap
+ * with the token it holds — refused, or another person's — without asking
+ * anybody anything, and signing out after the tap is a wait the pop-up does
+ * not survive.
  */
 export async function prepareAppleMusicLink(headers: Record<string, string>) {
-    if (Capacitor.getPlatform() !== "web" || preparedMusicKit)
+    if (Capacitor.getPlatform() !== "web")
         return;
 
-    await webMusicKit(await developerToken(headers));
+    const music = preparedMusicKit ?? await webMusicKit(await developerToken(headers));
+
+    await signOutOfMusicKit(music);
 }
 
 /**
@@ -236,9 +290,12 @@ export async function prepareAppleMusicLink(headers: Record<string, string>) {
  * Throws AppleMusicNotAllowedError when they say no, and
  * AppleMusicNoSubscriptionError when there is nothing Tempo could see.
  */
-export async function linkAppleMusic(headers: Record<string, string>) {
-    // In a browser, before anything is awaited; see preparedMusicKit
-    const prepared = (Capacitor.getPlatform() === "web" && preparedMusicKit ? webAuthorize(preparedMusicKit) : undefined);
+export async function linkAppleMusic(headers: Record<string, string>, tempoId: string) {
+    // In a browser, before anything is awaited; see preparedMusicKit. Only
+    // once it is signed out, or it answers with the token it already holds
+    const prepared = (Capacitor.getPlatform() === "web" && preparedMusicKit && !preparedMusicKit.isAuthorized
+        ? webAuthorize(preparedMusicKit)
+        : undefined);
 
     const result = await (prepared ?? musicUserToken(await developerToken(headers), true, true));
 
@@ -248,25 +305,46 @@ export async function linkAppleMusic(headers: Record<string, string>) {
     if (result.canPlayCatalogContent === false)
         throw new AppleMusicNoSubscriptionError();
 
-    return sendUserToken(headers, result.userToken, false);
+    const linked = await sendUserToken(headers, result.userToken, false);
+
+    setLinkedHere(tempoId);
+
+    return linked;
 }
 
-export function unlinkAppleMusic(headers: Record<string, string>) {
-    return api<Pick<LinkedAccountsStatus, "accounts">>("/me/accounts/apple-music", headers, { method: "DELETE" });
+export async function unlinkAppleMusic(headers: Record<string, string>) {
+    const unlinked = await api<Pick<LinkedAccountsStatus, "accounts">>("/me/accounts/apple-music", headers, { method: "DELETE" });
+
+    setLinkedHere(null);
+
+    return unlinked;
+}
+
+/**
+ * Forgets that Apple Music was linked here, for signing out of Tempo. MusicKit
+ * on the Web is signed out too where it is loaded; where it is not, linking
+ * again signs it out first anyway.
+ */
+export function forgetAppleMusicHere() {
+    setLinkedHere(null);
+
+    if (preparedMusicKit)
+        signOutOfMusicKit(preparedMusicKit).catch(() => { });
 }
 
 let refreshedThisLaunch = false;
 
 /**
- * Hands the server the listener's current token, if they have linked Apple
- * Music. Once a launch, and never asks the listener anything.
+ * Hands the server the listener's current token, if they linked Apple Music
+ * on this device. Once a launch, and never asks the listener anything.
  *
- * Quietly does nothing wherever it cannot: not linked, not on a device that
- * can link, access withdrawn in Settings. The server keeps its link waiting
- * for a token, and the settings page says so.
+ * Quietly does nothing wherever it cannot: linked elsewhere or not at all,
+ * not on a device that can link, access withdrawn in Settings. The server
+ * keeps its link waiting for a token, and the settings page says so. Asks
+ * the server nothing, and loads nothing, on a device that never linked.
  */
-export async function refreshAppleMusicLink(headers: Record<string, string>) {
-    if (refreshedThisLaunch || !canLinkAppleMusicHere())
+export async function refreshAppleMusicLink(headers: Record<string, string>, tempoId: string) {
+    if (refreshedThisLaunch || !canLinkAppleMusicHere() || !tempoId || linkedHere() !== tempoId)
         return;
 
     refreshedThisLaunch = true;
@@ -274,8 +352,12 @@ export async function refreshAppleMusicLink(headers: Record<string, string>) {
     const status = await getLinkedAccounts(headers);
     const link = status.accounts.appleMusic;
 
-    if (!status.appleMusicAvailable || !link)
+    if (!status.appleMusicAvailable || !link) {
+        // Unlinked somewhere else since
+        setLinkedHere(null);
+
         return;
+    }
 
     const token = await developerToken(headers);
     const result = await musicUserToken(token, false, link.needsToken);

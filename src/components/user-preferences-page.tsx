@@ -539,7 +539,7 @@ export default function UserPreferencesPage({ user }: { user: User }) {
                     </Button>
                 </VStack>
 
-                <AppleMusicSettings authHeaders={appleMusicAuthHeaders} />
+                <AppleMusicSettings authHeaders={appleMusicAuthHeaders} tempoId={user.id} />
 
                 <Divider />
 

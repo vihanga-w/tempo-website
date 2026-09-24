@@ -3,7 +3,6 @@ import { useCallback, useEffect, useState } from "react";
 import { SiApplemusic } from "react-icons/si";
 
 import {
-    AppleMusicNotAllowedError,
     canLinkAppleMusicHere,
     getLinkedAccounts,
     linkAppleMusic,
@@ -19,7 +18,7 @@ import {
  * played on either lands in the same history. Nothing here while the server
  * does not offer Apple Music, so the section does not appear before it works.
  */
-export function AppleMusicSettings({ authHeaders }: { authHeaders: () => Record<string, string> }) {
+export function AppleMusicSettings({ authHeaders, tempoId }: { authHeaders: () => Record<string, string>; tempoId: string }) {
     const [status, setStatus] = useState<LinkedAccountsStatus | null>(null);
     const [busy, setBusy] = useState(false);
     const [message, setMessage] = useState<string | null>(null);
@@ -34,8 +33,11 @@ export function AppleMusicSettings({ authHeaders }: { authHeaders: () => Record<
 
                 setStatus(next);
 
-                // So that tapping "Link" can open Apple's sign-in at once
-                if (next.appleMusicAvailable && canLinkAppleMusicHere())
+                // So that tapping "Link" can open Apple's sign-in at once;
+                // only when there is a link to make
+                const apple = next.accounts.appleMusic;
+
+                if (next.appleMusicAvailable && canLinkAppleMusicHere() && (!apple || apple.needsToken))
                     prepareAppleMusicLink(authHeaders()).catch(ex => console.warn("Could not get Apple Music ready:", ex));
             })
             .catch(ex => console.warn("Could not read linked accounts:", ex));
@@ -48,18 +50,16 @@ export function AppleMusicSettings({ authHeaders }: { authHeaders: () => Record<
         setMessage(null);
 
         try {
-            const next = await linkAppleMusic(authHeaders());
+            const next = await linkAppleMusic(authHeaders(), tempoId);
 
             setStatus(current => (current ? { ...current, accounts: next.accounts } : current));
             setMessage("Tempo will start keeping your Apple Music listening from now on.");
         } catch (ex) {
-            setMessage(ex instanceof AppleMusicNotAllowedError
-                ? "Tempo needs access to Apple Music to link it. You can allow it in Settings › Tempo."
-                : (ex instanceof Error ? ex.message : "Apple Music could not be linked. Try again in a moment."));
+            setMessage(ex instanceof Error ? ex.message : "Apple Music could not be linked. Try again in a moment.");
         } finally {
             setBusy(false);
         }
-    }, [authHeaders]);
+    }, [authHeaders, tempoId]);
 
     const unlink = useCallback(async () => {
         if (!confirm("Unlink Apple Music?\n\nWhat you have already played stays in your history. Tempo stops keeping anything new from Apple Music."))
