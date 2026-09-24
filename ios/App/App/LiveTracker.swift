@@ -41,6 +41,18 @@ final class LiveTracker {
     /** Main thread only. One library sync at a time, and not twice in a minute. */
     private var librarySyncing = false
     private var librarySyncStartedAt: Date = .distantPast
+    /**
+     * Main thread only. Whoever asked for a sync while one was running, told
+     * when it finishes: a background refresh must not be marked done while
+     * the sync it exists for is still going, or iOS suspends Tempo mid-sync.
+     */
+    private var librarySyncWaiters: [(Bool) -> Void] = []
+    /**
+     * Main thread only. Whether the player has been seen playing since Tempo
+     * started watching it. A song left paused in the Music app yesterday is
+     * not something anybody is listening to, and is reported as nothing.
+     */
+    private var seenPlaying = false
 
     /** How often the player is looked at while Tempo runs; its notifications are not dependable on their own. */
     private let pollInterval: TimeInterval = 2
@@ -83,8 +95,16 @@ final class LiveTracker {
     private var endpoint: String? { defaults.string(forKey: Key.endpoint) }
     private var authToken: String? { defaults.string(forKey: Key.authToken) }
 
-    /** One install of the app, so the server can tell this phone's reports from an iPad's. */
+    /**
+     * This device, so the server can tell this phone's reports from an iPad's.
+     *
+     * The vendor identifier, not one kept in UserDefaults: those are restored
+     * from a backup onto a new phone, and two phones with one id would reject
+     * each other's reports. A stored one only where iOS has no vendor
+     * identifier to give yet.
+     */
     private var deviceId: String {
+        if let id = UIDevice.current.identifierForVendor?.uuidString { return id }
         if let id = defaults.string(forKey: Key.deviceId) { return id }
 
         let id = UUID().uuidString
@@ -192,6 +212,7 @@ final class LiveTracker {
 
     private func pause() {
         stopTimer()
+        seenPlaying = false
 
         observers.forEach { NotificationCenter.default.removeObserver($0) }
         observers = []
@@ -228,6 +249,13 @@ final class LiveTracker {
             return Snapshot(state: "stopped", catalogId: nil, title: nil, artist: nil, album: nil, durationMs: 0, positionMs: 0)
         }
 
+        if state == "playing" {
+            seenPlaying = true
+        } else if !seenPlaying {
+            // Loaded, but not played since Tempo began watching: nothing is playing
+            return Snapshot(state: "stopped", catalogId: nil, title: nil, artist: nil, album: nil, durationMs: 0, positionMs: 0)
+        }
+
         let storeId = item.playbackStoreID
 
         return Snapshot(
@@ -252,7 +280,12 @@ final class LiveTracker {
         let elapsed = Date().timeIntervalSince(lastSentAt)
 
         let changed = !(lastSent.map { now.sameAs($0, after: elapsed) } ?? false)
-        let heartbeatDue = (now.state == "playing" && elapsed >= heartbeatInterval)
+
+        // While playing, and while paused with Tempo open: the server only
+        // counts a song as seen to its end when reports kept coming, and a
+        // pause in front of the listener is still being watched
+        let foreground = (UIApplication.shared.applicationState == .active)
+        let heartbeatDue = ((now.state == "playing" || (foreground && now.title != nil)) && elapsed >= heartbeatInterval)
 
         // Nothing new, and no heartbeat due: nothing to say
         if !force && !changed && !heartbeatDue { return }
@@ -360,8 +393,13 @@ final class LiveTracker {
         }
 
         // Launching asks twice (resuming, then becoming active), and a refresh
-        // launch twice more; once is enough
-        guard !librarySyncing, Date().timeIntervalSince(librarySyncStartedAt) >= 60 else {
+        // launch twice more; once is enough, and everybody waits for it
+        if librarySyncing {
+            if let completion = completion { librarySyncWaiters.append(completion) }
+            return
+        }
+
+        guard Date().timeIntervalSince(librarySyncStartedAt) >= 60 else {
             completion?(true)
             return
         }
@@ -370,12 +408,22 @@ final class LiveTracker {
         librarySyncStartedAt = Date()
 
         let finish: (Bool) -> Void = { ok in
-            DispatchQueue.main.async { self.librarySyncing = false }
-            completion?(ok)
+            DispatchQueue.main.async {
+                self.librarySyncing = false
+
+                let waiters = self.librarySyncWaiters
+
+                self.librarySyncWaiters = []
+
+                completion?(ok)
+                waiters.forEach { $0(ok) }
+            }
         }
 
         let since = defaults.object(forKey: Key.librarySyncedAt) as? Date ?? Date().addingTimeInterval(-6 * 3600)
         let startedAt = Date()
+        // Here, on the main thread, where UIDevice may be asked
+        let deviceId = self.deviceId
 
         DispatchQueue.global(qos: .utility).async { [weak self] in
             guard let self = self else {
@@ -401,7 +449,7 @@ final class LiveTracker {
                 return
             }
 
-            guard let request = self.request(path: "/me/library-plays", body: ["deviceId": self.deviceId, "items": Array(items)]) else {
+            guard let request = self.request(path: "/me/library-plays", body: ["deviceId": deviceId, "items": Array(items)]) else {
                 finish(false)
                 return
             }
@@ -461,9 +509,12 @@ final class LiveTracker {
                 return
             }
 
-            // A snapshot of the player while awake: it is believed only as long
-            // as a heartbeat would be, and then lapses on its own
-            self.send(self.snapshot(), appState: "background")
+            // A snapshot of the player while awake, unless resuming just sent
+            // one: it is believed only as long as a heartbeat would be, and
+            // then lapses on its own
+            if Date().timeIntervalSince(self.lastSentAt) > 5 {
+                self.send(self.snapshot(), appState: "background")
+            }
 
             self.syncLibrary { ok in task.setTaskCompleted(success: ok) }
         }
