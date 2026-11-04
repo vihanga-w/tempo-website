@@ -55,10 +55,16 @@ function reportGaveUp(stage: "prepare" | "create" | "credentials", reason: strin
     }).catch(() => { });
 }
 
-export function SpotifyAppSetup({ redirectUri, swapToken, onReady, onCancel }: {
+export function SpotifyAppSetup({ redirectUri, swapToken, start, onReady, onCancel }: {
     redirectUri: string;
     /** The sign-in session waiting on this, so the app is told when it finishes. */
     swapToken?: string;
+    /**
+     * Where the new app's codes go instead of Tempo's own sign-in (/spotify/byo/start): the
+     * /connect page sends them to /idp/spotify/start, for another app (Lilt). Its authUrl is
+     * opened in the same in-app browser, as Tempo's is.
+     */
+    start?: (creds: { clientId: string; clientSecret: string }) => Promise<{ error: boolean; message?: string; authUrl?: string }>;
     onReady: (authUrl: string) => void;
     onCancel: () => void;
 }) {
@@ -203,7 +209,7 @@ export function SpotifyAppSetup({ redirectUri, swapToken, onReady, onCancel }: {
         }
 
         try {
-            const req = await fetch(API_URL + "/spotify/byo/start", {
+            const res = start ? await start({ clientId: creds.clientId, clientSecret: creds.clientSecret }) : await (await fetch(API_URL + "/spotify/byo/start", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 credentials: "include",
@@ -214,9 +220,7 @@ export function SpotifyAppSetup({ redirectUri, swapToken, onReady, onCancel }: {
                     clientSecret: creds.clientSecret,
                     ...(swapToken ? { swapToken } : {}),
                 }),
-            });
-
-            const res = await req.json() as { error: boolean; message?: string; authUrl?: string };
+            })).json() as { error: boolean; message?: string; authUrl?: string };
 
             if (!res.error && res.authUrl) {
                 setStatus("Almost there…");
