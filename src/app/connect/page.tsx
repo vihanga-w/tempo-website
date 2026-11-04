@@ -6,7 +6,7 @@ import { Box, Button, Center, HStack, Image, Input, Link, Stack, Text } from "@c
 import { Capacitor } from "@capacitor/core";
 import { useEffect, useState } from "react";
 
-/** Where someone without the Tempo app gets it: the TestFlight invite. */
+/** Where someone without the Tempo app gets it: the TestFlight invite (iOS only, so shown only there). */
 const GET_TEMPO_URL = process.env.NEXT_PUBLIC_TEMPO_GET_URL || "https://testflight.apple.com/join/Z7htY1mj";
 
 /**
@@ -68,6 +68,8 @@ export default function Connect() {
     const [done, setDone] = useState(false);
     const [copied, setCopied] = useState(false);
     const [native, setNative] = useState(false);
+    /** TestFlight installs only on iPhone and iPad (an iPad can report itself as a Mac). */
+    const [ios, setIos] = useState(false);
     /** In a browser: the "Continue in Tempo" screen until they choose the browser instead. */
     const [handoff, setHandoff] = useState(true);
     /** In the app: the automatic set-up until they choose to do it by hand. */
@@ -84,6 +86,7 @@ export default function Connect() {
 
         setIssue(q.get("error") ?? "");
         setNative(Capacitor.isNativePlatform());
+        setIos(/iPhone|iPad|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1));
         // Back from Spotify with a problem: they are past the hand-off already
         if (q.get("error"))
             setHandoff(false);
@@ -259,7 +262,7 @@ export default function Connect() {
                                 Tempo sets up Spotify for {appName}. It takes about a minute.
                             </Text>
                             <Button as="a" href={`tempo://connect${typeof window === "undefined" ? "" : window.location.search}`} {...primary}>Open Tempo</Button>
-                            <Button as="a" href={GET_TEMPO_URL} target="_blank" rel="noopener" {...secondary}>Get Tempo</Button>
+                            {ios && <Button as="a" href={GET_TEMPO_URL} target="_blank" rel="noopener" {...secondary}>Get Tempo</Button>}
                         </Stack>
                     ) : done ? (
                         <>
