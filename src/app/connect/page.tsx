@@ -6,8 +6,8 @@ import { Box, Button, Center, HStack, Image, Input, Link, Stack, Text } from "@c
 import { Capacitor } from "@capacitor/core";
 import { useEffect, useState } from "react";
 
-/** Where someone without the Tempo app gets it (the TestFlight invite). Unset: no Get Tempo button. */
-const GET_TEMPO_URL = process.env.NEXT_PUBLIC_TEMPO_GET_URL;
+/** Where someone without the Tempo app gets it: the TestFlight invite. */
+const GET_TEMPO_URL = process.env.NEXT_PUBLIC_TEMPO_GET_URL || "https://testflight.apple.com/join/Z7htY1mj";
 
 /**
  * Connecting another app (Lilt) to the person's Spotify through Tempo.
@@ -16,8 +16,9 @@ const GET_TEMPO_URL = process.env.NEXT_PUBLIC_TEMPO_GET_URL;
  * (client_id, redirect_uri, state, code_challenge). Tempo's server checks it
  * and does the rest (embedder/src/idp.ts); this page only asks.
  *
- * In a browser it first offers the Tempo app (tempo://connect with the same request), which
- * makes the Spotify app automatically; in the app it does that straight away (SpotifyAppSetup).
+ * In a browser it offers the Tempo app (tempo://connect with the same request), which
+ * makes the Spotify app automatically, or the TestFlight invite to get it; setting up by hand
+ * is the sending app's job, so Back returns there; in the app it does that straight away (SpotifyAppSetup).
  * Either way, Tempo's server checks the request again (/idp/client): the query is not trusted.
  *
  * Three ways through by hand:
@@ -212,12 +213,35 @@ export default function Connect() {
     const card = { border: "1px solid #262626", borderRadius: "12px", p: "5", mb: "8", bg: "#131313" };
     const primary = { bg: "#c4a8ff", color: "#0d0d0d", fontFamily: "Inter", fontSize: "15px", borderRadius: "10px", _hover: { bg: "#d2bcff" } };
     const secondary = { bg: "#1f1f1f", color: "#f5f5f5", fontFamily: "Inter", fontSize: "14px", borderRadius: "10px", _hover: { bg: "#272727" } };
+    /**
+     * Back to the app that sent them here. It opened this page in a new window, so close that;
+     * if the browser keeps it open, step back, or failing that tell the app nothing was shared
+     * (the standard OAuth answer, which the app shows as "Not connected").
+     */
+    const back = () => {
+        window.close();
+        setTimeout(() => {
+            if (window.history.length > 1) return window.history.back();
+            if (!redirectUri || !request) return;
+            const to = new URL(redirectUri);
+            to.searchParams.set("error", "access_denied");
+            to.searchParams.set("state", request.state);
+            window.location.href = to.toString();
+        }, 300);
+    };
     const linkStyle = { color: "#c4a8ff", textDecoration: "underline" };
     const problem = ERRORS[issue];
 
     return (
         // The app shell stops <html> scrolling; a full page carries its own scroll container.
-        <Box h="100dvh" w="100vw" overflowY="auto" bg="#0d0d0d">
+        <Box h="100dvh" w="100vw" overflowY="auto" bg="#0d0d0d" position="relative">
+            {request && !native && handoff && !invalid && (
+                // Setting Spotify up by hand happens in the app that sent them here, so back goes there
+                <Button onClick={back} variant="ghost" position="absolute" top="max(12px, env(safe-area-inset-top))" left="3"
+                    fontFamily="Inter" fontSize="15px" color="#a0a0a0" _hover={{ bg: "#1a1a1a", color: "#f5f5f5" }} px="2" gap="1">
+                    <span aria-hidden="true" style={{ fontSize: "20px", lineHeight: 1 }}>‹</span> Back
+                </Button>
+            )}
             <Center minH="100%" px="6" py="12">
                 <Box maxW="480px" w="100%">
                     {invalid ? (
@@ -235,10 +259,7 @@ export default function Connect() {
                                 Tempo sets up Spotify for {appName}. It takes about a minute.
                             </Text>
                             <Button as="a" href={`tempo://connect${typeof window === "undefined" ? "" : window.location.search}`} {...primary}>Open Tempo</Button>
-                            {GET_TEMPO_URL && <Button as="a" href={GET_TEMPO_URL} {...secondary}>Get Tempo</Button>}
-                            <Button variant="link" fontFamily="Inter" fontSize="14px" color="#8a8a8a" mt="2" onClick={() => setHandoff(false)}>
-                                Set it up in the browser instead
-                            </Button>
+                            <Button as="a" href={GET_TEMPO_URL} target="_blank" rel="noopener" {...secondary}>Get Tempo</Button>
                         </Stack>
                     ) : done ? (
                         <>
