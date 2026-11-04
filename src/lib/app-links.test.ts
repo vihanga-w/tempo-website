@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { inAppPath, linkFollower } from "./app-links";
+import { currentRoute, exportedFile, inAppPath, linkFollower } from "./app-links";
 
 describe("inAppPath", () => {
     it("follows the connect page on Tempo's site, query kept", () => {
@@ -64,5 +64,25 @@ describe("linkFollower", () => {
         follow("https://tempo.vihangaw.xyz/connect?state=a");
         follow("https://evil.example/connect");
         expect(went).toEqual([]);
+    });
+});
+
+describe("exportedFile", () => {
+    it("loads the page's own file, since the app answers paths without one with the home page", () => {
+        expect(exportedFile("/connect?client_id=lilt&state=a")).toBe("/connect.html?client_id=lilt&state=a");
+        expect(exportedFile("/connect")).toBe("/connect.html");
+        expect(exportedFile("/connect/manual#x")).toBe("/connect/manual.html#x");
+    });
+
+    it("leaves the root and files alone", () => {
+        expect(exportedFile("/")).toBe("/");
+        expect(exportedFile("/connect.html?a=1")).toBe("/connect.html?a=1");
+    });
+});
+
+describe("currentRoute", () => {
+    it("reads /connect.html as /connect, so an open page is not loaded again", () => {
+        expect(currentRoute("/connect.html", "?state=a")).toBe("/connect?state=a");
+        expect(currentRoute("/connect", "?state=a")).toBe("/connect?state=a");
     });
 });

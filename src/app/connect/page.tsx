@@ -4,6 +4,8 @@ import { API_URL } from "@/lib/const";
 import { SpotifyAppSetup } from "@/components/spotify-app-setup";
 import { Box, Button, Center, HStack, Image, Input, Link, Stack, Text } from "@chakra-ui/react";
 import { Capacitor } from "@capacitor/core";
+import { Preferences } from "@capacitor/preferences";
+import { SplashScreen } from "@capacitor/splash-screen";
 import { useEffect, useState } from "react";
 
 /** Where someone without the Tempo app gets it: the TestFlight invite (iOS only, so shown only there). */
@@ -30,6 +32,24 @@ const GET_TEMPO_URL = process.env.NEXT_PUBLIC_TEMPO_GET_URL || "https://testflig
  * Nobody arriving this way is put on Tempo: the account behind it has no
  * profile, friends or feed unless they sign up for Tempo itself.
  */
+
+/**
+ * The app's Tempo sign-in, for Tempo's server. The app keeps it in its own storage and sends it as a
+ * header (as everything else in the app does): a cookie from Tempo's server is cross-site from the
+ * app's page, which WebKit does not keep, so without this a signed-in app user looks signed out here.
+ */
+async function appAuth(): Promise<Record<string, string>> {
+    if (!Capacitor.isNativePlatform())
+        return {};
+
+    try {
+        const token = (await Preferences.get({ key: "tempo.s.a" })).value;
+
+        return token ? { "x-api-token": token } : {};
+    } catch {
+        return {};
+    }
+}
 
 interface ConnectRequest { client_id: string; redirect_uri: string; state: string; code_challenge: string }
 
@@ -76,6 +96,10 @@ export default function Connect() {
     const [auto, setAuto] = useState(true);
 
     useEffect(() => {
+        // An app launched by a link to here never shows the home page, which is what hides the splash
+        if (Capacitor.isNativePlatform())
+            void SplashScreen.hide().catch(() => { });
+
         const q = new URLSearchParams(window.location.search);
         const req: ConnectRequest = {
             client_id: q.get("client_id") ?? "",
@@ -112,7 +136,8 @@ export default function Connect() {
             })
             .catch(() => setInvalid("Could not reach Tempo. Try again in a moment."));
 
-        fetch(API_URL + "/idp/session", { credentials: "include" })
+        appAuth()
+            .then(headers => fetch(API_URL + "/idp/session", { credentials: "include", headers }))
             .then(r => r.json())
             .then((r: { signedIn: boolean; name: string | null }) => setSignedIn(r.signedIn ? (r.name ?? "") : null))
             .catch(() => setSignedIn(null));
@@ -123,7 +148,7 @@ export default function Connect() {
         try {
             const r = await fetch(API_URL + "/idp/spotify/start", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: { "Content-Type": "application/json", ...(await appAuth()) },
                 credentials: "include",
                 body: JSON.stringify({ request, ...creds }),
             });
@@ -141,7 +166,7 @@ export default function Connect() {
         try {
             const r = await fetch(API_URL + path, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: { "Content-Type": "application/json", ...(await appAuth()) },
                 credentials: "include",
                 // Never logged: the secret goes from this page to Tempo's server and nowhere else
                 body: JSON.stringify(body),
