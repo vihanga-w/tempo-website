@@ -57,7 +57,8 @@ export default function Connect() {
     const [redirectUri, setRedirectUri] = useState("");
     const [invalid, setInvalid] = useState("");
     const [issue, setIssue] = useState("");
-    const [signedIn, setSignedIn] = useState<string | null>(null);
+    /** undefined until Tempo answers; null when not signed in; else the account's name. */
+    const [signedIn, setSignedIn] = useState<string | null | undefined>(undefined);
     const [clientId, setClientId] = useState("");
     const [clientSecret, setClientSecret] = useState("");
     const [knownId, setKnownId] = useState("");
@@ -246,6 +247,8 @@ export default function Connect() {
                                 Finish signing in to Spotify in the window that opened. When it says Spotify is connected, go back to {appName}.
                             </Text>
                         </>
+                    ) : native && auto && signedIn === undefined ? (
+                        <Text fontSize="15px" fontFamily="Inter" color="#a0a0a0">Loading…</Text>
                     ) : native && auto && signedIn === null ? (
                         <>
                             <Box display="inline-block" px="10px" py="3px" mb="4" borderRadius="full" bg="rgba(164,128,255,0.15)" border="1px solid rgba(164,128,255,0.35)">
@@ -272,7 +275,7 @@ export default function Connect() {
 
                             {error && <Text fontSize="13px" fontFamily="Inter" color="#ff8a8a" mb="5" lineHeight="1.5">{error}</Text>}
 
-                            {signedIn !== null && (
+                            {typeof signedIn === "string" && (
                                 <Box {...card}>
                                     <Text fontSize="15px" fontWeight="semibold" fontFamily="Inter" color="#f5f5f5" mb="4">
                                         Signed in to Tempo as {signedIn}
