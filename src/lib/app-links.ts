@@ -83,8 +83,32 @@ export function linkFollower(navigate: (path: string) => void, here: () => strin
     };
 }
 
+/**
+ * The file the app loads for a route. The app serves its pages from the static export, where
+ * /connect is connect.html, and Capacitor answers any path without an extension with index.html:
+ * loading /connect itself would open the home page instead.
+ */
+export function exportedFile(path: string): string {
+    const at = path.search(/[?#]/);
+    const route = at < 0 ? path : path.slice(0, at);
+    const rest = at < 0 ? "" : path.slice(at);
+
+    if (route === "/" || /\.[a-z0-9]+$/i.test(route))
+        return path;
+
+    return `${route}.html${rest}`;
+}
+
+/** The route the app is on, whichever way the page was loaded (/connect or /connect.html). */
+export function currentRoute(pathname: string, search: string): string {
+    return pathname.replace(/\.html$/, "") + search;
+}
+
 // One for the whole page, so a second mount shares what the first has seen.
-const go = linkFollower(path => { window.location.href = path; }, () => window.location.pathname + window.location.search);
+const go = linkFollower(
+    path => { window.location.href = exportedFile(path); },
+    () => currentRoute(window.location.pathname, window.location.search),
+);
 
 /**
  * Follows links that open the app: while it runs, and the one it was launched by. Returns the
