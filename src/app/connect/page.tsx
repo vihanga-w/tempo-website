@@ -32,6 +32,10 @@ const ERRORS: Record<string, { title: string; body: string }> = {
         title: "You need a Spotify app of your own",
         body: "Tempo's shared app is full. Set up your own below: it takes about two minutes and only ever has to cover you.",
     },
+    "not-your-app": {
+        title: "That app belongs to another Spotify account",
+        body: "A saved app can only sign in the account it was set up for. Use your own app's client ID, or set one up below.",
+    },
     spotify: {
         title: "Spotify did not finish signing you in",
         body: "Try again. If it keeps happening, check the client ID and secret are from the same app.",
@@ -62,6 +66,11 @@ export default function Connect() {
         };
 
         setIssue(q.get("error") ?? "");
+
+        // Spotify sent the sign-in back to a browser that did not start it: a link someone
+        // else made, or one copied between browsers. Nothing was connected.
+        if (q.get("error") === "other-browser")
+            return setInvalid("Connecting has to finish in the browser it started in, and nothing was connected. Go back to the app and connect again from there.");
 
         fetch(API_URL + "/idp/client?" + new URLSearchParams({ ...req }))
             .then(r => r.json())
@@ -175,7 +184,7 @@ export default function Connect() {
                     {invalid ? (
                         <>
                             <Text fontSize="26px" fontWeight="bold" fontFamily="Inter" color="#f5f5f5" mb="3">This link does not work</Text>
-                            <Text fontSize="15px" fontFamily="Inter" color="#a0a0a0" lineHeight="1.6">{invalid} Go back to the app and start again.</Text>
+                            <Text fontSize="15px" fontFamily="Inter" color="#a0a0a0" lineHeight="1.6">{invalid}{issue === "other-browser" ? "" : " Go back to the app and start again."}</Text>
                         </>
                     ) : !request ? (
                         <Text fontSize="15px" fontFamily="Inter" color="#a0a0a0">Loading…</Text>
