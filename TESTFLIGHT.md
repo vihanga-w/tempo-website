@@ -4,6 +4,21 @@ Notes handed to TestFlight testers alongside each build. Paste the current
 section into App Store Connect's "What to Test" field; it has a 4000 character
 limit, so keep it inside that.
 
+## 1.4.0 (build 15)
+
+**Sign in to Lilt with Tempo.** Lilt (live lyrics on Even G2 glasses) can now
+follow what you play on Spotify, through Tempo.
+
+Please try:
+
+• In Lilt, tap Connect Spotify with Tempo. Safari should hand you straight to
+this app. If it opens a Tempo page instead, tap Open Tempo.
+• Without a Spotify app yet, Tempo makes one for you: tick Spotify's terms,
+then Set it up for me. Tell us if it stalls.
+• Allow Lilt, then go back to the Even app. Lilt should show Linked on its own.
+• If you came from Lilt with no Tempo account, you should not be asked to make
+a profile, find friends or see the feed.
+
 ## 1.4.0 (build 14)
 
 **Playlists are new.** Tempo builds them from what Spotify can't see: songs
