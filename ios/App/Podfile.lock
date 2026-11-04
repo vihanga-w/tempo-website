@@ -1,6 +1,8 @@
 PODS:
   - Capacitor (7.0.1):
     - CapacitorCordova
+  - CapacitorApp (7.0.1):
+    - Capacitor
   - CapacitorBrowser (7.0.0):
     - Capacitor
   - CapacitorCommunitySafeArea (7.0.0-alpha.1):
@@ -23,6 +25,7 @@ PODS:
 
 DEPENDENCIES:
   - "Capacitor (from `../../node_modules/.pnpm/@capacitor+ios@7.0.1_@capacitor+core@7.0.1/node_modules/@capacitor/ios`)"
+  - "CapacitorApp (from `../../node_modules/.pnpm/@capacitor+app@7.0.1_@capacitor+core@7.0.1/node_modules/@capacitor/app`)"
   - "CapacitorBrowser (from `../../node_modules/.pnpm/@capacitor+browser@7.0.0_@capacitor+core@7.0.1/node_modules/@capacitor/browser`)"
   - "CapacitorCommunitySafeArea (from `../../node_modules/.pnpm/@capacitor-community+safe-area@7.0.0-alpha.1_@capacitor+core@7.0.1/node_modules/@capacitor-community/safe-area`)"
   - "CapacitorCordova (from `../../node_modules/.pnpm/@capacitor+ios@7.0.1_@capacitor+core@7.0.1/node_modules/@capacitor/ios`)"
@@ -37,6 +40,8 @@ DEPENDENCIES:
 EXTERNAL SOURCES:
   Capacitor:
     :path: "../../node_modules/.pnpm/@capacitor+ios@7.0.1_@capacitor+core@7.0.1/node_modules/@capacitor/ios"
+  CapacitorApp:
+    :path: "../../node_modules/.pnpm/@capacitor+app@7.0.1_@capacitor+core@7.0.1/node_modules/@capacitor/app"
   CapacitorBrowser:
     :path: "../../node_modules/.pnpm/@capacitor+browser@7.0.0_@capacitor+core@7.0.1/node_modules/@capacitor/browser"
   CapacitorCommunitySafeArea:
@@ -60,6 +65,7 @@ EXTERNAL SOURCES:
 
 SPEC CHECKSUMS:
   Capacitor: de199cba6c8b20995428ad0b7cb0bc6ca625ffd4
+  CapacitorApp: febecbb9582cb353aed037e18ec765141f880fe9
   CapacitorBrowser: 55c21db47416dcc8fc3b623e18fd7d09acb26081
   CapacitorCommunitySafeArea: 3f049619072ab5d0da2529bcb05b358ff6c13dc1
   CapacitorCordova: 63d476958d5022d76f197031e8b7ea3519988c64
@@ -71,6 +77,6 @@ SPEC CHECKSUMS:
   CapgoInappbrowser: eab1573369dc798af28f37201b97e6fd738a5dde
   CordovaPlugins: c1b07aa5a30eeff293189f83d40c92b3d3e2c448
 
-PODFILE CHECKSUM: d7a42215cab1d80bd8f6c3c3784e34196367750b
+PODFILE CHECKSUM: 9e3e5a42144a91b1288e0d4cf0e0acb8de4e7b1b
 
-COCOAPODS: 1.16.2
+COCOAPODS: 1.17.0

@@ -1,0 +1,13 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["35459TT62A.xyz.vihangaw.tempo"],
+        "components": [
+          { "/": "/connect", "comment": "Another app handing someone to Tempo (Lilt's Spotify link)" },
+          { "/": "/connect/*" }
+        ]
+      }
+    ]
+  }
+}
