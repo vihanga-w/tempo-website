@@ -6,8 +6,8 @@ import { Box, Button, Center, HStack, Image, Input, Link, Stack, Text } from "@c
 import { Capacitor } from "@capacitor/core";
 import { useEffect, useState } from "react";
 
-/** Where someone without the Tempo app gets it. */
-const GET_TEMPO_URL = process.env.NEXT_PUBLIC_TEMPO_GET_URL ?? "https://tempo.vihangaw.xyz";
+/** Where someone without the Tempo app gets it (the TestFlight invite). Unset: no Get Tempo button. */
+const GET_TEMPO_URL = process.env.NEXT_PUBLIC_TEMPO_GET_URL;
 
 /**
  * Connecting another app (Lilt) to the person's Spotify through Tempo.
@@ -234,7 +234,7 @@ export default function Connect() {
                                 Tempo sets up Spotify for {appName}. It takes about a minute.
                             </Text>
                             <Button as="a" href={`tempo://connect${typeof window === "undefined" ? "" : window.location.search}`} {...primary}>Open Tempo</Button>
-                            <Button as="a" href={GET_TEMPO_URL} {...secondary}>Get Tempo</Button>
+                            {GET_TEMPO_URL && <Button as="a" href={GET_TEMPO_URL} {...secondary}>Get Tempo</Button>}
                             <Button variant="link" fontFamily="Inter" fontSize="14px" color="#8a8a8a" mt="2" onClick={() => setHandoff(false)}>
                                 Set it up in the browser instead
                             </Button>
