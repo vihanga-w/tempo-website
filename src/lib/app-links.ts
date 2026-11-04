@@ -55,28 +55,54 @@ export function inAppPath(raw: string): string | null {
 /** The launch link already acted on in this run of the app (kept across page loads). */
 const HANDLED_KEY = "tempo.app-link-handled";
 
-function go(raw: string) {
-    const path = inAppPath(raw);
-
-    if (path && window.location.pathname + window.location.search !== path)
-        window.location.href = path;
-}
+/** How long the same link counts as one: a cold start reports it twice (event and launch URL). */
+const SAME_LINK_MS = 1500;
 
 /**
- * Follows links that open the app: while it runs, and the one it was launched by.
+ * Turns links into page loads, each distinct link once: a cold start hears the launching link both
+ * as an appUrlOpen event and as the launch URL, and a development build mounts everything twice.
+ */
+export function linkFollower(navigate: (path: string) => void, here: () => string, now: () => number = Date.now) {
+    let last = { path: "", at: -Infinity };
+
+    return (raw: string) => {
+        const path = inAppPath(raw);
+
+        if (!path)
+            return;
+
+        const at = now();
+
+        if (path === last.path && at - last.at < SAME_LINK_MS)
+            return;
+
+        last = { path, at };
+
+        if (here() !== path)
+            navigate(path);
+    };
+}
+
+// One for the whole page, so a second mount shares what the first has seen.
+const go = linkFollower(path => { window.location.href = path; }, () => window.location.pathname + window.location.search);
+
+/**
+ * Follows links that open the app: while it runs, and the one it was launched by. Returns the
+ * cleanup for the effect that calls it.
  *
  * Every page load sets this up again (the app moves between pages by loading them), and the launch
  * link stays the same for the whole run, so it is followed once: otherwise leaving /connect would
  * load a page that sent the person straight back.
  */
-export function listenForAppLinks() {
+export function listenForAppLinks(): () => void {
     if (!Capacitor.isNativePlatform())
-        return;
+        return () => { };
 
-    void App.addListener("appUrlOpen", event => go(event.url));
+    let stopped = false;
+    const handle = App.addListener("appUrlOpen", event => go(event.url));
 
     void App.getLaunchUrl().then(launch => {
-        if (!launch?.url)
+        if (stopped || !launch?.url)
             return;
 
         try {
@@ -88,4 +114,9 @@ export function listenForAppLinks() {
 
         go(launch.url);
     }).catch(() => { });
+
+    return () => {
+        stopped = true;
+        void handle.then(h => h.remove()).catch(() => { });
+    };
 }
