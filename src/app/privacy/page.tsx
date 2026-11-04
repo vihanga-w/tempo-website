@@ -56,7 +56,7 @@ const PrivacyPolicy: React.FC = () => {
                 display: (isEmbed ? "none" : "block")
             }}>Tempo. Privacy Policy</h1>
             <p><strong>Effective Date:</strong> Tuesday 15th April 2025</p>
-            <p><strong>Last Updated:</strong> Tuesday 25th August 2026</p>
+            <p><strong>Last Updated:</strong> Wednesday 4th November 2026</p>
 
             <br />
 
@@ -123,6 +123,21 @@ const PrivacyPolicy: React.FC = () => {
                 </p>
                 <p>
                     We do not use your IP address, or anything else, to determine your location. Tempo. does not collect or infer where you are.
+                </p>
+            </Section>
+
+            <Section title="Connecting other apps through Tempo">
+                <p>
+                    Some apps (Lilt first) let you connect your Spotify through Tempo. If you do, Tempo signs you in
+                    with Spotify, asking only to read what you are playing, and keeps that sign-in and the Spotify app
+                    you set up for it. The app you connected gets only what is playing (the song, how far in, and the
+                    kind of device), when it asks, and nothing else.
+                </p>
+                <p>
+                    If you have no Tempo account, connecting does not make you one: Tempo keeps your Spotify ID, name,
+                    that sign-in and your app's codes separately from Tempo accounts, with no profile, friends or
+                    listening history. Disconnecting in the other app stops its access at once. To have this deleted,
+                    contact us (see Contact).
                 </p>
             </Section>
 
