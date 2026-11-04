@@ -1,8 +1,13 @@
 "use client";
 
 import { API_URL } from "@/lib/const";
-import { Box, Button, Center, HStack, Input, Link, Stack, Text } from "@chakra-ui/react";
+import { SpotifyAppSetup } from "@/components/spotify-app-setup";
+import { Box, Button, Center, HStack, Image, Input, Link, Stack, Text } from "@chakra-ui/react";
+import { Capacitor } from "@capacitor/core";
 import { useEffect, useState } from "react";
+
+/** Where someone without the Tempo app gets it. */
+const GET_TEMPO_URL = process.env.NEXT_PUBLIC_TEMPO_GET_URL ?? "https://tempo.vihangaw.xyz";
 
 /**
  * Connecting another app (Lilt) to the person's Spotify through Tempo.
@@ -11,7 +16,11 @@ import { useEffect, useState } from "react";
  * (client_id, redirect_uri, state, code_challenge). Tempo's server checks it
  * and does the rest (embedder/src/idp.ts); this page only asks.
  *
- * Three ways through:
+ * In a browser it first offers the Tempo app (tempo://connect with the same request), which
+ * makes the Spotify app automatically; in the app it does that straight away (SpotifyAppSetup).
+ * Either way, Tempo's server checks the request again (/idp/client): the query is not trusted.
+ *
+ * Three ways through by hand:
  *  - signed in to Tempo here: agree, and go straight back;
  *  - a Spotify app set up before (for Tempo or for another app): its client ID;
  *  - neither: make a Spotify app (Spotify admits five people to any one app,
@@ -54,7 +63,13 @@ export default function Connect() {
     const [knownId, setKnownId] = useState("");
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState("");
+    const [done, setDone] = useState(false);
     const [copied, setCopied] = useState(false);
+    const [native, setNative] = useState(false);
+    /** In a browser: the "Continue in Tempo" screen until they choose the browser instead. */
+    const [handoff, setHandoff] = useState(true);
+    /** In the app: the automatic set-up until they choose to do it by hand. */
+    const [auto, setAuto] = useState(true);
 
     useEffect(() => {
         const q = new URLSearchParams(window.location.search);
@@ -66,6 +81,13 @@ export default function Connect() {
         };
 
         setIssue(q.get("error") ?? "");
+        setNative(Capacitor.isNativePlatform());
+        // Back from Spotify with a problem: they are past the hand-off already
+        if (q.get("error"))
+            setHandoff(false);
+
+        if (q.get("error") === "expired")
+            return setInvalid("That sign-in link was used or had expired, and nothing was connected. Go back to the app and connect again from there.");
 
         // Spotify sent the sign-in back to a browser that did not start it: a link someone
         // else made, or one copied between browsers. Nothing was connected.
@@ -90,6 +112,22 @@ export default function Connect() {
             .then((r: { signedIn: boolean; name: string | null }) => setSignedIn(r.signedIn ? (r.name ?? "") : null))
             .catch(() => setSignedIn(null));
     }, []);
+
+    /** The automatic set-up's codes go to Tempo's connect start, for this request. */
+    const startForApp = async (creds: { clientId: string; clientSecret: string }) => {
+        try {
+            const r = await fetch(API_URL + "/idp/spotify/start", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify({ request, ...creds }),
+            });
+
+            return await r.json() as { error: boolean; message?: string; authUrl?: string };
+        } catch {
+            return { error: true, message: "Could not reach Tempo." };
+        }
+    };
 
     const go = async (path: string, body: Record<string, unknown>) => {
         setBusy(true);
@@ -188,6 +226,33 @@ export default function Connect() {
                         </>
                     ) : !request ? (
                         <Text fontSize="15px" fontFamily="Inter" color="#a0a0a0">Loading…</Text>
+                    ) : !native && handoff ? (
+                        <Stack gap="4" align="stretch">
+                            <Image src="/icon.png" alt="Tempo" w="64px" h="64px" borderRadius="16px" />
+                            <Text fontSize="26px" fontWeight="bold" fontFamily="Inter" color="#f5f5f5">Continue in Tempo</Text>
+                            <Text fontSize="15px" fontFamily="Inter" color="#a0a0a0" lineHeight="1.6" mb="4">
+                                Tempo sets up Spotify for {appName}. It takes about a minute.
+                            </Text>
+                            <Button as="a" href={`tempo://connect${typeof window === "undefined" ? "" : window.location.search}`} {...primary}>Open Tempo</Button>
+                            <Button as="a" href={GET_TEMPO_URL} {...secondary}>Get Tempo</Button>
+                            <Button variant="link" fontFamily="Inter" fontSize="14px" color="#8a8a8a" mt="2" onClick={() => setHandoff(false)}>
+                                Set it up in the browser instead
+                            </Button>
+                        </Stack>
+                    ) : done ? (
+                        <>
+                            <Text fontSize="26px" fontWeight="bold" fontFamily="Inter" color="#f5f5f5" mb="3">Nearly done</Text>
+                            <Text fontSize="15px" fontFamily="Inter" color="#a0a0a0" lineHeight="1.6">
+                                Finish signing in to Spotify in the window that opened. When it says Spotify is connected, go back to {appName}.
+                            </Text>
+                        </>
+                    ) : native && auto && signedIn === null ? (
+                        <>
+                            <Box display="inline-block" px="10px" py="3px" mb="4" borderRadius="full" bg="rgba(164,128,255,0.15)" border="1px solid rgba(164,128,255,0.35)">
+                                <Text fontSize="12px" fontFamily="Inter" color="#c4a8ff">For {appName}</Text>
+                            </Box>
+                            <SpotifyAppSetup redirectUri={redirectUri} start={startForApp} onReady={() => setDone(true)} onCancel={() => setAuto(false)} />
+                        </>
                     ) : (
                         <>
                             <Text fontSize="26px" fontWeight="bold" fontFamily="Inter" color="#f5f5f5" mb="3">
