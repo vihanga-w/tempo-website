@@ -246,6 +246,11 @@ export default function UserPreferencesPage({ user }: { user: User }) {
         });
     };
 
+    // -1 means no run and is truthy: read as a start at the epoch, it showed a
+    // streak of ~500k hours
+    const sessionStart = playbackState?.data.state?.playSessionStart ?? -1;
+    const streakMs = (sessionStart > 0 ? Date.now() - sessionStart : 0);
+
     return (
         <Box w="100%" mx="auto" mt={2}>
             <VStack spacing={3} align="stretch">
@@ -306,9 +311,8 @@ export default function UserPreferencesPage({ user }: { user: User }) {
                                 {profileData?.listenerTypeClassification ?? "Casual Listener"}
                             </Text>
 
-                            {(playbackState?.data.state?.playSessionStart &&
-                                new Date().getTime() - playbackState.data.state.playSessionStart >= 5 * 60e3) ? (
-                                <Text>🔥 {formatTimeToMinAndHour(new Date().getTime() - playbackState.data.state.playSessionStart, true)}</Text>
+                            {streakMs >= 5 * 60e3 ? (
+                                <Text>🔥 {formatTimeToMinAndHour(streakMs, true)}</Text>
                             ) : playbackState ? (
                                 <Text>Started listening recently</Text>
                             ) : (
